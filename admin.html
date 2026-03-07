@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gazdálkodj Okosan – Admin</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1>Tábla és kártyák kezelése</h1>
+        <p class="subtitle">Alapverzió: mezők, kártyák és globális beállítások szerkesztése.</p>
+      </div>
+      <a class="ghost-button" href="index.html">Vissza a játékhoz</a>
+    </header>
+
+    <main class="layout-grid admin-grid">
+      <section class="card span-2">
+        <div class="section-head">
+          <div>
+            <h2>Globális beállítások</h2>
+            <p class="small-note">Kezdőpénz, start bónusz, győzelmi feltétel.</p>
+          </div>
+          <button id="saveConfigBtn" class="primary-button">Mentés</button>
+        </div>
+        <div class="form-grid form-grid-4">
+          <label>
+            Kezdő pénz
+            <input id="cfgStartingMoney" type="number" />
+          </label>
+          <label>
+            Start bónusz
+            <input id="cfgPassStartBonus" type="number" />
+          </label>
+          <label>
+            Győzelemhez kellő tárgyak
+            <input id="cfgWinItemCount" type="number" min="1" />
+          </label>
+          <label>
+            Aktív pakli név
+            <input id="cfgDefaultDeck" type="text" placeholder="default" />
+          </label>
+        </div>
+      </section>
+
+      <section class="card span-2">
+        <div class="section-head">
+          <div>
+            <h2>Mezők</h2>
+            <p class="small-note">Típusok: start, neutral, money, card, shop, skip, move.</p>
+          </div>
+          <button id="reloadTilesBtn">Újratöltés</button>
+        </div>
+
+        <form id="tileForm" class="admin-form">
+          <input id="tileId" type="hidden" />
+          <div class="form-grid form-grid-4">
+            <label>
+              Sorrend
+              <input id="tileOrder" type="number" required />
+            </label>
+            <label>
+              Név
+              <input id="tileName" type="text" required />
+            </label>
+            <label>
+              Leírás
+              <input id="tileDescription" type="text" />
+            </label>
+            <label>
+              Típus
+              <select id="tileType">
+                <option value="start">start</option>
+                <option value="neutral">neutral</option>
+                <option value="money">money</option>
+                <option value="card">card</option>
+                <option value="shop">shop</option>
+                <option value="skip">skip</option>
+                <option value="move">move</option>
+              </select>
+            </label>
+            <label>
+              Pénz változás
+              <input id="tileAmount" type="number" value="0" />
+            </label>
+            <label>
+              Kimaradó körök
+              <input id="tileTurns" type="number" value="0" />
+            </label>
+            <label>
+              Lépések száma
+              <input id="tileSteps" type="number" value="0" />
+            </label>
+            <label>
+              Pakli
+              <input id="tileDeck" type="text" placeholder="default" />
+            </label>
+            <label>
+              Bolti tárgy neve
+              <input id="tileItemName" type="text" />
+            </label>
+            <label>
+              Tárgy ára
+              <input id="tileItemPrice" type="number" value="0" />
+            </label>
+          </div>
+          <div class="button-row">
+            <button type="submit" class="primary-button">Mező mentése</button>
+            <button type="button" id="tileResetBtn">Űrlap törlése</button>
+          </div>
+        </form>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Név</th>
+                <th>Típus</th>
+                <th>Leírás</th>
+                <th>Művelet</th>
+              </tr>
+            </thead>
+            <tbody id="tileTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card span-2">
+        <div class="section-head">
+          <div>
+            <h2>Kártyák</h2>
+            <p class="small-note">Funkciók: none, money, skip, move, shop.</p>
+          </div>
+          <button id="reloadCardsBtn">Újratöltés</button>
+        </div>
+
+        <form id="cardForm" class="admin-form">
+          <input id="cardId" type="hidden" />
+          <div class="form-grid form-grid-4">
+            <label>
+              Pakli
+              <input id="cardDeck" type="text" placeholder="default" required />
+            </label>
+            <label>
+              Cím
+              <input id="cardTitle" type="text" required />
+            </label>
+            <label>
+              Leírás
+              <input id="cardDescription" type="text" required />
+            </label>
+            <label>
+              Funkció
+              <select id="cardActionType">
+                <option value="none">none</option>
+                <option value="money">money</option>
+                <option value="skip">skip</option>
+                <option value="move">move</option>
+                <option value="shop">shop</option>
+              </select>
+            </label>
+            <label>
+              Pénz változás
+              <input id="cardAmount" type="number" value="0" />
+            </label>
+            <label>
+              Kimaradó körök
+              <input id="cardTurns" type="number" value="0" />
+            </label>
+            <label>
+              Lépések száma
+              <input id="cardSteps" type="number" value="0" />
+            </label>
+            <label>
+              Tárgy neve
+              <input id="cardItemName" type="text" />
+            </label>
+            <label>
+              Tárgy ára
+              <input id="cardItemPrice" type="number" value="0" />
+            </label>
+          </div>
+          <div class="button-row">
+            <button type="submit" class="primary-button">Kártya mentése</button>
+            <button type="button" id="cardResetBtn">Űrlap törlése</button>
+          </div>
+        </form>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Pakli</th>
+                <th>Cím</th>
+                <th>Leírás</th>
+                <th>Funkció</th>
+                <th>Művelet</th>
+              </tr>
+            </thead>
+            <tbody id="cardTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="assets/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gazdálkodj Okosan – Alap Multiplayer</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">GitHub Pages + Supabase alap</p>
+        <h1>Gazdálkodj Okosan</h1>
+        <p class="subtitle">Egyszerű, böngészős, többjátékos alapverzió admin felülettel.</p>
+      </div>
+      <a class="ghost-button" href="admin.html">Admin felület</a>
+    </header>
+
+    <main class="layout-grid">
+      <section class="card" id="connectionCard">
+        <h2>Szoba</h2>
+        <div class="form-grid">
+          <label>
+            Játékosnév
+            <input id="playerName" type="text" maxlength="24" placeholder="Pl. Tesó" />
+          </label>
+          <label>
+            Szobakód
+            <input id="roomCode" type="text" maxlength="8" placeholder="Pl. ABC123" />
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="createRoomBtn" class="primary-button">Szoba létrehozása</button>
+          <button id="joinRoomBtn">Csatlakozás</button>
+          <button id="leaveRoomBtn" class="danger-button hidden">Kilépés a szobából</button>
+        </div>
+        <p class="small-note" id="connectionStatus">Még nem csatlakoztál szobához.</p>
+      </section>
+
+      <section class="card" id="lobbyCard">
+        <div class="section-head">
+          <div>
+            <h2>Lobby</h2>
+            <p class="small-note">A host indíthatja a játékot.</p>
+          </div>
+          <button id="startGameBtn" class="primary-button hidden">Játék indítása</button>
+        </div>
+        <div id="playersLobby" class="player-list empty-state">Nincs még játékos.</div>
+      </section>
+
+      <section class="card span-2" id="gameCard">
+        <div class="section-head">
+          <div>
+            <h2>Játék</h2>
+            <p class="small-note" id="turnInfo">Csatlakozz egy szobához a kezdéshez.</p>
+          </div>
+          <div class="button-row compact">
+            <button id="processSkipBtn" class="hidden">Kimaradás feldolgozása</button>
+            <button id="rollBtn" class="primary-button hidden">Dobás</button>
+            <button id="refreshBtn">Frissítés</button>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="mini-card">
+            <span>Szobakód</span>
+            <strong id="roomCodeBadge">–</strong>
+          </div>
+          <div class="mini-card">
+            <span>Kör</span>
+            <strong id="roundBadge">–</strong>
+          </div>
+          <div class="mini-card">
+            <span>Utolsó dobás</span>
+            <strong id="lastRollBadge">–</strong>
+          </div>
+          <div class="mini-card">
+            <span>Győzelem feltétel</span>
+            <strong id="winConditionBadge">–</strong>
+          </div>
+        </div>
+
+        <div class="board-wrapper">
+          <div id="board" class="board empty-state">A tábla itt fog megjelenni.</div>
+        </div>
+
+        <div class="two-col">
+          <div class="sub-card">
+            <h3>Játékosok állása</h3>
+            <div id="playersGame" class="player-list empty-state">Még nincs adat.</div>
+          </div>
+          <div class="sub-card">
+            <h3>Eseménynapló</h3>
+            <div id="logList" class="log-list empty-state">Még nincs esemény.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="assets/app.js"></script>
+</body>
+</html>
