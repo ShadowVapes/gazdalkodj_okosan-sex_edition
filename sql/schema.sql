@@ -1,53 +1,43 @@
 create extension if not exists pgcrypto;
 
 create table if not exists public.game_config (
-  id bigint generated always as identity primary key,
-  starting_money integer not null default 1500,
-  pass_start_bonus integer not null default 300,
-  win_item_count integer not null default 3,
-  default_deck text not null default 'default',
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
 create table if not exists public.game_tiles (
-  id bigint generated always as identity primary key,
-  sort_order integer not null,
+  id bigserial primary key,
+  sort_order integer not null default 0,
   name text not null,
-  description text,
-  tile_type text not null check (tile_type in ('start', 'neutral', 'money', 'card', 'shop', 'skip', 'move')),
+  kind text not null default 'neutral',
   amount integer not null default 0,
-  turns integer not null default 0,
-  steps integer not null default 0,
-  deck_name text not null default 'default',
-  item_name text,
-  item_price integer not null default 0,
-  is_active boolean not null default true,
+  price integer not null default 0,
+  card_group text,
+  effect jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
 create table if not exists public.game_cards (
-  id bigint generated always as identity primary key,
-  deck_name text not null default 'default',
+  id bigserial primary key,
+  card_group text not null default 'chance',
   title text not null,
-  description text not null,
-  action_type text not null check (action_type in ('none', 'money', 'skip', 'move', 'shop')),
+  body text,
   amount integer not null default 0,
-  turns integer not null default 0,
-  steps integer not null default 0,
-  item_name text,
-  item_price integer not null default 0,
-  is_active boolean not null default true,
+  skip_turns integer not null default 0,
+  move_steps integer not null default 0,
+  effect jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
 create table if not exists public.rooms (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
-  status text not null default 'waiting' check (status in ('waiting', 'playing', 'finished')),
-  current_turn_index integer not null default 0,
-  turn_number integer not null default 1,
+  status text not null default 'lobby',
+  host_player_id uuid,
+  turn_index integer not null default 0,
+  turn_no integer not null default 1,
   last_roll integer,
-  winner_player_id uuid,
   created_at timestamptz not null default now()
 );
 
@@ -55,9 +45,9 @@ create table if not exists public.room_players (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.rooms(id) on delete cascade,
   name text not null,
-  player_order integer not null default 0,
+  seat_no integer not null default 0,
   position integer not null default 0,
-  money integer not null default 1500,
+  money integer not null default 0,
   skip_turns integer not null default 0,
   inventory jsonb not null default '[]'::jsonb,
   is_host boolean not null default false,
@@ -65,40 +55,57 @@ create table if not exists public.room_players (
 );
 
 create table if not exists public.room_logs (
-  id bigint generated always as identity primary key,
+  id bigserial primary key,
   room_id uuid not null references public.rooms(id) on delete cascade,
-  message text not null,
+  entry text not null,
+  payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
-insert into public.game_config (starting_money, pass_start_bonus, win_item_count, default_deck)
-select 1500, 300, 3, 'default'
-where not exists (select 1 from public.game_config);
+create index if not exists idx_game_tiles_sort_order on public.game_tiles(sort_order);
+create index if not exists idx_room_players_room_id on public.room_players(room_id);
+create index if not exists idx_room_logs_room_id on public.room_logs(room_id);
 
-insert into public.game_tiles (sort_order, name, description, tile_type, amount, turns, steps, deck_name, item_name, item_price)
-select * from (
-  values
-    (0, 'Start', 'Ha áthaladsz rajta, kapsz bónuszt.', 'start', 0, 0, 0, 'default', null, 0),
-    (1, 'Fizetésnap', 'Kapsz egy kis pénzt.', 'money', 400, 0, 0, 'default', null, 0),
-    (2, 'Szerencse', 'Húzz egy kártyát.', 'card', 0, 0, 0, 'default', null, 0),
-    (3, 'Bútorbolt', 'Vehetsz egy széket.', 'shop', 0, 0, 0, 'default', 'Szék', 600),
-    (4, 'Csekk', 'Befizetsz egy kellemetlen számlát.', 'money', -300, 0, 0, 'default', null, 0),
-    (5, 'Pihenő', 'Kimaradsz egy körből.', 'skip', 0, 1, 0, 'default', null, 0),
-    (6, 'Buszmegálló', 'Előrelépsz kettőt.', 'move', 0, 0, 2, 'default', null, 0),
-    (7, 'Semmi', 'Nyugi, itt most nincs hatás.', 'neutral', 0, 0, 0, 'default', null, 0)
-) as seed(sort_order, name, description, tile_type, amount, turns, steps, deck_name, item_name, item_price)
-where not exists (select 1 from public.game_tiles);
+insert into public.game_config (key, value)
+values
+  ('starting_money', '{"value":3000}'),
+  ('start_bonus', '{"value":400}'),
+  ('win_money', '{"value":10000}'),
+  ('required_items', '{"value":4}')
+on conflict (key) do nothing;
 
-insert into public.game_cards (deck_name, title, description, action_type, amount, turns, steps, item_name, item_price)
-select * from (
-  values
-    ('default', 'Prémium', 'Találsz pénzt a kabátzsebben.', 'money', 500, 0, 0, null, 0),
-    ('default', 'Baleset', 'Kimaradsz egy körből.', 'skip', 0, 1, 0, null, 0),
-    ('default', 'Akciós polc', 'Visszalépsz egy mezőt.', 'move', 0, 0, -1, null, 0),
-    ('default', 'Outlet', 'Olcsón megvehetsz egy lámpát.', 'shop', 0, 0, 0, 'Lámpa', 450),
-    ('default', 'Semmi extra', 'Csak egy vicces szöveg.', 'none', 0, 0, 0, null, 0)
-) as cards(deck_name, title, description, action_type, amount, turns, steps, item_name, item_price)
-where not exists (select 1 from public.game_cards);
+insert into public.game_tiles (sort_order, name, kind, amount, price, card_group, effect)
+values
+  (0, 'Start', 'start', 0, 0, null, '{}'),
+  (1, 'Fizetés', 'money', 600, 0, null, '{}'),
+  (2, 'Szerencsekártya', 'card', 0, 0, 'chance', '{}'),
+  (3, 'Konyhaszék bolt', 'shop', 0, 400, null, '{"item":"Konyhaszék","price":400}'),
+  (4, 'Villanyszámla', 'money', -350, 0, null, '{}'),
+  (5, 'Pihenő', 'neutral', 0, 0, null, '{}'),
+  (6, 'Kimaradsz', 'skip', 1, 0, null, '{"skip_turns":1}'),
+  (7, 'Szerencsekártya', 'card', 0, 0, 'chance', '{}'),
+  (8, 'Asztal bolt', 'shop', 0, 900, null, '{"item":"Asztal","price":900}'),
+  (9, 'Bónusz', 'money', 800, 0, null, '{}'),
+  (10, 'Lépj előre', 'move', 2, 0, null, '{"move_steps":2}'),
+  (11, 'Tv bolt', 'shop', 0, 1300, null, '{"item":"Tv","price":1300}'),
+  (12, 'Szerencsekártya', 'card', 0, 0, 'chance', '{}'),
+  (13, 'Adó', 'money', -700, 0, null, '{}'),
+  (14, 'Ágy bolt', 'shop', 0, 1600, null, '{"item":"Ágy","price":1600}'),
+  (15, 'Jutalom', 'money', 1200, 0, null, '{}'),
+  (16, 'Vissza 2 mezőt', 'move', -2, 0, null, '{"move_steps":-2}'),
+  (17, 'Szerencsekártya', 'card', 0, 0, 'chance', '{}'),
+  (18, 'Hűtő bolt', 'shop', 0, 2000, null, '{"item":"Hűtő","price":2000}'),
+  (19, 'Havi fizu', 'money', 1000, 0, null, '{}')
+on conflict do nothing;
+
+insert into public.game_cards (card_group, title, body, amount, skip_turns, move_steps, effect)
+values
+  ('chance', 'Fizetésemelés', 'Kapsz egy kis plusz pénzt.', 700, 0, 0, '{}'),
+  ('chance', 'Bírság', 'Befizetsz egy váratlan csekket.', -500, 0, 0, '{}'),
+  ('chance', 'Lépj előre', 'Szerencsés vagy, haladj tovább.', 0, 0, 3, '{}'),
+  ('chance', 'Kimaradsz', 'Most pihensz egyet.', 0, 1, 0, '{}'),
+  ('chance', 'Ajándék rádió', 'Kaptál egy tárgyat.', 0, 0, 0, '{"item":"Rádió"}')
+on conflict do nothing;
 
 alter table public.game_config enable row level security;
 alter table public.game_tiles enable row level security;
@@ -128,7 +135,3 @@ begin
     create policy "Public full access room_logs" on public.room_logs for all using (true) with check (true);
   end if;
 end $$;
-
--- Opcionális realtime:
--- Ha valós idejű frissítést akarsz polling helyett / mellett, add hozzá ezeket a táblákat a Supabase Realtime replicationhöz:
--- rooms, room_players, room_logs

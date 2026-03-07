@@ -1,788 +1,732 @@
-import {
-  createSupabase,
-  showToast,
-  randomCode,
-  getSession,
-  setSession,
-  clearSession,
-  currency,
-  cloneInventory,
-  escapeHtml,
-  getTileColor,
-} from './lib.js';
-import { DEMO_MODE } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, DEMO_MODE } from './config.js';
 
-const supabase = createSupabase();
-const state = {
-  session: getSession(),
-  room: null,
-  players: [],
-  tiles: [],
-  logs: [],
-  config: {
-    starting_money: 1500,
-    pass_start_bonus: 300,
-    win_item_count: 3,
-    default_deck: 'default',
-  },
-  isBusy: false,
-  pollTimer: null,
-  subscriptions: [],
-};
+const supabase = !DEMO_MODE && window.supabase
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 
 const els = {
+  connectionStatus: document.getElementById('connectionStatus'),
+  lobbyScreen: document.getElementById('lobbyScreen'),
+  gameScreen: document.getElementById('gameScreen'),
   playerName: document.getElementById('playerName'),
-  roomCode: document.getElementById('roomCode'),
+  roomCodeInput: document.getElementById('roomCodeInput'),
   createRoomBtn: document.getElementById('createRoomBtn'),
   joinRoomBtn: document.getElementById('joinRoomBtn'),
+  refreshLobbyBtn: document.getElementById('refreshLobbyBtn'),
   leaveRoomBtn: document.getElementById('leaveRoomBtn'),
-  connectionStatus: document.getElementById('connectionStatus'),
+  leaveGameBtn: document.getElementById('leaveGameBtn'),
+  backToLobbyBtn: document.getElementById('backToLobbyBtn'),
   startGameBtn: document.getElementById('startGameBtn'),
-  playersLobby: document.getElementById('playersLobby'),
-  turnInfo: document.getElementById('turnInfo'),
-  roomCodeBadge: document.getElementById('roomCodeBadge'),
-  roundBadge: document.getElementById('roundBadge'),
-  lastRollBadge: document.getElementById('lastRollBadge'),
-  winConditionBadge: document.getElementById('winConditionBadge'),
-  board: document.getElementById('board'),
-  playersGame: document.getElementById('playersGame'),
-  logList: document.getElementById('logList'),
   rollBtn: document.getElementById('rollBtn'),
-  processSkipBtn: document.getElementById('processSkipBtn'),
-  refreshBtn: document.getElementById('refreshBtn'),
+  roomLobbyPanel: document.getElementById('roomLobbyPanel'),
+  roomCodeTitle: document.getElementById('roomCodeTitle'),
+  lobbyPlayers: document.getElementById('lobbyPlayers'),
+  lobbyMeta: document.getElementById('lobbyMeta'),
+  gameRoomTitle: document.getElementById('gameRoomTitle'),
+  gamePlayers: document.getElementById('gamePlayers'),
+  turnInfo: document.getElementById('turnInfo'),
+  diceInfo: document.getElementById('diceInfo'),
+  actionInfo: document.getElementById('actionInfo'),
+  logList: document.getElementById('logList'),
+  board: document.getElementById('board'),
 };
 
-init();
+const state = {
+  isBusy: false,
+  room: null,
+  players: [],
+  logs: [],
+  tiles: [],
+  cards: [],
+  config: {
+    starting_money: 3000,
+    start_bonus: 400,
+    win_money: 10000,
+    required_items: 4,
+  },
+  session: loadSession(),
+  refreshTimer: null,
+};
+
+const GRID_SIZE = 11;
+const pathCells = buildPathCells(GRID_SIZE);
+
+init().catch((error) => {
+  console.error(error);
+  setStatus('Hiba a betöltéskor.');
+});
 
 async function init() {
   bindEvents();
-  if (DEMO_MODE) {
-    showToast('Előbb állítsd be a Supabase URL-t és anon kulcsot az assets/config.js fájlban.', 'error');
+
+  if (!supabase) {
+    setStatus('Nincs beállítva a Supabase.');
+    setAction('Állítsd be az assets/config.js fájlt.');
+    disableMainButtons(true);
+    return;
   }
 
-  if (state.session && supabase) {
-    const ok = await hydrateFromSession();
-    if (!ok) {
-      clearSession();
-      state.session = null;
-    }
-  }
-
+  setStatus('Kapcsolat ellenőrzése...');
   await loadStaticData();
-  renderAll();
+  disableMainButtons(false);
+  setStatus('Kapcsolódva.');
+
+  if (state.session?.roomCode && state.session?.playerId) {
+    els.playerName.value = state.session.playerName || '';
+    await refreshRoom();
+  }
 }
 
 function bindEvents() {
   els.createRoomBtn.addEventListener('click', createRoom);
   els.joinRoomBtn.addEventListener('click', joinRoom);
-  els.leaveRoomBtn.addEventListener('click', leaveRoom);
+  els.refreshLobbyBtn.addEventListener('click', refreshRoom);
   els.startGameBtn.addEventListener('click', startGame);
-  els.rollBtn.addEventListener('click', handleRollTurn);
-  els.processSkipBtn.addEventListener('click', processSkipTurn);
-  els.refreshBtn.addEventListener('click', refreshRoomState);
+  els.rollBtn.addEventListener('click', rollDice);
+  els.leaveRoomBtn.addEventListener('click', leaveRoom);
+  els.leaveGameBtn.addEventListener('click', leaveRoom);
+  els.backToLobbyBtn.addEventListener('click', () => showScreen('lobby'));
 }
 
-async function loadStaticData() {
-  if (!supabase) return;
-
-  const [{ data: configRows, error: configError }, { data: tiles, error: tilesError }] = await Promise.all([
-    supabase.from('game_config').select('*').limit(1),
-    supabase.from('game_tiles').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
-  ]);
-
-  if (configError) {
-    showToast(`Config hiba: ${configError.message}`, 'error');
-  } else if (configRows?.[0]) {
-    state.config = configRows[0];
-  }
-
-  if (tilesError) {
-    showToast(`Tábla hiba: ${tilesError.message}`, 'error');
-  } else {
-    state.tiles = tiles || [];
-  }
-}
-
-async function hydrateFromSession() {
-  const { room_id: roomId, player_id: playerId } = state.session;
-  const { data: room, error: roomError } = await supabase.from('rooms').select('*').eq('id', roomId).maybeSingle();
-  if (roomError || !room) return false;
-  const { data: player, error: playerError } = await supabase.from('room_players').select('*').eq('id', playerId).maybeSingle();
-  if (playerError || !player) return false;
-
-  state.room = room;
-  await refreshRoomState(false);
-  attachRoomListeners();
-  return true;
-}
-
-async function createRoom() {
-  if (!supabase) return;
-  const name = normalizeName(els.playerName.value);
-  if (!name) {
-    showToast('Adj meg egy játékosnevet.', 'error');
-    return;
-  }
-
-  state.isBusy = true;
-  renderButtons();
-
-  try {
-    const code = randomCode(6);
-    const { data: room, error: roomError } = await supabase
-      .from('rooms')
-      .insert({
-        code,
-        status: 'waiting',
-        current_turn_index: 0,
-        turn_number: 1,
-        last_roll: null,
-      })
-      .select()
-      .single();
-
-    if (roomError) throw roomError;
-
-    const { data: players, error: playerError } = await supabase
-      .from('room_players')
-      .insert({
-        room_id: room.id,
-        name,
-        player_order: 0,
-        position: 0,
-        money: Number(state.config.starting_money || 1500),
-        skip_turns: 0,
-        inventory: [],
-        is_host: true,
-      })
-      .select();
-
-    if (playerError) throw playerError;
-
-    state.session = {
-      room_id: room.id,
-      player_id: players[0].id,
-      room_code: code,
-    };
-    setSession(state.session);
-    state.room = room;
-
-    await addLog(room.id, `${name} létrehozta a szobát (${code}).`);
-    await refreshRoomState(false);
-    attachRoomListeners();
-    showToast(`Szoba létrehozva: ${code}`, 'success');
-  } catch (error) {
-    showToast(error.message || 'Nem sikerült létrehozni a szobát.', 'error');
-  } finally {
-    state.isBusy = false;
-    renderAll();
-  }
-}
-
-async function joinRoom() {
-  if (!supabase) return;
-  const name = normalizeName(els.playerName.value);
-  const code = els.roomCode.value.trim().toUpperCase();
-
-  if (!name || !code) {
-    showToast('Adj meg játékosnevet és szobakódot is.', 'error');
-    return;
-  }
-
-  state.isBusy = true;
-  renderButtons();
-
-  try {
-    const { data: room, error: roomError } = await supabase.from('rooms').select('*').eq('code', code).maybeSingle();
-    if (roomError) throw roomError;
-    if (!room) throw new Error('Nincs ilyen szoba.');
-
-    const { data: existingPlayers, error: existingError } = await supabase
-      .from('room_players')
-      .select('*')
-      .eq('room_id', room.id)
-      .order('player_order', { ascending: true });
-    if (existingError) throw existingError;
-
-    const nextOrder = existingPlayers.length;
-    const { data: players, error: playerError } = await supabase
-      .from('room_players')
-      .insert({
-        room_id: room.id,
-        name,
-        player_order: nextOrder,
-        position: 0,
-        money: Number(state.config.starting_money || 1500),
-        skip_turns: 0,
-        inventory: [],
-        is_host: false,
-      })
-      .select();
-
-    if (playerError) throw playerError;
-
-    state.session = {
-      room_id: room.id,
-      player_id: players[0].id,
-      room_code: room.code,
-    };
-    setSession(state.session);
-    state.room = room;
-
-    await addLog(room.id, `${name} csatlakozott a szobához.`);
-    await refreshRoomState(false);
-    attachRoomListeners();
-    showToast(`Csatlakoztál a(z) ${room.code} szobához.`, 'success');
-  } catch (error) {
-    showToast(error.message || 'Nem sikerült csatlakozni.', 'error');
-  } finally {
-    state.isBusy = false;
-    renderAll();
-  }
-}
-
-async function leaveRoom() {
-  if (!supabase || !state.session) return;
-  const player = getMe();
-  const room = state.room;
-  if (!player || !room) return;
-
-  try {
-    await addLog(room.id, `${player.name} kilépett a szobából.`);
-    const { error } = await supabase.from('room_players').delete().eq('id', player.id);
-    if (error) throw error;
-  } catch (error) {
-    showToast(error.message || 'Nem sikerült kilépni.', 'error');
-    return;
-  }
-
-  detachListeners();
-  clearInterval(state.pollTimer);
-  state.pollTimer = null;
-  clearSession();
-  state.session = null;
-  state.room = null;
-  state.players = [];
-  state.logs = [];
-  renderAll();
-  showToast('Kiléptél a szobából.', 'success');
-}
-
-async function startGame() {
-  if (!supabase || !state.room) return;
-  const me = getMe();
-  if (!me?.is_host) {
-    showToast('Csak a host indíthatja a játékot.', 'error');
-    return;
-  }
-  if (state.players.length < 2) {
-    showToast('Legalább 2 játékos kell a kezdéshez.', 'error');
-    return;
-  }
-
-  try {
-    const baseMoney = Number(state.config.starting_money || 1500);
-    for (const player of state.players) {
-      await supabase.from('room_players').update({
-        position: 0,
-        money: baseMoney,
-        skip_turns: 0,
-        inventory: [],
-      }).eq('id', player.id);
-    }
-
-    const { error } = await supabase.from('rooms').update({
-      status: 'playing',
-      current_turn_index: 0,
-      turn_number: 1,
-      last_roll: null,
-      winner_player_id: null,
-    }).eq('id', state.room.id);
-
-    if (error) throw error;
-    await addLog(state.room.id, 'A játék elindult.');
-    await refreshRoomState(false);
-    showToast('Játék elindítva.', 'success');
-  } catch (error) {
-    showToast(error.message || 'Nem sikerült elindítani a játékot.', 'error');
-  }
-}
-
-async function handleRollTurn() {
-  if (!supabase || !state.room || state.isBusy) return;
-  const me = getMe();
-  const activePlayer = getActivePlayer();
-  if (!me || !activePlayer) return;
-
-  if (activePlayer.id !== me.id) {
-    showToast('Most nem te jössz.', 'error');
-    return;
-  }
-
-  if (me.skip_turns > 0) {
-    showToast('Ennek a játékosnak kimaradó köre van.', 'error');
-    return;
-  }
-
-  state.isBusy = true;
-  renderButtons();
-
-  try {
-    const roll = Math.floor(Math.random() * 6) + 1;
-    const boardSize = Math.max(1, state.tiles.length);
-    let newPosition = (Number(me.position) + roll) % boardSize;
-    let newMoney = Number(me.money);
-    let inventory = cloneInventory(me.inventory);
-    let logLines = [`${me.name} dobott: ${roll}.`];
-
-    if (Number(me.position) + roll >= boardSize) {
-      const bonus = Number(state.config.pass_start_bonus || 0);
-      newMoney += bonus;
-      logLines.push(`${me.name} áthaladt a starton és kapott ${currency(bonus)} pénzt.`);
-    }
-
-    const tile = state.tiles[newPosition];
-    const resolution = await resolveTileEffect({
-      player: me,
-      tile,
-      position: newPosition,
-      money: newMoney,
-      inventory,
-      depth: 0,
-    });
-
-    newPosition = resolution.position;
-    newMoney = resolution.money;
-    inventory = resolution.inventory;
-    logLines = [...logLines, ...resolution.logs];
-
-    const { error: updatePlayerError } = await supabase.from('room_players').update({
-      position: newPosition,
-      money: newMoney,
-      inventory,
-    }).eq('id', me.id);
-    if (updatePlayerError) throw updatePlayerError;
-
-    const next = computeNextTurnIndex();
-    const winner = inventory.length >= Number(state.config.win_item_count || 3);
-
-    const roomPatch = {
-      last_roll: roll,
-      current_turn_index: next,
-      turn_number: next === 0 ? Number(state.room.turn_number || 1) + 1 : Number(state.room.turn_number || 1),
-      winner_player_id: winner ? me.id : null,
-      status: winner ? 'finished' : state.room.status,
-    };
-
-    const { error: roomError } = await supabase.from('rooms').update(roomPatch).eq('id', state.room.id);
-    if (roomError) throw roomError;
-
-    for (const line of logLines) {
-      await addLog(state.room.id, line);
-    }
-    if (winner) {
-      await addLog(state.room.id, `${me.name} megnyerte a játékot!`);
-    }
-
-    await refreshRoomState(false);
-    showToast(winner ? 'Nyertél!' : 'Lépés feldolgozva.', 'success');
-  } catch (error) {
-    showToast(error.message || 'Hiba történt a dobásnál.', 'error');
-  } finally {
-    state.isBusy = false;
-    renderAll();
-  }
-}
-
-async function processSkipTurn() {
-  if (!supabase || !state.room || state.isBusy) return;
-  const activePlayer = getActivePlayer();
-  const me = getMe();
-  if (!activePlayer || activePlayer.skip_turns <= 0) {
-    showToast('Nincs kimaradó kör feldolgozásra.', 'error');
-    return;
-  }
-  if (activePlayer.id !== me?.id && !me?.is_host) {
-    showToast('Ezt most az aktív játékos vagy a host intézheti.', 'error');
-    return;
-  }
-
-  state.isBusy = true;
-  renderButtons();
-
-  try {
-    const nextSkip = Math.max(0, Number(activePlayer.skip_turns) - 1);
-    const { error: playerError } = await supabase.from('room_players').update({ skip_turns: nextSkip }).eq('id', activePlayer.id);
-    if (playerError) throw playerError;
-
-    const next = computeNextTurnIndex();
-    const { error: roomError } = await supabase.from('rooms').update({
-      current_turn_index: next,
-      turn_number: next === 0 ? Number(state.room.turn_number || 1) + 1 : Number(state.room.turn_number || 1),
-      last_roll: null,
-    }).eq('id', state.room.id);
-    if (roomError) throw roomError;
-
-    await addLog(state.room.id, `${activePlayer.name} köre kimarad. Hátralévő kihagyások: ${nextSkip}.`);
-    await refreshRoomState(false);
-    showToast('Kimaradó kör feldolgozva.', 'success');
-  } catch (error) {
-    showToast(error.message || 'Nem sikerült feldolgozni a kimaradást.', 'error');
-  } finally {
-    state.isBusy = false;
-    renderAll();
-  }
-}
-
-async function resolveTileEffect(context) {
-  const out = {
-    position: context.position,
-    money: Number(context.money),
-    inventory: cloneInventory(context.inventory),
-    logs: [],
-  };
-
-  if (!context.tile || context.depth > 3) {
-    return out;
-  }
-
-  const tile = context.tile;
-  out.logs.push(`${context.player.name} mezőre lépett: ${tile.name}.`);
-
-  switch (tile.tile_type) {
-    case 'money': {
-      out.money += Number(tile.amount || 0);
-      out.logs.push(`Pénz változás: ${currency(tile.amount || 0)}.`);
-      break;
-    }
-    case 'skip': {
-      const skipTurns = Math.max(0, Number(tile.turns || 0));
-      await supabase.from('room_players').update({ skip_turns: skipTurns }).eq('id', context.player.id);
-      out.logs.push(`${context.player.name} ${skipTurns} kört kihagy.`);
-      break;
-    }
-    case 'move': {
-      const steps = Number(tile.steps || 0);
-      const boardSize = Math.max(1, state.tiles.length);
-      out.position = normalizePosition(out.position + steps, boardSize);
-      out.logs.push(`Továbblépés: ${steps > 0 ? '+' : ''}${steps} mező.`);
-      const chained = await resolveTileEffect({
-        ...context,
-        tile: state.tiles[out.position],
-        position: out.position,
-        money: out.money,
-        inventory: out.inventory,
-        depth: context.depth + 1,
-      });
-      chained.logs = [...out.logs, ...chained.logs];
-      return chained;
-    }
-    case 'card': {
-      const deckName = tile.deck_name || state.config.default_deck || 'default';
-      const card = await drawRandomCard(deckName);
-      if (!card) {
-        out.logs.push(`A ${deckName} pakliban nincs aktív kártya.`);
-        break;
-      }
-      out.logs.push(`Húzott kártya: ${card.title} — ${card.description}`);
-      const cardResult = await applyCardEffect(context.player, card, out.position, out.money, out.inventory);
-      out.position = cardResult.position;
-      out.money = cardResult.money;
-      out.inventory = cardResult.inventory;
-      out.logs.push(...cardResult.logs);
-      break;
-    }
-    case 'shop': {
-      const itemName = tile.item_name || 'Ismeretlen tárgy';
-      const price = Number(tile.item_price || 0);
-      const canAfford = out.money >= price;
-      const confirmed = canAfford && window.confirm(`${itemName} megvásárlása ${currency(price)} pénzért?`);
-      if (confirmed) {
-        out.money -= price;
-        out.inventory.push(itemName);
-        out.logs.push(`${context.player.name} megvette ezt: ${itemName} (${currency(price)}).`);
-      } else {
-        out.logs.push(`${context.player.name} nem vásárolt a boltban.`);
-      }
-      break;
-    }
-    default:
-      out.logs.push('Semmi extra nem történt ezen a mezőn.');
-      break;
-  }
-
-  return out;
-}
-
-async function drawRandomCard(deckName) {
-  const { data, error } = await supabase
-    .from('game_cards')
-    .select('*')
-    .eq('is_active', true)
-    .eq('deck_name', deckName);
-  if (error) throw error;
-  if (!data?.length) return null;
-  return data[Math.floor(Math.random() * data.length)];
-}
-
-async function applyCardEffect(player, card, position, money, inventory) {
-  const out = {
-    position,
-    money: Number(money),
-    inventory: cloneInventory(inventory),
-    logs: [],
-  };
-
-  switch (card.action_type) {
-    case 'money':
-      out.money += Number(card.amount || 0);
-      out.logs.push(`Kártyahatás: pénz változás ${currency(card.amount || 0)}.`);
-      break;
-    case 'skip': {
-      const skipTurns = Math.max(0, Number(card.turns || 0));
-      await supabase.from('room_players').update({ skip_turns: skipTurns }).eq('id', player.id);
-      out.logs.push(`Kártyahatás: ${skipTurns} kör kimarad.`);
-      break;
-    }
-    case 'move': {
-      const boardSize = Math.max(1, state.tiles.length);
-      const steps = Number(card.steps || 0);
-      out.position = normalizePosition(position + steps, boardSize);
-      out.logs.push(`Kártyahatás: mozgás ${steps > 0 ? '+' : ''}${steps} mező.`);
-      break;
-    }
-    case 'shop': {
-      const itemName = card.item_name || 'Kártyás tárgy';
-      const price = Number(card.item_price || 0);
-      const canAfford = out.money >= price;
-      const confirmed = canAfford && window.confirm(`${card.title}: megveszed ezt: ${itemName} (${currency(price)})?`);
-      if (confirmed) {
-        out.money -= price;
-        out.inventory.push(itemName);
-        out.logs.push(`Kártyahatás: megvásárolva ${itemName}.`);
-      } else {
-        out.logs.push(`Kártyahatás: ${itemName} nem lett megvéve.`);
-      }
-      break;
-    }
-    default:
-      out.logs.push('A kártyának csak szöveges hatása volt.');
-      break;
-  }
-
-  return out;
-}
-
-function computeNextTurnIndex() {
-  if (!state.players.length) return 0;
-  return (Number(state.room.current_turn_index || 0) + 1) % state.players.length;
-}
-
-function normalizePosition(value, boardSize) {
-  return ((value % boardSize) + boardSize) % boardSize;
-}
-
-async function addLog(roomId, message) {
-  if (!supabase) return;
-  await supabase.from('room_logs').insert({ room_id: roomId, message });
-}
-
-async function refreshRoomState(showMessage = true) {
-  if (!supabase || !state.session) return;
-  const roomId = state.session.room_id;
-
-  const [{ data: room, error: roomError }, { data: players, error: playersError }, { data: logs, error: logsError }] = await Promise.all([
-    supabase.from('rooms').select('*').eq('id', roomId).maybeSingle(),
-    supabase.from('room_players').select('*').eq('room_id', roomId).order('player_order', { ascending: true }),
-    supabase.from('room_logs').select('*').eq('room_id', roomId).order('created_at', { ascending: false }).limit(12),
-  ]);
-
-  if (roomError || !room) {
-    showToast(roomError?.message || 'Nem található a szoba.', 'error');
-    return;
-  }
-  if (playersError) {
-    showToast(playersError.message, 'error');
-    return;
-  }
-  if (logsError) {
-    showToast(logsError.message, 'error');
-    return;
-  }
-
-  state.room = room;
-  state.players = players || [];
-  state.logs = logs || [];
-
-  if (showMessage) showToast('Állapot frissítve.', 'success');
-  renderAll();
-}
-
-function attachRoomListeners() {
-  detachListeners();
-  clearInterval(state.pollTimer);
-  if (!supabase || !state.session) return;
-
-  const roomId = state.session.room_id;
-
-  try {
-    const roomChannel = supabase.channel(`room-${roomId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, () => refreshRoomState(false))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_players', filter: `room_id=eq.${roomId}` }, () => refreshRoomState(false))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_logs', filter: `room_id=eq.${roomId}` }, () => refreshRoomState(false))
-      .subscribe();
-    state.subscriptions.push(roomChannel);
-  } catch {
-    // fallback below
-  }
-
-  state.pollTimer = setInterval(() => refreshRoomState(false), 2500);
-}
-
-function detachListeners() {
-  if (!supabase) return;
-  for (const channel of state.subscriptions) {
-    try {
-      supabase.removeChannel(channel);
-    } catch {
-      // ignore
-    }
-  }
-  state.subscriptions = [];
-}
-
-function getActivePlayer() {
-  if (!state.players.length) return null;
-  return state.players[Number(state.room?.current_turn_index || 0)] || null;
-}
-
-function getMe() {
-  if (!state.session) return null;
-  return state.players.find((player) => player.id === state.session.player_id) || null;
-}
-
-function normalizeName(value) {
-  return value.trim().slice(0, 24);
-}
-
-function renderAll() {
-  renderConnection();
-  renderLobby();
-  renderGame();
-  renderButtons();
-}
-
-function renderConnection() {
-  const roomCode = state.room?.code || state.session?.room_code || '–';
-  els.roomCodeBadge.textContent = roomCode;
-  els.connectionStatus.textContent = state.session
-    ? `Csatlakozva: ${roomCode}`
-    : 'Még nem csatlakoztál szobához.';
-  els.leaveRoomBtn.classList.toggle('hidden', !state.session);
-}
-
-function renderLobby() {
-  if (!state.players.length) {
-    els.playersLobby.innerHTML = '<div class="empty-state">Nincs még játékos.</div>';
-  } else {
-    els.playersLobby.innerHTML = state.players.map((player, index) => `
-      <div class="player-card ${player.id === getActivePlayer()?.id ? 'active-player' : ''}">
-        <h4>${escapeHtml(player.name)}</h4>
-        <div class="player-meta">
-          <span class="player-chip">Sorrend: ${index + 1}</span>
-          ${player.is_host ? '<span class="player-chip">Host</span>' : ''}
-          <span class="player-chip">Pénz: ${currency(player.money)}</span>
-          <span class="player-chip">Tárgyak: ${cloneInventory(player.inventory).length}</span>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  const me = getMe();
-  const canStart = me?.is_host && state.players.length >= 2 && state.room?.status !== 'playing';
-  els.startGameBtn.classList.toggle('hidden', !canStart);
-}
-
-function renderGame() {
-  const activePlayer = getActivePlayer();
-  const me = getMe();
-
-  els.roundBadge.textContent = String(state.room?.turn_number || '–');
-  els.lastRollBadge.textContent = state.room?.last_roll ?? '–';
-  els.winConditionBadge.textContent = `${state.config.win_item_count || 3} tárgy`;
-
-  if (!state.session) {
-    els.turnInfo.textContent = 'Csatlakozz egy szobához a kezdéshez.';
-  } else if (state.room?.status === 'finished') {
-    const winner = state.players.find((player) => player.id === state.room.winner_player_id);
-    els.turnInfo.textContent = winner ? `A játék véget ért. Nyertes: ${winner.name}.` : 'A játék véget ért.';
-  } else if (state.room?.status !== 'playing') {
-    els.turnInfo.textContent = 'A játék még nem indult el.';
-  } else if (activePlayer) {
-    els.turnInfo.textContent = `${activePlayer.name} következik.`;
-  }
-
-  if (!state.tiles.length) {
-    els.board.innerHTML = '<div class="empty-state">Nincs aktív mező. Állítsd be az admin oldalon.</div>';
-  } else {
-    els.board.innerHTML = state.tiles.map((tile, index) => {
-      const playersOnTile = state.players.filter((player) => Number(player.position) === index);
-      return `
-        <div class="tile ${playersOnTile.length ? 'active-tile' : ''}" style="border-color:${getTileColor(tile.tile_type)}">
-          <span class="tile-index">${index}</span>
-          <h4>${escapeHtml(tile.name)}</h4>
-          <p>${escapeHtml(tile.description || 'Nincs leírás')}</p>
-          <span class="type-badge">${escapeHtml(tile.tile_type)}</span>
-          <div class="player-markers">
-            ${playersOnTile.length
-              ? playersOnTile.map((player) => `<span class="player-chip">${escapeHtml(player.name)}</span>`).join('')
-              : '<span class="tag">Üres</span>'}
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  if (!state.players.length) {
-    els.playersGame.innerHTML = '<div class="empty-state">Még nincs játékos adat.</div>';
-  } else {
-    els.playersGame.innerHTML = state.players.map((player) => {
-      const inventory = cloneInventory(player.inventory);
-      return `
-        <div class="player-card ${player.id === activePlayer?.id ? 'active-player' : ''}">
-          <h4>${escapeHtml(player.name)}</h4>
-          <div class="player-meta">
-            <span class="player-chip">Pozíció: ${Number(player.position) + 1}</span>
-            <span class="player-chip">Pénz: ${currency(player.money)}</span>
-            <span class="player-chip">Kimaradás: ${player.skip_turns || 0}</span>
-            <span class="player-chip">Tárgyak: ${inventory.length}</span>
-          </div>
-          <p class="small-note" style="margin-top:10px;">${inventory.length ? inventory.map(escapeHtml).join(', ') : 'Még nincs vásárolt tárgy.'}</p>
-        </div>
-      `;
-    }).join('');
-  }
-
-  if (!state.logs.length) {
-    els.logList.innerHTML = '<div class="empty-state">Még nincs esemény.</div>';
-  } else {
-    els.logList.innerHTML = state.logs.map((log) => `
-      <div class="log-item">
-        <strong>${new Date(log.created_at).toLocaleString('hu-HU')}</strong>
-        <div>${escapeHtml(log.message)}</div>
-      </div>
-    `).join('');
-  }
-
-  els.rollBtn.classList.toggle('hidden', !(state.room?.status === 'playing' && me && activePlayer?.id === me.id && Number(me.skip_turns || 0) === 0));
-  els.processSkipBtn.classList.toggle('hidden', !(state.room?.status === 'playing' && activePlayer && Number(activePlayer.skip_turns || 0) > 0 && (me?.id === activePlayer.id || me?.is_host)));
-}
-
-function renderButtons() {
-  const disabled = state.isBusy || !supabase;
+function disableMainButtons(disabled) {
   els.createRoomBtn.disabled = disabled;
   els.joinRoomBtn.disabled = disabled;
   els.startGameBtn.disabled = disabled;
   els.rollBtn.disabled = disabled;
-  els.processSkipBtn.disabled = disabled;
+}
+
+function buildPathCells(size) {
+  const cells = [];
+  for (let col = size; col >= 1; col--) cells.push({ row: size, col });
+  for (let row = size - 1; row >= 1; row--) cells.push({ row, col: 1 });
+  for (let col = 2; col <= size; col++) cells.push({ row: 1, col });
+  for (let row = 2; row <= size - 1; row++) cells.push({ row, col: size });
+  return cells;
+}
+
+async function loadStaticData() {
+  const [configRes, tileRes, cardRes] = await Promise.all([
+    supabase.from('game_config').select('key, value'),
+    supabase.from('game_tiles').select('*').order('sort_order', { ascending: true }),
+    supabase.from('game_cards').select('*').order('id', { ascending: true }),
+  ]);
+
+  if (configRes.error) throw configRes.error;
+  if (tileRes.error) throw tileRes.error;
+  if (cardRes.error) throw cardRes.error;
+
+  state.config = readConfig(configRes.data || []);
+  state.tiles = tileRes.data || [];
+  state.cards = cardRes.data || [];
+  renderBoard();
+}
+
+function readConfig(rows) {
+  const merged = {
+    starting_money: 3000,
+    start_bonus: 400,
+    win_money: 10000,
+    required_items: 4,
+  };
+
+  for (const row of rows) {
+    if (!row?.key) continue;
+    const raw = row.value;
+    const value = typeof raw === 'object' && raw !== null && 'value' in raw ? raw.value : raw;
+    merged[row.key] = Number.isFinite(Number(value)) ? Number(value) : value;
+  }
+
+  return merged;
+}
+
+function getPlayerName() {
+  return (els.playerName.value || '').trim();
+}
+
+function normalizeCode(value) {
+  return (value || '').trim().toUpperCase();
+}
+
+function requireName() {
+  const name = getPlayerName();
+  if (!name) {
+    alert('Adj meg egy játékosnevet.');
+    return null;
+  }
+  return name;
+}
+
+function randomRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < 5; i += 1) {
+    out += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return out;
+}
+
+async function createRoom() {
+  const playerName = requireName();
+  if (!playerName || state.isBusy) return;
+
+  state.isBusy = true;
+  try {
+    setStatus('Szoba létrehozása...');
+    const roomCode = randomRoomCode();
+
+    const roomInsert = await supabase
+      .from('rooms')
+      .insert({ code: roomCode, status: 'lobby', turn_index: 0, turn_no: 1 })
+      .select('*')
+      .single();
+
+    if (roomInsert.error) throw roomInsert.error;
+    const room = roomInsert.data;
+
+    const playerInsert = await supabase
+      .from('room_players')
+      .insert({
+        room_id: room.id,
+        name: playerName,
+        seat_no: 0,
+        money: Number(state.config.starting_money || 3000),
+        is_host: true,
+        inventory: [],
+      })
+      .select('*')
+      .single();
+
+    if (playerInsert.error) throw playerInsert.error;
+
+    await supabase
+      .from('rooms')
+      .update({ host_player_id: playerInsert.data.id })
+      .eq('id', room.id);
+
+    await addLog(room.id, `${playerName} létrehozta a szobát.`);
+    saveSession({ roomCode, playerId: playerInsert.data.id, playerName });
+    await refreshRoom();
+  } catch (error) {
+    console.error(error);
+    alert(`Nem sikerült létrehozni a szobát: ${error.message || error}`);
+    setStatus('Szobalétrehozás sikertelen.');
+  } finally {
+    state.isBusy = false;
+  }
+}
+
+async function joinRoom() {
+  const playerName = requireName();
+  const roomCode = normalizeCode(els.roomCodeInput.value);
+  if (!playerName || !roomCode || state.isBusy) {
+    if (!roomCode) alert('Adj meg szobakódot.');
+    return;
+  }
+
+  state.isBusy = true;
+  try {
+    const roomRes = await supabase.from('rooms').select('*').eq('code', roomCode).maybeSingle();
+    if (roomRes.error) throw roomRes.error;
+    if (!roomRes.data) throw new Error('Nincs ilyen szoba.');
+    if (roomRes.data.status === 'finished') throw new Error('Ez a szoba már befejeződött.');
+
+    const playersRes = await supabase
+      .from('room_players')
+      .select('*')
+      .eq('room_id', roomRes.data.id)
+      .order('seat_no', { ascending: true });
+
+    if (playersRes.error) throw playersRes.error;
+    const seatNo = (playersRes.data?.length || 0);
+
+    const insertRes = await supabase
+      .from('room_players')
+      .insert({
+        room_id: roomRes.data.id,
+        name: playerName,
+        seat_no: seatNo,
+        money: Number(state.config.starting_money || 3000),
+        is_host: false,
+        inventory: [],
+      })
+      .select('*')
+      .single();
+
+    if (insertRes.error) throw insertRes.error;
+
+    await addLog(roomRes.data.id, `${playerName} csatlakozott a szobához.`);
+    saveSession({ roomCode, playerId: insertRes.data.id, playerName });
+    await refreshRoom();
+  } catch (error) {
+    console.error(error);
+    alert(`Nem sikerült csatlakozni: ${error.message || error}`);
+    setStatus('Csatlakozás sikertelen.');
+  } finally {
+    state.isBusy = false;
+  }
+}
+
+async function refreshRoom() {
+  if (!state.session?.roomCode || !state.session?.playerId) return;
+
+  const roomRes = await supabase.from('rooms').select('*').eq('code', state.session.roomCode).maybeSingle();
+  if (roomRes.error) {
+    console.error(roomRes.error);
+    return;
+  }
+  if (!roomRes.data) {
+    clearSession();
+    renderEmptyState();
+    return;
+  }
+
+  state.room = roomRes.data;
+
+  const [playersRes, logsRes] = await Promise.all([
+    supabase.from('room_players').select('*').eq('room_id', state.room.id).order('seat_no', { ascending: true }),
+    supabase.from('room_logs').select('*').eq('room_id', state.room.id).order('created_at', { ascending: false }).limit(25),
+  ]);
+
+  if (playersRes.error) console.error(playersRes.error);
+  if (logsRes.error) console.error(logsRes.error);
+
+  state.players = playersRes.data || [];
+  state.logs = logsRes.data || [];
+
+  renderRoom();
+  ensureRefreshLoop();
+}
+
+function ensureRefreshLoop() {
+  if (state.refreshTimer) return;
+  state.refreshTimer = setInterval(refreshRoom, 2200);
+}
+
+function stopRefreshLoop() {
+  if (!state.refreshTimer) return;
+  clearInterval(state.refreshTimer);
+  state.refreshTimer = null;
+}
+
+function getMe() {
+  return state.players.find((player) => player.id === state.session?.playerId) || null;
+}
+
+function getActivePlayer() {
+  if (!state.players.length || !state.room) return null;
+  const idx = Number(state.room.turn_index || 0) % state.players.length;
+  return state.players[idx] || null;
+}
+
+function showScreen(which) {
+  const gameActive = which === 'game';
+  els.lobbyScreen.classList.toggle('hidden', gameActive);
+  els.gameScreen.classList.toggle('hidden', !gameActive);
+}
+
+function renderRoom() {
+  if (!state.room) {
+    renderEmptyState();
+    return;
+  }
+
+  const me = getMe();
+  const activePlayer = getActivePlayer();
+  const isHost = Boolean(me?.is_host);
+
+  els.roomLobbyPanel.classList.remove('hidden');
+  els.roomCodeTitle.textContent = state.room.code;
+  els.gameRoomTitle.textContent = `Szoba: ${state.room.code}`;
+  els.roomCodeInput.value = state.room.code;
+
+  const lobbyHtml = state.players.map((player) => playerCardHtml(player, activePlayer?.id === player.id)).join('');
+  els.lobbyPlayers.innerHTML = lobbyHtml || '<div class="meta-box">Még nincs játékos.</div>';
+  els.gamePlayers.innerHTML = lobbyHtml || '<div class="meta-box">Még nincs játékos.</div>';
+
+  els.lobbyMeta.innerHTML = `
+    <div class="meta-pill">Állapot: <span class="mono">${state.room.status}</span></div>
+    <div class="meta-pill">Játékosok: <span class="mono">${state.players.length}</span></div>
+    <div class="meta-pill">Kör: <span class="mono">${state.room.turn_no || 1}</span></div>
+    <div class="meta-pill">Te: <span class="mono">${me?.name || '-'}</span></div>
+  `;
+
+  els.startGameBtn.disabled = !(isHost && state.room.status === 'lobby' && state.players.length >= 2);
+
+  const yourTurn = activePlayer?.id === me?.id;
+  els.rollBtn.disabled = !(state.room.status === 'playing' && yourTurn);
+  els.turnInfo.textContent = state.room.status === 'playing'
+    ? `Aktív kör: ${activePlayer?.name || '-'} | Körszám: ${state.room.turn_no || 1}`
+    : 'A játék még nem indult el.';
+
+  const lastLog = state.logs[0]?.entry || 'Még nincs esemény.';
+  setAction(lastLog);
+  els.diceInfo.textContent = state.room.last_roll ? `Dobás: ${state.room.last_roll}` : '-';
+  renderLogs();
+  renderBoard();
+
+  if (state.room.status === 'playing' || state.room.status === 'finished') {
+    showScreen('game');
+  } else {
+    showScreen('lobby');
+  }
+
+  if (state.room.status === 'finished') {
+    els.rollBtn.disabled = true;
+  }
+}
+
+function playerCardHtml(player, isActive) {
+  const me = player.id === state.session?.playerId;
+  const items = Array.isArray(player.inventory) ? player.inventory.length : 0;
+  const classes = ['player-card'];
+  if (me) classes.push('me');
+  if (isActive) classes.push('active-turn');
+  return `
+    <div class="${classes.join(' ')}">
+      <div class="player-topline">
+        <div class="player-name">${escapeHtml(player.name || 'Névtelen')}</div>
+        <div class="player-sub">${player.is_host ? 'HOST' : 'JÁTÉKOS'}</div>
+      </div>
+      <div class="player-meta">
+        <span>Pénz: ${Number(player.money || 0)} Ft</span>
+        <span>Mező: ${Number(player.position || 0)}</span>
+      </div>
+      <div class="player-meta">
+        <span>Kimaradás: ${Number(player.skip_turns || 0)}</span>
+        <span>Tárgyak: ${items}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderLogs() {
+  els.logList.innerHTML = state.logs.map((row) => `
+    <div class="log-item">
+      <strong>${escapeHtml(row.entry || '')}</strong>
+      <div class="log-time">${new Date(row.created_at).toLocaleString('hu-HU')}</div>
+    </div>
+  `).join('') || '<div class="meta-box">Még nincs napló.</div>';
+}
+
+function renderBoard() {
+  const boardMap = new Map();
+  state.tiles.forEach((tile, index) => {
+    const coord = pathCells[index % pathCells.length];
+    boardMap.set(`${coord.row}-${coord.col}`, { tile, index });
+  });
+
+  const pawnsByPos = new Map();
+  state.players.forEach((player, index) => {
+    const pos = Number(player.position || 0) % Math.max(state.tiles.length, 1);
+    if (!pawnsByPos.has(pos)) pawnsByPos.set(pos, []);
+    pawnsByPos.get(pos).push({ player, index });
+  });
+
+  const cells = [];
+  for (let row = 1; row <= GRID_SIZE; row += 1) {
+    for (let col = 1; col <= GRID_SIZE; col += 1) {
+      const key = `${row}-${col}`;
+      const info = boardMap.get(key);
+      if (row > 1 && row < GRID_SIZE && col > 1 && col < GRID_SIZE) {
+        if (row === 2 && col === 2) {
+          cells.push(`
+            <div class="board-cell center">
+              <h2>Gazdálkodj Okosan</h2>
+              <p>Retro stílusú online alapverzió. A lobby külön van, a játék pedig külön táblán fut.</p>
+            </div>
+          `);
+        }
+        continue;
+      }
+
+      if (!info) {
+        cells.push('<div class="board-cell"></div>');
+        continue;
+      }
+
+      const pawns = pawnsByPos.get(info.index) || [];
+      cells.push(`
+        <div class="board-cell path">
+          <div class="tile-index">#${info.index}</div>
+          <div class="tile-title">${escapeHtml(info.tile.name || `Mező ${info.index}`)}</div>
+          <div class="tile-kind">${escapeHtml(info.tile.kind || 'neutral')}</div>
+          <div class="pawn-list">
+            ${pawns.map((entry) => `<div class="pawn pawn-${entry.index % 6}" title="${escapeHtml(entry.player.name)}">${escapeHtml(entry.player.name.slice(0, 1).toUpperCase())}</div>`).join('')}
+          </div>
+        </div>
+      `);
+    }
+  }
+
+  els.board.innerHTML = cells.join('');
+}
+
+async function startGame() {
+  const me = getMe();
+  if (!me?.is_host || !state.room || state.room.status !== 'lobby') return;
+  if (state.players.length < 2) {
+    alert('Legalább 2 játékos kell a kezdéshez.');
+    return;
+  }
+
+  const orderedPlayers = [...state.players].sort((a, b) => a.seat_no - b.seat_no);
+  for (const player of orderedPlayers) {
+    await supabase
+      .from('room_players')
+      .update({
+        position: 0,
+        money: Number(state.config.starting_money || 3000),
+        skip_turns: 0,
+        inventory: [],
+      })
+      .eq('id', player.id);
+  }
+
+  const updateRes = await supabase
+    .from('rooms')
+    .update({ status: 'playing', turn_index: 0, turn_no: 1, last_roll: null })
+    .eq('id', state.room.id);
+
+  if (updateRes.error) {
+    alert(updateRes.error.message);
+    return;
+  }
+
+  await addLog(state.room.id, 'A játék elindult.');
+  await refreshRoom();
+}
+
+async function rollDice() {
+  const me = getMe();
+  const activePlayer = getActivePlayer();
+  if (!me || !activePlayer || me.id !== activePlayer.id || state.room?.status !== 'playing') return;
+
+  let workingPlayer = { ...me };
+  if (Number(workingPlayer.skip_turns || 0) > 0) {
+    await supabase.from('room_players').update({ skip_turns: Number(workingPlayer.skip_turns) - 1 }).eq('id', workingPlayer.id);
+    await addLog(state.room.id, `${workingPlayer.name} kimarad egy kört.`);
+    await advanceTurn();
+    await refreshRoom();
+    return;
+  }
+
+  const roll = Math.floor(Math.random() * 6) + 1;
+  const tileCount = Math.max(state.tiles.length, 1);
+  const previousPos = Number(workingPlayer.position || 0);
+  let nextPos = previousPos + roll;
+  let money = Number(workingPlayer.money || 0);
+  let inventory = Array.isArray(workingPlayer.inventory) ? [...workingPlayer.inventory] : [];
+  let skipTurns = Number(workingPlayer.skip_turns || 0);
+  let logParts = [`${workingPlayer.name} dobott: ${roll}.`];
+
+  if (nextPos >= tileCount) {
+    nextPos %= tileCount;
+    const bonus = Number(state.config.start_bonus || 0);
+    money += bonus;
+    logParts.push(`Áthaladt a starton és kapott ${bonus} Ft-ot.`);
+  }
+
+  const result = applyTileEffect({ position: nextPos, money, inventory, skipTurns, logParts });
+
+  const updatePlayer = await supabase
+    .from('room_players')
+    .update({
+      position: result.position,
+      money: result.money,
+      inventory: result.inventory,
+      skip_turns: result.skipTurns,
+    })
+    .eq('id', workingPlayer.id);
+
+  if (updatePlayer.error) {
+    alert(updatePlayer.error.message);
+    return;
+  }
+
+  const isWinner = checkWin(result);
+  await supabase.from('rooms').update({ last_roll: roll, status: isWinner ? 'finished' : 'playing' }).eq('id', state.room.id);
+  await addLog(state.room.id, result.logParts.join(' '));
+
+  if (isWinner) {
+    await addLog(state.room.id, `${workingPlayer.name} megnyerte a játékot!`);
+  } else {
+    await advanceTurn();
+  }
+
+  await refreshRoom();
+}
+
+function applyTileEffect({ position, money, inventory, skipTurns, logParts }) {
+  const tile = state.tiles[position];
+  if (!tile) return { position, money, inventory, skipTurns, logParts };
+
+  logParts.push(`Rálépett: ${tile.name || 'ismeretlen mező'}.`);
+  const extra = parseObject(tile.effect);
+
+  switch (tile.kind) {
+    case 'money': {
+      const amount = Number(tile.amount || extra.amount || 0);
+      money += amount;
+      logParts.push(amount >= 0 ? `Kapott ${amount} Ft-ot.` : `Fizetett ${Math.abs(amount)} Ft-ot.`);
+      break;
+    }
+    case 'skip': {
+      const count = Number(extra.skip_turns || tile.amount || 1);
+      skipTurns += count;
+      logParts.push(`${count} kör kimaradás.`);
+      break;
+    }
+    case 'move': {
+      const steps = Number(extra.move_steps || tile.amount || 0);
+      const tileCount = Math.max(state.tiles.length, 1);
+      position = ((position + steps) % tileCount + tileCount) % tileCount;
+      logParts.push(`Továbblép ${steps} mezőt.`);
+      break;
+    }
+    case 'card': {
+      const group = tile.card_group || extra.card_group || 'chance';
+      const card = randomCard(group);
+      if (card) {
+        const cardEffect = parseObject(card.effect);
+        money += Number(card.amount || cardEffect.amount || 0);
+        skipTurns += Number(card.skip_turns || cardEffect.skip_turns || 0);
+        const moveSteps = Number(card.move_steps || cardEffect.move_steps || 0);
+        if (moveSteps) {
+          const tileCount = Math.max(state.tiles.length, 1);
+          position = ((position + moveSteps) % tileCount + tileCount) % tileCount;
+        }
+        if (cardEffect.item) inventory.push(cardEffect.item);
+        logParts.push(`Kártya: ${card.title}. ${card.body || ''}`.trim());
+      } else {
+        logParts.push('Nem volt húzható kártya.');
+      }
+      break;
+    }
+    case 'shop': {
+      const item = extra.item || tile.name;
+      const price = Number(tile.price || extra.price || 0);
+      const alreadyOwn = inventory.includes(item);
+      if (!alreadyOwn && price > 0 && money >= price) {
+        money -= price;
+        inventory.push(item);
+        logParts.push(`Megvette: ${item} (${price} Ft).`);
+      } else if (alreadyOwn) {
+        logParts.push(`Már megvan neki: ${item}.`);
+      } else {
+        logParts.push(`Nem tudta megvenni: ${item}.`);
+      }
+      break;
+    }
+    default:
+      logParts.push('Semmi extra nem történt.');
+      break;
+  }
+
+  return { position, money, inventory, skipTurns, logParts };
+}
+
+function randomCard(group) {
+  const filtered = state.cards.filter((card) => (card.card_group || 'chance') === group);
+  if (!filtered.length) return null;
+  return filtered[Math.floor(Math.random() * filtered.length)];
+}
+
+function checkWin(result) {
+  const needMoney = Number(state.config.win_money || 10000);
+  const needItems = Number(state.config.required_items || 4);
+  return Number(result.money || 0) >= needMoney || (Array.isArray(result.inventory) && result.inventory.length >= needItems);
+}
+
+async function advanceTurn() {
+  const nextIndex = (Number(state.room.turn_index || 0) + 1) % Math.max(state.players.length, 1);
+  const nextTurnNo = nextIndex === 0 ? Number(state.room.turn_no || 1) + 1 : Number(state.room.turn_no || 1);
+  await supabase.from('rooms').update({ turn_index: nextIndex, turn_no: nextTurnNo }).eq('id', state.room.id);
+}
+
+async function addLog(roomId, entry) {
+  await supabase.from('room_logs').insert({ room_id: roomId, entry });
+}
+
+async function leaveRoom() {
+  const me = getMe();
+  if (me?.id) {
+    await supabase.from('room_players').delete().eq('id', me.id);
+    if (me.is_host && state.room?.id) {
+      const playersRes = await supabase.from('room_players').select('*').eq('room_id', state.room.id).order('seat_no');
+      const remaining = playersRes.data || [];
+      if (!remaining.length) {
+        await supabase.from('rooms').delete().eq('id', state.room.id);
+      } else {
+        await supabase.from('room_players').update({ is_host: true }).eq('id', remaining[0].id);
+        await supabase.from('rooms').update({ host_player_id: remaining[0].id }).eq('id', state.room.id);
+      }
+    }
+  }
+
+  clearSession();
+  renderEmptyState();
+  stopRefreshLoop();
+}
+
+function renderEmptyState() {
+  state.room = null;
+  state.players = [];
+  state.logs = [];
+  els.roomLobbyPanel.classList.add('hidden');
+  els.roomCodeTitle.textContent = '---';
+  els.gameRoomTitle.textContent = 'Szoba: ---';
+  els.lobbyPlayers.innerHTML = '';
+  els.gamePlayers.innerHTML = '';
+  els.lobbyMeta.innerHTML = '';
+  els.logList.innerHTML = '';
+  els.turnInfo.textContent = 'Kör információk...';
+  els.diceInfo.textContent = '-';
+  setAction('Hozz létre vagy lépj be egy szobába.');
+  renderBoard();
+  showScreen('lobby');
+}
+
+function setStatus(message) {
+  els.connectionStatus.textContent = message;
+}
+
+function setAction(message) {
+  els.actionInfo.textContent = message;
+}
+
+function loadSession() {
+  try {
+    return JSON.parse(localStorage.getItem('go_session') || 'null');
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(session) {
+  state.session = session;
+  localStorage.setItem('go_session', JSON.stringify(session));
+}
+
+function clearSession() {
+  state.session = null;
+  localStorage.removeItem('go_session');
+}
+
+function parseObject(value) {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
