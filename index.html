@@ -3,25 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gazdálkodj Okosan - Retro Online</title>
+  <title>Gazdálkodj Okosan - Online</title>
   <link rel="stylesheet" href="./assets/styles.css" />
 </head>
-<body class="retro-body">
-  <div class="page-frame">
-    <header class="top-banner">
+<body class="simple-body">
+  <div class="page-shell">
+    <header class="page-header">
       <div>
-        <div class="tiny-label">RETRO ONLINE TÁRSAS</div>
+        <div class="eyebrow">ONLINE TÁRSASJÁTÉK ALAP</div>
         <h1>Gazdálkodj Okosan</h1>
       </div>
-      <div class="status-chip" id="connectionStatus">Kapcsolódás...</div>
+      <div id="connectionStatus" class="status-box">Kapcsolódás...</div>
     </header>
 
-    <main>
+    <main class="page-main">
       <section id="lobbyScreen" class="screen active">
-        <div class="split-layout">
-          <div class="panel paper-panel">
-            <h2>Szoba / Lobby</h2>
-            <p class="muted">Előbb belépsz vagy létrehozol egy szobát. A játékmező csak ezután jelenik meg.</p>
+        <div class="lobby-layout">
+          <section class="panel simple-panel">
+            <h2>Lobby</h2>
+            <p class="muted">Itt hozol létre szobát vagy itt csatlakozol egy meglévőhöz. A játékmező külön képernyőn jelenik meg.</p>
+
+            <div id="loadErrorBox" class="notice danger hidden"></div>
 
             <div class="form-stack">
               <label>
@@ -29,9 +31,7 @@
                 <input id="playerName" type="text" maxlength="24" placeholder="pl. Teso01" />
               </label>
 
-              <div class="button-row">
-                <button id="createRoomBtn" class="retro-btn primary">Új szoba</button>
-              </div>
+              <button id="createRoomBtn" class="simple-btn primary">Új szoba létrehozása</button>
 
               <div class="separator">vagy</div>
 
@@ -40,92 +40,86 @@
                 <input id="roomCodeInput" type="text" maxlength="6" placeholder="pl. AB12C" />
               </label>
 
-              <div class="button-row">
-                <button id="joinRoomBtn" class="retro-btn">Csatlakozás</button>
-              </div>
+              <button id="joinRoomBtn" class="simple-btn">Csatlakozás</button>
             </div>
-          </div>
+          </section>
 
-          <div class="panel paper-panel info-panel">
-            <h2>Hogy működik?</h2>
-            <ul class="retro-list">
-              <li>Külön lobby van a játék előtt.</li>
-              <li>A host indítja a partit.</li>
-              <li>Utána átvált a rendes 2D játéktérre.</li>
-              <li>Az admin oldalon te állítod a mezőket és kártyákat.</li>
+          <section class="panel simple-panel help-panel">
+            <h2>Gyors infó</h2>
+            <ul class="plain-list">
+              <li>A host indítja el a játékot.</li>
+              <li>Dobni mindig az aktuális játékos tud.</li>
+              <li>A mezők és a kártyák adminból állíthatók.</li>
+              <li>A játéktér egyszerű társasjáték stílusú.</li>
             </ul>
-            <div class="note-box">
+            <div class="notice">
               <strong>Admin:</strong>
               <a href="./admin.html">admin.html</a>
             </div>
-          </div>
+          </section>
         </div>
 
-        <section id="roomLobbyPanel" class="panel paper-panel hidden room-lobby-panel">
-          <div class="room-lobby-head">
+        <section id="roomLobbyPanel" class="panel simple-panel hidden room-panel">
+          <div class="row between wrap">
             <div>
-              <div class="tiny-label">AKTÍV SZOBA</div>
+              <div class="eyebrow">AKTÍV SZOBA</div>
               <h2 id="roomCodeTitle">---</h2>
             </div>
-            <div class="button-row">
-              <button id="refreshLobbyBtn" class="retro-btn">Frissítés</button>
-              <button id="leaveRoomBtn" class="retro-btn danger">Kilépés</button>
+            <div class="row wrap">
+              <button id="refreshLobbyBtn" class="simple-btn">Frissítés</button>
+              <button id="leaveRoomBtn" class="simple-btn danger">Kilépés</button>
             </div>
           </div>
 
-          <div class="lobby-grid">
-            <div class="sub-panel">
+          <div class="room-layout">
+            <section class="sub-panel">
               <h3>Játékosok</h3>
-              <div id="lobbyPlayers" class="player-cards"></div>
-            </div>
+              <div id="lobbyPlayers" class="card-stack"></div>
+            </section>
 
-            <div class="sub-panel">
-              <h3>Szoba állapot</h3>
+            <section class="sub-panel">
+              <h3>Szoba adatai</h3>
               <div id="lobbyMeta" class="meta-box"></div>
-              <div class="button-row top-gap">
-                <button id="startGameBtn" class="retro-btn success">Játék indítása</button>
-              </div>
-            </div>
+              <button id="startGameBtn" class="simple-btn success full top-gap">Játék indítása</button>
+            </section>
           </div>
         </section>
       </section>
 
       <section id="gameScreen" class="screen hidden">
-        <div class="game-header panel paper-panel compact">
+        <section class="panel simple-panel game-top">
           <div>
-            <div class="tiny-label">JÁTÉK FOLYAMATBAN</div>
+            <div class="eyebrow">JÁTÉK</div>
             <h2 id="gameRoomTitle">Szoba: ---</h2>
           </div>
-          <div class="button-row">
-            <button id="backToLobbyBtn" class="retro-btn">Lobby</button>
-            <button id="leaveGameBtn" class="retro-btn danger">Kilépés</button>
+          <div class="row wrap">
+            <button id="backToLobbyBtn" class="simple-btn">Lobby</button>
+            <button id="leaveGameBtn" class="simple-btn danger">Kilépés</button>
           </div>
-        </div>
+        </section>
 
         <div class="game-layout">
-          <section class="board-wrap panel paper-panel">
-            <div class="board-topline">
-              <div id="turnInfo" class="score-strip">Kör információk...</div>
-              <div id="diceInfo" class="dice-box">-</div>
+          <section class="panel simple-panel board-panel">
+            <div class="board-info">
+              <div id="turnInfo" class="info-strip">Kör információk...</div>
+              <div id="diceInfo" class="dice-strip">-</div>
             </div>
-            <div id="board" class="retro-board"></div>
+            <div id="board" class="board-grid"></div>
           </section>
 
-          <aside class="sidebar-wrap">
-            <section class="panel paper-panel sidebar-panel">
+          <aside class="side-layout">
+            <section class="panel simple-panel">
               <h3>Játékosok</h3>
-              <div id="gamePlayers" class="player-cards"></div>
+              <div id="gamePlayers" class="card-stack"></div>
             </section>
 
-            <section class="panel paper-panel sidebar-panel">
-              <h3>Akciók</h3>
+            <section class="panel simple-panel">
+              <h3>Akció</h3>
               <div id="actionInfo" class="action-box">Várakozás...</div>
-              <div class="button-row top-gap full-width">
-                <button id="rollBtn" class="retro-btn primary full-width">Dobás</button>
-              </div>
+              <button id="rollBtn" class="simple-btn primary full top-gap">Dobás</button>
             </section>
 
-            <section class="panel paper-panel sidebar-panel">
+            <section class="panel simple-panel">
               <h3>Eseménynapló</h3>
               <div id="logList" class="log-list"></div>
             </section>

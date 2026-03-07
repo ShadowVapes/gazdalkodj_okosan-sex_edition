@@ -6,18 +6,18 @@
   <title>Gazdálkodj Okosan - Admin</title>
   <link rel="stylesheet" href="./assets/styles.css" />
 </head>
-<body class="retro-body admin-body">
-  <div class="page-frame">
-    <header class="top-banner">
+<body class="simple-body admin-body">
+  <div class="page-shell">
+    <header class="page-header">
       <div>
-        <div class="tiny-label">RETRO ADMIN</div>
+        <div class="eyebrow">ADMIN FELÜLET</div>
         <h1>Játékbeállítások</h1>
       </div>
-      <a class="retro-btn" href="./index.html">Vissza a játékhoz</a>
+      <a class="simple-btn" href="./index.html">Vissza a játékhoz</a>
     </header>
 
-    <main class="admin-layout">
-      <section class="panel paper-panel">
+    <main class="page-main admin-layout">
+      <section class="panel simple-panel">
         <h2>Globális beállítások</h2>
         <div class="form-grid two-col">
           <label>Kezdőpénz
@@ -33,18 +33,18 @@
             <input id="cfgRequiredItems" type="number" />
           </label>
         </div>
-        <div class="button-row top-gap">
-          <button id="saveConfigBtn" class="retro-btn success">Beállítások mentése</button>
+        <div class="row top-gap wrap">
+          <button id="saveConfigBtn" class="simple-btn success">Beállítások mentése</button>
         </div>
       </section>
 
-      <section class="panel paper-panel">
-        <div class="section-head">
+      <section class="panel simple-panel">
+        <div class="row between wrap">
           <h2>Mezők</h2>
-          <button id="newTileBtn" class="retro-btn primary">Új mező</button>
+          <button id="newTileBtn" class="simple-btn primary">Új mező</button>
         </div>
 
-        <div class="editor-grid">
+        <div class="editor-grid top-gap">
           <div>
             <div id="tileList" class="admin-list"></div>
           </div>
@@ -82,21 +82,21 @@
             <label class="top-gap block">Extra effect JSON
               <textarea id="tileEffect" rows="6" placeholder='{"skip_turns":1,"move_steps":2,"item":"Hűtő"}'></textarea>
             </label>
-            <div class="button-row top-gap">
-              <button id="saveTileBtn" class="retro-btn success">Mező mentése</button>
-              <button id="deleteTileBtn" class="retro-btn danger">Törlés</button>
+            <div class="row top-gap wrap">
+              <button id="saveTileBtn" class="simple-btn success">Mező mentése</button>
+              <button id="deleteTileBtn" class="simple-btn danger">Törlés</button>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="panel paper-panel">
-        <div class="section-head">
+      <section class="panel simple-panel">
+        <div class="row between wrap">
           <h2>Kártyák</h2>
-          <button id="newCardBtn" class="retro-btn primary">Új kártya</button>
+          <button id="newCardBtn" class="simple-btn primary">Új kártya</button>
         </div>
 
-        <div class="editor-grid">
+        <div class="editor-grid top-gap">
           <div>
             <div id="cardList" class="admin-list"></div>
           </div>
@@ -126,15 +126,15 @@
             <label class="top-gap block">Extra effect JSON
               <textarea id="cardEffect" rows="6" placeholder='{"target":"self","item":"Tv"}'></textarea>
             </label>
-            <div class="button-row top-gap">
-              <button id="saveCardBtn" class="retro-btn success">Kártya mentése</button>
-              <button id="deleteCardBtn" class="retro-btn danger">Törlés</button>
+            <div class="row top-gap wrap">
+              <button id="saveCardBtn" class="simple-btn success">Kártya mentése</button>
+              <button id="deleteCardBtn" class="simple-btn danger">Törlés</button>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="panel paper-panel">
+      <section class="panel simple-panel">
         <h2>Állapot</h2>
         <div id="adminStatus" class="action-box">Betöltés...</div>
       </section>

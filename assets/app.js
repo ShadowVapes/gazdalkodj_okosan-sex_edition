@@ -6,6 +6,7 @@ const supabase = !DEMO_MODE && window.supabase
 
 const els = {
   connectionStatus: document.getElementById('connectionStatus'),
+  loadErrorBox: document.getElementById('loadErrorBox'),
   lobbyScreen: document.getElementById('lobbyScreen'),
   gameScreen: document.getElementById('gameScreen'),
   playerName: document.getElementById('playerName'),
@@ -51,25 +52,34 @@ const state = {
 const GRID_SIZE = 11;
 const pathCells = buildPathCells(GRID_SIZE);
 
-init().catch((error) => {
-  console.error(error);
-  setStatus('Hiba a betöltéskor.');
-});
+init();
 
 async function init() {
   bindEvents();
+  renderBoard();
 
   if (!supabase) {
-    setStatus('Nincs beállítva a Supabase.');
-    setAction('Állítsd be az assets/config.js fájlt.');
+    setStatus('Nincs beállítva a Supabase');
+    setAction('Az assets/config.js fájlban add meg a saját Project URL-t és Publishable/anon kulcsot.');
+    showLoadError('Ez a csomag alapból üres configgal jön. Ha előzőleg már beállítottad, ne írd felül az assets/config.js fájlt.');
     disableMainButtons(true);
     return;
   }
 
   setStatus('Kapcsolat ellenőrzése...');
-  await loadStaticData();
-  disableMainButtons(false);
-  setStatus('Kapcsolódva.');
+
+  try {
+    await loadStaticData();
+    disableMainButtons(false);
+    setStatus('Kapcsolódva');
+  } catch (error) {
+    console.error(error);
+    const message = readableError(error);
+    setStatus('Betöltési hiba');
+    setAction(message);
+    showLoadError(`Nem sikerült beolvasni a játék alapadatait. Részlet: ${message}`);
+    disableMainButtons(false);
+  }
 
   if (state.session?.roomCode && state.session?.playerId) {
     els.playerName.value = state.session.playerName || '';
@@ -78,14 +88,14 @@ async function init() {
 }
 
 function bindEvents() {
-  els.createRoomBtn.addEventListener('click', createRoom);
-  els.joinRoomBtn.addEventListener('click', joinRoom);
-  els.refreshLobbyBtn.addEventListener('click', refreshRoom);
-  els.startGameBtn.addEventListener('click', startGame);
-  els.rollBtn.addEventListener('click', rollDice);
-  els.leaveRoomBtn.addEventListener('click', leaveRoom);
-  els.leaveGameBtn.addEventListener('click', leaveRoom);
-  els.backToLobbyBtn.addEventListener('click', () => showScreen('lobby'));
+  els.createRoomBtn?.addEventListener('click', createRoom);
+  els.joinRoomBtn?.addEventListener('click', joinRoom);
+  els.refreshLobbyBtn?.addEventListener('click', refreshRoom);
+  els.startGameBtn?.addEventListener('click', startGame);
+  els.rollBtn?.addEventListener('click', rollDice);
+  els.leaveRoomBtn?.addEventListener('click', leaveRoom);
+  els.leaveGameBtn?.addEventListener('click', leaveRoom);
+  els.backToLobbyBtn?.addEventListener('click', () => showScreen('lobby'));
 }
 
 function disableMainButtons(disabled) {
@@ -97,10 +107,10 @@ function disableMainButtons(disabled) {
 
 function buildPathCells(size) {
   const cells = [];
-  for (let col = size; col >= 1; col--) cells.push({ row: size, col });
-  for (let row = size - 1; row >= 1; row--) cells.push({ row, col: 1 });
-  for (let col = 2; col <= size; col++) cells.push({ row: 1, col });
-  for (let row = 2; row <= size - 1; row++) cells.push({ row, col: size });
+  for (let col = size; col >= 1; col -= 1) cells.push({ row: size, col });
+  for (let row = size - 1; row >= 1; row -= 1) cells.push({ row, col: 1 });
+  for (let col = 2; col <= size; col += 1) cells.push({ row: 1, col });
+  for (let row = 2; row <= size - 1; row += 1) cells.push({ row, col: size });
   return cells;
 }
 
@@ -111,23 +121,85 @@ async function loadStaticData() {
     supabase.from('game_cards').select('*').order('id', { ascending: true }),
   ]);
 
-  if (configRes.error) throw configRes.error;
-  if (tileRes.error) throw tileRes.error;
-  if (cardRes.error) throw cardRes.error;
+  const warnings = [];
 
-  state.config = readConfig(configRes.data || []);
-  state.tiles = tileRes.data || [];
-  state.cards = cardRes.data || [];
+  if (configRes.error) {
+    warnings.push(`game_config: ${readableError(configRes.error)}`);
+    state.config = { ...fallbackConfig() };
+  } else {
+    state.config = readConfig(configRes.data || []);
+  }
+
+  if (tileRes.error || !(tileRes.data || []).length) {
+    warnings.push(tileRes.error ? `game_tiles: ${readableError(tileRes.error)}` : 'game_tiles üres');
+    state.tiles = fallbackTiles();
+  } else {
+    state.tiles = tileRes.data || [];
+  }
+
+  if (cardRes.error) {
+    warnings.push(`game_cards: ${readableError(cardRes.error)}`);
+    state.cards = fallbackCards();
+  } else {
+    state.cards = cardRes.data || [];
+  }
+
   renderBoard();
+
+  if (warnings.length) {
+    showLoadError(`Az oldal betöltött, de néhány alap adat helyi mintából jött: ${warnings.join(' | ')}`);
+    setStatus('Kapcsolódva, részleges fallbackkel');
+  } else {
+    hideLoadError();
+  }
 }
 
-function readConfig(rows) {
-  const merged = {
+function fallbackConfig() {
+  return {
     starting_money: 3000,
     start_bonus: 400,
     win_money: 10000,
     required_items: 4,
   };
+}
+
+function fallbackTiles() {
+  return [
+    { sort_order: 0, name: 'Start', kind: 'start', amount: 0, price: 0, card_group: null, effect: {} },
+    { sort_order: 1, name: 'Fizetés', kind: 'money', amount: 600, price: 0, card_group: null, effect: {} },
+    { sort_order: 2, name: 'Szerencse', kind: 'card', amount: 0, price: 0, card_group: 'chance', effect: {} },
+    { sort_order: 3, name: 'Konyhaszék', kind: 'shop', amount: 0, price: 400, card_group: null, effect: { item: 'Konyhaszék', price: 400 } },
+    { sort_order: 4, name: 'Villanyszámla', kind: 'money', amount: -350, price: 0, card_group: null, effect: {} },
+    { sort_order: 5, name: 'Pihenő', kind: 'neutral', amount: 0, price: 0, card_group: null, effect: {} },
+    { sort_order: 6, name: 'Kimaradsz', kind: 'skip', amount: 1, price: 0, card_group: null, effect: { skip_turns: 1 } },
+    { sort_order: 7, name: 'Szerencse', kind: 'card', amount: 0, price: 0, card_group: 'chance', effect: {} },
+    { sort_order: 8, name: 'Asztal', kind: 'shop', amount: 0, price: 900, card_group: null, effect: { item: 'Asztal', price: 900 } },
+    { sort_order: 9, name: 'Bónusz', kind: 'money', amount: 800, price: 0, card_group: null, effect: {} },
+    { sort_order: 10, name: 'Lépj előre', kind: 'move', amount: 2, price: 0, card_group: null, effect: { move_steps: 2 } },
+    { sort_order: 11, name: 'Tv', kind: 'shop', amount: 0, price: 1300, card_group: null, effect: { item: 'Tv', price: 1300 } },
+    { sort_order: 12, name: 'Szerencse', kind: 'card', amount: 0, price: 0, card_group: 'chance', effect: {} },
+    { sort_order: 13, name: 'Adó', kind: 'money', amount: -700, price: 0, card_group: null, effect: {} },
+    { sort_order: 14, name: 'Ágy', kind: 'shop', amount: 0, price: 1600, card_group: null, effect: { item: 'Ágy', price: 1600 } },
+    { sort_order: 15, name: 'Jutalom', kind: 'money', amount: 1200, price: 0, card_group: null, effect: {} },
+    { sort_order: 16, name: 'Vissza 2', kind: 'move', amount: -2, price: 0, card_group: null, effect: { move_steps: -2 } },
+    { sort_order: 17, name: 'Szerencse', kind: 'card', amount: 0, price: 0, card_group: 'chance', effect: {} },
+    { sort_order: 18, name: 'Hűtő', kind: 'shop', amount: 0, price: 2000, card_group: null, effect: { item: 'Hűtő', price: 2000 } },
+    { sort_order: 19, name: 'Fizu', kind: 'money', amount: 1000, price: 0, card_group: null, effect: {} },
+  ];
+}
+
+function fallbackCards() {
+  return [
+    { card_group: 'chance', title: 'Fizetésemelés', body: 'Kapsz plusz pénzt.', amount: 700, skip_turns: 0, move_steps: 0, effect: {} },
+    { card_group: 'chance', title: 'Bírság', body: 'Váratlan kiadás.', amount: -500, skip_turns: 0, move_steps: 0, effect: {} },
+    { card_group: 'chance', title: 'Lépj előre', body: 'Haladj még 3 mezőt.', amount: 0, skip_turns: 0, move_steps: 3, effect: {} },
+    { card_group: 'chance', title: 'Kimaradsz', body: 'Pihensz egy kört.', amount: 0, skip_turns: 1, move_steps: 0, effect: {} },
+    { card_group: 'chance', title: 'Ajándék rádió', body: 'Kaptál egy tárgyat.', amount: 0, skip_turns: 0, move_steps: 0, effect: { item: 'Rádió' } },
+  ];
+}
+
+function readConfig(rows) {
+  const merged = fallbackConfig();
 
   for (const row of rows) {
     if (!row?.key) continue;
@@ -159,9 +231,7 @@ function requireName() {
 function randomRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let out = '';
-  for (let i = 0; i < 5; i += 1) {
-    out += chars[Math.floor(Math.random() * chars.length)];
-  }
+  for (let i = 0; i < 5; i += 1) out += chars[Math.floor(Math.random() * chars.length)];
   return out;
 }
 
@@ -181,8 +251,8 @@ async function createRoom() {
       .single();
 
     if (roomInsert.error) throw roomInsert.error;
-    const room = roomInsert.data;
 
+    const room = roomInsert.data;
     const playerInsert = await supabase
       .from('room_players')
       .insert({
@@ -198,18 +268,23 @@ async function createRoom() {
 
     if (playerInsert.error) throw playerInsert.error;
 
-    await supabase
+    const hostUpdate = await supabase
       .from('rooms')
       .update({ host_player_id: playerInsert.data.id })
       .eq('id', room.id);
 
+    if (hostUpdate.error) throw hostUpdate.error;
+
     await addLog(room.id, `${playerName} létrehozta a szobát.`);
     saveSession({ roomCode, playerId: playerInsert.data.id, playerName });
     await refreshRoom();
+    setStatus('Szoba létrehozva');
   } catch (error) {
     console.error(error);
-    alert(`Nem sikerült létrehozni a szobát: ${error.message || error}`);
-    setStatus('Szobalétrehozás sikertelen.');
+    const message = readableError(error);
+    alert(`Nem sikerült létrehozni a szobát: ${message}`);
+    setStatus('Szobalétrehozás sikertelen');
+    setAction(message);
   } finally {
     state.isBusy = false;
   }
@@ -237,7 +312,7 @@ async function joinRoom() {
       .order('seat_no', { ascending: true });
 
     if (playersRes.error) throw playersRes.error;
-    const seatNo = (playersRes.data?.length || 0);
+    const seatNo = playersRes.data?.length || 0;
 
     const insertRes = await supabase
       .from('room_players')
@@ -257,10 +332,13 @@ async function joinRoom() {
     await addLog(roomRes.data.id, `${playerName} csatlakozott a szobához.`);
     saveSession({ roomCode, playerId: insertRes.data.id, playerName });
     await refreshRoom();
+    setStatus('Csatlakozva');
   } catch (error) {
     console.error(error);
-    alert(`Nem sikerült csatlakozni: ${error.message || error}`);
-    setStatus('Csatlakozás sikertelen.');
+    const message = readableError(error);
+    alert(`Nem sikerült csatlakozni: ${message}`);
+    setStatus('Csatlakozás sikertelen');
+    setAction(message);
   } finally {
     state.isBusy = false;
   }
@@ -272,8 +350,10 @@ async function refreshRoom() {
   const roomRes = await supabase.from('rooms').select('*').eq('code', state.session.roomCode).maybeSingle();
   if (roomRes.error) {
     console.error(roomRes.error);
+    setAction(readableError(roomRes.error));
     return;
   }
+
   if (!roomRes.data) {
     clearSession();
     renderEmptyState();
@@ -287,7 +367,10 @@ async function refreshRoom() {
     supabase.from('room_logs').select('*').eq('room_id', state.room.id).order('created_at', { ascending: false }).limit(25),
   ]);
 
-  if (playersRes.error) console.error(playersRes.error);
+  if (playersRes.error) {
+    console.error(playersRes.error);
+    setAction(readableError(playersRes.error));
+  }
   if (logsRes.error) console.error(logsRes.error);
 
   state.players = playersRes.data || [];
@@ -340,14 +423,15 @@ function renderRoom() {
   els.roomCodeInput.value = state.room.code;
 
   const lobbyHtml = state.players.map((player) => playerCardHtml(player, activePlayer?.id === player.id)).join('');
-  els.lobbyPlayers.innerHTML = lobbyHtml || '<div class="meta-box">Még nincs játékos.</div>';
-  els.gamePlayers.innerHTML = lobbyHtml || '<div class="meta-box">Még nincs játékos.</div>';
+  const emptyHtml = '<div class="meta-box">Még nincs játékos.</div>';
+  els.lobbyPlayers.innerHTML = lobbyHtml || emptyHtml;
+  els.gamePlayers.innerHTML = lobbyHtml || emptyHtml;
 
   els.lobbyMeta.innerHTML = `
-    <div class="meta-pill">Állapot: <span class="mono">${state.room.status}</span></div>
-    <div class="meta-pill">Játékosok: <span class="mono">${state.players.length}</span></div>
-    <div class="meta-pill">Kör: <span class="mono">${state.room.turn_no || 1}</span></div>
-    <div class="meta-pill">Te: <span class="mono">${me?.name || '-'}</span></div>
+    <div class="notice">Állapot: <strong class="mono">${escapeHtml(state.room.status)}</strong></div>
+    <div class="notice top-gap">Játékosok: <strong class="mono">${state.players.length}</strong></div>
+    <div class="notice top-gap">Kör: <strong class="mono">${state.room.turn_no || 1}</strong></div>
+    <div class="notice top-gap">Te: <strong class="mono">${escapeHtml(me?.name || '-')}</strong></div>
   `;
 
   els.startGameBtn.disabled = !(isHost && state.room.status === 'lobby' && state.players.length >= 2);
@@ -355,8 +439,10 @@ function renderRoom() {
   const yourTurn = activePlayer?.id === me?.id;
   els.rollBtn.disabled = !(state.room.status === 'playing' && yourTurn);
   els.turnInfo.textContent = state.room.status === 'playing'
-    ? `Aktív kör: ${activePlayer?.name || '-'} | Körszám: ${state.room.turn_no || 1}`
-    : 'A játék még nem indult el.';
+    ? `Aktív játékos: ${activePlayer?.name || '-'} | Kör: ${state.room.turn_no || 1}`
+    : state.room.status === 'finished'
+      ? 'A játék véget ért.'
+      : 'A játék még nem indult el.';
 
   const lastLog = state.logs[0]?.entry || 'Még nincs esemény.';
   setAction(lastLog);
@@ -403,7 +489,7 @@ function renderLogs() {
   els.logList.innerHTML = state.logs.map((row) => `
     <div class="log-item">
       <strong>${escapeHtml(row.entry || '')}</strong>
-      <div class="log-time">${new Date(row.created_at).toLocaleString('hu-HU')}</div>
+      <div class="log-time">${row.created_at ? new Date(row.created_at).toLocaleString('hu-HU') : '-'}</div>
     </div>
   `).join('') || '<div class="meta-box">Még nincs napló.</div>';
 }
@@ -422,17 +508,21 @@ function renderBoard() {
     pawnsByPos.get(pos).push({ player, index });
   });
 
+  const activePlayer = getActivePlayer();
   const cells = [];
   for (let row = 1; row <= GRID_SIZE; row += 1) {
     for (let col = 1; col <= GRID_SIZE; col += 1) {
       const key = `${row}-${col}`;
       const info = boardMap.get(key);
+
       if (row > 1 && row < GRID_SIZE && col > 1 && col < GRID_SIZE) {
         if (row === 2 && col === 2) {
           cells.push(`
             <div class="board-cell center">
               <h2>Gazdálkodj Okosan</h2>
-              <p>Retro stílusú online alapverzió. A lobby külön van, a játék pedig külön táblán fut.</p>
+              <p>Egyszerű társasjáték kinézet, külön lobbyval és külön játéktérrel.</p>
+              <div class="center-mini">Aktív játékos: ${escapeHtml(activePlayer?.name || '-')}</div>
+              <div class="center-mini">Cél: ${Number(state.config.required_items || 4)} tárgy vagy ${Number(state.config.win_money || 10000)} Ft</div>
             </div>
           `);
         }
@@ -445,8 +535,9 @@ function renderBoard() {
       }
 
       const pawns = pawnsByPos.get(info.index) || [];
+      const kindClass = `tile-${sanitizeCssClass(info.tile.kind || 'neutral')}`;
       cells.push(`
-        <div class="board-cell path">
+        <div class="board-cell path ${kindClass}">
           <div class="tile-index">#${info.index}</div>
           <div class="tile-title">${escapeHtml(info.tile.name || `Mező ${info.index}`)}</div>
           <div class="tile-kind">${escapeHtml(info.tile.kind || 'neutral')}</div>
@@ -471,7 +562,7 @@ async function startGame() {
 
   const orderedPlayers = [...state.players].sort((a, b) => a.seat_no - b.seat_no);
   for (const player of orderedPlayers) {
-    await supabase
+    const res = await supabase
       .from('room_players')
       .update({
         position: 0,
@@ -480,6 +571,11 @@ async function startGame() {
         inventory: [],
       })
       .eq('id', player.id);
+
+    if (res.error) {
+      alert(readableError(res.error));
+      return;
+    }
   }
 
   const updateRes = await supabase
@@ -488,7 +584,7 @@ async function startGame() {
     .eq('id', state.room.id);
 
   if (updateRes.error) {
-    alert(updateRes.error.message);
+    alert(readableError(updateRes.error));
     return;
   }
 
@@ -501,9 +597,12 @@ async function rollDice() {
   const activePlayer = getActivePlayer();
   if (!me || !activePlayer || me.id !== activePlayer.id || state.room?.status !== 'playing') return;
 
-  let workingPlayer = { ...me };
+  const workingPlayer = { ...me };
   if (Number(workingPlayer.skip_turns || 0) > 0) {
-    await supabase.from('room_players').update({ skip_turns: Number(workingPlayer.skip_turns) - 1 }).eq('id', workingPlayer.id);
+    await supabase
+      .from('room_players')
+      .update({ skip_turns: Number(workingPlayer.skip_turns) - 1 })
+      .eq('id', workingPlayer.id);
     await addLog(state.room.id, `${workingPlayer.name} kimarad egy kört.`);
     await advanceTurn();
     await refreshRoom();
@@ -517,7 +616,7 @@ async function rollDice() {
   let money = Number(workingPlayer.money || 0);
   let inventory = Array.isArray(workingPlayer.inventory) ? [...workingPlayer.inventory] : [];
   let skipTurns = Number(workingPlayer.skip_turns || 0);
-  let logParts = [`${workingPlayer.name} dobott: ${roll}.`];
+  const logParts = [`${workingPlayer.name} dobott: ${roll}.`];
 
   if (nextPos >= tileCount) {
     nextPos %= tileCount;
@@ -539,12 +638,21 @@ async function rollDice() {
     .eq('id', workingPlayer.id);
 
   if (updatePlayer.error) {
-    alert(updatePlayer.error.message);
+    alert(readableError(updatePlayer.error));
     return;
   }
 
   const isWinner = checkWin(result);
-  await supabase.from('rooms').update({ last_roll: roll, status: isWinner ? 'finished' : 'playing' }).eq('id', state.room.id);
+  const roomUpdate = await supabase
+    .from('rooms')
+    .update({ last_roll: roll, status: isWinner ? 'finished' : 'playing' })
+    .eq('id', state.room.id);
+
+  if (roomUpdate.error) {
+    alert(readableError(roomUpdate.error));
+    return;
+  }
+
   await addLog(state.room.id, result.logParts.join(' '));
 
   if (isWinner) {
@@ -694,6 +802,18 @@ function setAction(message) {
   els.actionInfo.textContent = message;
 }
 
+function showLoadError(message) {
+  if (!els.loadErrorBox) return;
+  els.loadErrorBox.textContent = message;
+  els.loadErrorBox.classList.remove('hidden');
+}
+
+function hideLoadError() {
+  if (!els.loadErrorBox) return;
+  els.loadErrorBox.classList.add('hidden');
+  els.loadErrorBox.textContent = '';
+}
+
 function loadSession() {
   try {
     return JSON.parse(localStorage.getItem('go_session') || 'null');
@@ -729,4 +849,14 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function readableError(error) {
+  if (!error) return 'Ismeretlen hiba.';
+  if (typeof error === 'string') return error;
+  return error.message || error.details || JSON.stringify(error);
+}
+
+function sanitizeCssClass(value) {
+  return String(value || 'neutral').toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
 }
