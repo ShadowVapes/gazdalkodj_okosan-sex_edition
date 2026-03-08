@@ -3,35 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gazdálkodj Okosan - Online</title>
+  <title>Gazdálkodj Pajkosan - Online</title>
   <link rel="stylesheet" href="./assets/styles.css" />
 </head>
-<body class="simple-body">
-  <div class="page-shell">
-    <header class="page-header">
+<body class="boardgame-body">
+  <div class="app-shell">
+    <header class="topbar">
       <div>
-        <div class="eyebrow">ONLINE TÁRSASJÁTÉK ALAP</div>
-        <h1>Gazdálkodj Okosan</h1>
+        <div class="eyebrow">MULTIPLAYER TÁRSAS ALAP</div>
+        <h1 id="titleMain">Gazdálkodj Pajkosan</h1>
+        <p id="subtitleMain" class="subtitle">Egyszerű, vicces felnőttes paródia társasjáték.</p>
       </div>
       <div id="connectionStatus" class="status-box">Kapcsolódás...</div>
     </header>
 
-    <main class="page-main">
+    <main class="main-wrap">
       <section id="lobbyScreen" class="screen active">
-        <div class="lobby-layout">
-          <section class="panel simple-panel">
+        <div class="lobby-grid">
+          <section class="panel parchment-panel">
             <h2>Lobby</h2>
-            <p class="muted">Itt hozol létre szobát vagy itt csatlakozol egy meglévőhöz. A játékmező külön képernyőn jelenik meg.</p>
-
+            <p class="muted">Szobát létrehozol, csatlakozol, aztán a játék külön képernyőn indul. Nem modern app kinézet, hanem egyszerű társas hangulat.</p>
             <div id="loadErrorBox" class="notice danger hidden"></div>
 
             <div class="form-stack">
               <label>
                 Játékosnév
-                <input id="playerName" type="text" maxlength="24" placeholder="pl. Teso01" />
+                <input id="playerName" type="text" maxlength="24" placeholder="pl. Tesó" />
               </label>
 
-              <button id="createRoomBtn" class="simple-btn primary">Új szoba létrehozása</button>
+              <button id="createRoomBtn" class="board-btn board-btn-primary">Új szoba</button>
 
               <div class="separator">vagy</div>
 
@@ -40,87 +40,90 @@
                 <input id="roomCodeInput" type="text" maxlength="6" placeholder="pl. AB12C" />
               </label>
 
-              <button id="joinRoomBtn" class="simple-btn">Csatlakozás</button>
+              <button id="joinRoomBtn" class="board-btn">Csatlakozás</button>
             </div>
           </section>
 
-          <section class="panel simple-panel help-panel">
-            <h2>Gyors infó</h2>
+          <section class="panel parchment-panel info-panel">
+            <h2>Alap infó</h2>
             <ul class="plain-list">
-              <li>A host indítja el a játékot.</li>
-              <li>Dobni mindig az aktuális játékos tud.</li>
-              <li>A mezők és a kártyák adminból állíthatók.</li>
-              <li>A játéktér egyszerű társasjáték stílusú.</li>
+              <li>A host indítja a játékot.</li>
+              <li>Dobni az aktív játékos tud.</li>
+              <li>A mezők, kártyák, tárgyak és globális dolgok adminból állíthatók.</li>
+              <li>A téma csak poénos, felnőttes társasparódia.</li>
             </ul>
-            <div class="notice">
+            <div class="notice top-gap">
               <strong>Admin:</strong>
               <a href="./admin.html">admin.html</a>
             </div>
           </section>
         </div>
 
-        <section id="roomLobbyPanel" class="panel simple-panel hidden room-panel">
+        <section id="roomLobbyPanel" class="panel parchment-panel hidden room-panel">
           <div class="row between wrap">
             <div>
               <div class="eyebrow">AKTÍV SZOBA</div>
               <h2 id="roomCodeTitle">---</h2>
             </div>
             <div class="row wrap">
-              <button id="refreshLobbyBtn" class="simple-btn">Frissítés</button>
-              <button id="leaveRoomBtn" class="simple-btn danger">Kilépés</button>
+              <button id="refreshLobbyBtn" class="board-btn">Frissítés</button>
+              <button id="leaveRoomBtn" class="board-btn board-btn-danger">Kilépés</button>
             </div>
           </div>
 
-          <div class="room-layout">
+          <div class="room-grid top-gap">
             <section class="sub-panel">
               <h3>Játékosok</h3>
               <div id="lobbyPlayers" class="card-stack"></div>
             </section>
-
             <section class="sub-panel">
-              <h3>Szoba adatai</h3>
+              <h3>Szoba</h3>
               <div id="lobbyMeta" class="meta-box"></div>
-              <button id="startGameBtn" class="simple-btn success full top-gap">Játék indítása</button>
+              <button id="startGameBtn" class="board-btn board-btn-success full top-gap">Játék indítása</button>
             </section>
           </div>
         </section>
       </section>
 
       <section id="gameScreen" class="screen hidden">
-        <section class="panel simple-panel game-top">
+        <section class="panel parchment-panel game-header-panel">
           <div>
-            <div class="eyebrow">JÁTÉK</div>
+            <div class="eyebrow">JÁTÉKTÉR</div>
             <h2 id="gameRoomTitle">Szoba: ---</h2>
           </div>
           <div class="row wrap">
-            <button id="backToLobbyBtn" class="simple-btn">Lobby</button>
-            <button id="leaveGameBtn" class="simple-btn danger">Kilépés</button>
+            <button id="backToLobbyBtn" class="board-btn">Lobby</button>
+            <button id="leaveGameBtn" class="board-btn board-btn-danger">Kilépés</button>
           </div>
         </section>
 
-        <div class="game-layout">
-          <section class="panel simple-panel board-panel">
-            <div class="board-info">
+        <div class="game-grid">
+          <section class="panel board-panel">
+            <div class="board-topline">
               <div id="turnInfo" class="info-strip">Kör információk...</div>
-              <div id="diceInfo" class="dice-strip">-</div>
+              <div class="mini-strip" id="diceInfo">-</div>
             </div>
             <div id="board" class="board-grid"></div>
           </section>
 
-          <aside class="side-layout">
-            <section class="panel simple-panel">
+          <aside class="side-grid">
+            <section class="panel parchment-panel action-panel">
+              <h3>Dobás</h3>
+              <div class="dice-area">
+                <div id="diceFace" class="dice-face" aria-label="Dobókocka"></div>
+                <div id="diceLabel" class="dice-label">Készen áll</div>
+              </div>
+              <div id="actionInfo" class="action-box">Várakozás...</div>
+              <button id="rollBtn" class="board-btn board-btn-primary full top-gap">Dobás</button>
+            </section>
+
+            <section class="panel parchment-panel">
               <h3>Játékosok</h3>
               <div id="gamePlayers" class="card-stack"></div>
             </section>
 
-            <section class="panel simple-panel">
-              <h3>Akció</h3>
-              <div id="actionInfo" class="action-box">Várakozás...</div>
-              <button id="rollBtn" class="simple-btn primary full top-gap">Dobás</button>
-            </section>
-
-            <section class="panel simple-panel">
-              <h3>Eseménynapló</h3>
+            <section class="panel parchment-panel">
+              <h3>Legutóbbi események</h3>
               <div id="logList" class="log-list"></div>
             </section>
           </aside>

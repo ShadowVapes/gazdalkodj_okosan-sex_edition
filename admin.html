@@ -3,47 +3,111 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gazdálkodj Okosan - Admin</title>
+  <title>Gazdálkodj Pajkosan - Admin</title>
   <link rel="stylesheet" href="./assets/styles.css" />
 </head>
-<body class="simple-body admin-body">
-  <div class="page-shell">
-    <header class="page-header">
+<body class="boardgame-body admin-body">
+  <div class="app-shell">
+    <header class="topbar">
       <div>
-        <div class="eyebrow">ADMIN FELÜLET</div>
-        <h1>Játékbeállítások</h1>
+        <div class="eyebrow">TELJES ADMIN</div>
+        <h1>Játék szerkesztő</h1>
+        <p class="subtitle">Globális beállítások, tárgyak, mezők, kártyák egy helyen.</p>
       </div>
-      <a class="simple-btn" href="./index.html">Vissza a játékhoz</a>
+      <a class="board-btn" href="./index.html">Vissza a játékhoz</a>
     </header>
 
-    <main class="page-main admin-layout">
-      <section class="panel simple-panel">
-        <h2>Globális beállítások</h2>
-        <div class="form-grid two-col">
+    <main class="main-wrap admin-layout">
+      <section class="panel parchment-panel">
+        <div class="row between wrap">
+          <h2>Globális beállítások</h2>
+          <button id="saveConfigBtn" class="board-btn board-btn-success">Mentés</button>
+        </div>
+        <div class="form-grid three-col top-gap">
+          <label>Játék címe
+            <input id="cfgGameTitle" type="text" />
+          </label>
+          <label>Alcím
+            <input id="cfgGameSubtitle" type="text" />
+          </label>
+          <label>Pénznem felirat
+            <input id="cfgCurrencyName" type="text" />
+          </label>
           <label>Kezdőpénz
             <input id="cfgStartingMoney" type="number" />
           </label>
           <label>Start bónusz
             <input id="cfgStartBonus" type="number" />
           </label>
-          <label>Cél pénzösszeg
+          <label>Győzelem pénzzel
             <input id="cfgWinMoney" type="number" />
           </label>
-          <label>Szükséges bolti tárgyak száma
+          <label>Szükséges kötelező tárgyak
             <input id="cfgRequiredItems" type="number" />
           </label>
+          <label>Közép panel rövid szöveg
+            <input id="cfgCenterText" type="text" />
+          </label>
+          <label>Lobby megjegyzés
+            <input id="cfgLobbyNote" type="text" />
+          </label>
         </div>
-        <div class="row top-gap wrap">
-          <button id="saveConfigBtn" class="simple-btn success">Beállítások mentése</button>
+        <label class="top-gap block">Egyedi config JSON
+          <textarea id="cfgExtraJson" rows="6" placeholder='{"custom_rule":"akármi"}'></textarea>
+        </label>
+      </section>
+
+      <section class="panel parchment-panel">
+        <div class="row between wrap">
+          <h2>Tárgyak</h2>
+          <button id="newItemBtn" class="board-btn board-btn-primary">Új tárgy</button>
+        </div>
+        <div class="editor-grid top-gap">
+          <div>
+            <div id="itemList" class="admin-list"></div>
+          </div>
+          <div class="sub-panel">
+            <h3>Tárgy szerkesztése</h3>
+            <input id="itemId" type="hidden" />
+            <div class="form-grid two-col">
+              <label>Sorrend
+                <input id="itemSort" type="number" />
+              </label>
+              <label>Név
+                <input id="itemName" type="text" />
+              </label>
+              <label>Kategória
+                <input id="itemCategory" type="text" placeholder="pl. háló, ital, buli" />
+              </label>
+              <label>Ár
+                <input id="itemPrice" type="number" />
+              </label>
+              <label>Ikon / emoji
+                <input id="itemIcon" type="text" placeholder="pl. 💋" />
+              </label>
+              <label class="check-row">Kelljen a győzelemhez?
+                <input id="itemRequired" type="checkbox" />
+              </label>
+            </div>
+            <label class="top-gap block">Leírás
+              <textarea id="itemBlurb" rows="4"></textarea>
+            </label>
+            <label class="top-gap block">Extra effect JSON
+              <textarea id="itemEffect" rows="5" placeholder='{"bonus_money":100}'></textarea>
+            </label>
+            <div class="row top-gap wrap">
+              <button id="saveItemBtn" class="board-btn board-btn-success">Tárgy mentése</button>
+              <button id="deleteItemBtn" class="board-btn board-btn-danger">Törlés</button>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="panel simple-panel">
+      <section class="panel parchment-panel">
         <div class="row between wrap">
           <h2>Mezők</h2>
-          <button id="newTileBtn" class="simple-btn primary">Új mező</button>
+          <button id="newTileBtn" class="board-btn board-btn-primary">Új mező</button>
         </div>
-
         <div class="editor-grid top-gap">
           <div>
             <div id="tileList" class="admin-list"></div>
@@ -55,8 +119,14 @@
               <label>Sorrend
                 <input id="tileSort" type="number" />
               </label>
-              <label>Név
+              <label>Teljes név
                 <input id="tileName" type="text" />
+              </label>
+              <label>Rövid név a táblán
+                <input id="tileShortName" type="text" />
+              </label>
+              <label>Ikon / emoji
+                <input id="tileIcon" type="text" placeholder="pl. 💘" />
               </label>
               <label>Típus
                 <select id="tileKind">
@@ -69,33 +139,47 @@
                   <option value="move">move</option>
                 </select>
               </label>
-              <label>Összeg / érték
-                <input id="tileAmount" type="number" value="0" />
+              <label>Színkulcs
+                <input id="tileColorKey" type="text" placeholder="pink / gold / danger stb." />
               </label>
-              <label>Bolti ár
-                <input id="tilePrice" type="number" value="0" />
+              <label>Pénz / alap érték
+                <input id="tileAmount" type="number" />
+              </label>
+              <label>Ár
+                <input id="tilePrice" type="number" />
               </label>
               <label>Kártyapakli
                 <input id="tileCardGroup" type="text" placeholder="chance" />
               </label>
+              <label>Kapcsolt tárgy
+                <select id="tileItemId"></select>
+              </label>
+              <label>Kimaradás
+                <input id="tileSkipTurns" type="number" value="0" />
+              </label>
+              <label>Lépés
+                <input id="tileMoveSteps" type="number" value="0" />
+              </label>
             </div>
+            <label class="top-gap block">Leírás
+              <textarea id="tileDescription" rows="4"></textarea>
+            </label>
             <label class="top-gap block">Extra effect JSON
-              <textarea id="tileEffect" rows="6" placeholder='{"skip_turns":1,"move_steps":2,"item":"Hűtő"}'></textarea>
+              <textarea id="tileEffect" rows="5" placeholder='{"item_name":"Titkos ajándék"}'></textarea>
             </label>
             <div class="row top-gap wrap">
-              <button id="saveTileBtn" class="simple-btn success">Mező mentése</button>
-              <button id="deleteTileBtn" class="simple-btn danger">Törlés</button>
+              <button id="saveTileBtn" class="board-btn board-btn-success">Mező mentése</button>
+              <button id="deleteTileBtn" class="board-btn board-btn-danger">Törlés</button>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="panel simple-panel">
+      <section class="panel parchment-panel">
         <div class="row between wrap">
           <h2>Kártyák</h2>
-          <button id="newCardBtn" class="simple-btn primary">Új kártya</button>
+          <button id="newCardBtn" class="board-btn board-btn-primary">Új kártya</button>
         </div>
-
         <div class="editor-grid top-gap">
           <div>
             <div id="cardList" class="admin-list"></div>
@@ -113,28 +197,31 @@
               <label>Pénz változás
                 <input id="cardAmount" type="number" value="0" />
               </label>
-              <label>Kör kimaradás
+              <label>Kimaradás
                 <input id="cardSkipTurns" type="number" value="0" />
               </label>
-              <label>Lépésszám
+              <label>Lépés
                 <input id="cardMoveSteps" type="number" value="0" />
+              </label>
+              <label>Kapcsolt tárgy
+                <select id="cardItemId"></select>
               </label>
             </div>
             <label class="top-gap block">Leírás
               <textarea id="cardBody" rows="4"></textarea>
             </label>
             <label class="top-gap block">Extra effect JSON
-              <textarea id="cardEffect" rows="6" placeholder='{"target":"self","item":"Tv"}'></textarea>
+              <textarea id="cardEffect" rows="5" placeholder='{"bonus_money":250}'></textarea>
             </label>
             <div class="row top-gap wrap">
-              <button id="saveCardBtn" class="simple-btn success">Kártya mentése</button>
-              <button id="deleteCardBtn" class="simple-btn danger">Törlés</button>
+              <button id="saveCardBtn" class="board-btn board-btn-success">Kártya mentése</button>
+              <button id="deleteCardBtn" class="board-btn board-btn-danger">Törlés</button>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="panel simple-panel">
+      <section class="panel parchment-panel">
         <h2>Állapot</h2>
         <div id="adminStatus" class="action-box">Betöltés...</div>
       </section>
