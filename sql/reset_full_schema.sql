@@ -26,13 +26,6 @@ create table public.game_items (
   image_url text not null default '',
   accent_color text not null default '',
   text_color text not null default '',
-  image_url text not null default '',
-  accent_color text not null default '',
-  text_color text not null default '',
-  icon text not null default '💌',
-  image_url text not null default '',
-  accent_color text not null default '',
-  text_color text not null default '',
   effect jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
@@ -52,6 +45,9 @@ create table public.game_tiles (
   item_id bigint references public.game_items(id) on delete set null,
   skip_turns integer not null default 0,
   move_steps integer not null default 0,
+  image_url text not null default '',
+  accent_color text not null default '',
+  text_color text not null default '',
   effect jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
@@ -65,6 +61,10 @@ create table public.game_cards (
   skip_turns integer not null default 0,
   move_steps integer not null default 0,
   item_id bigint references public.game_items(id) on delete set null,
+  icon text not null default '💌',
+  image_url text not null default '',
+  accent_color text not null default '',
+  text_color text not null default '',
   effect jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
@@ -128,7 +128,8 @@ values
   (2, 1, 'Parfüm', 'stílus', 650, '🧴', true, 'Ettől minden kacérabb.', '{}'),
   (3, 2, 'Pezsgő', 'ital', 900, '🍾', true, 'Koccintós kellék.', '{}'),
   (4, 3, 'Rózsaszirmok', 'romantika', 550, '🌹', true, 'Látványos bónusz.', '{}'),
-  (5, 4, 'Lepedőszett', 'szoba', 800, '🧺', false, 'Nem kötelező, de illik.', '{}');
+  (5, 4, 'Hangulatfény', 'hangulat', 780, '🕯️', false, 'Nem kötelező, de stílusos.', '{}'),
+  (6, 5, 'Lepedőszett', 'szoba', 800, '🧺', false, 'Jó ha van kéznél.', '{}');
 
 select setval(pg_get_serial_sequence('public.game_items', 'id'), coalesce((select max(id) from public.game_items), 1), true);
 
@@ -143,7 +144,7 @@ values
   (6, 'Félreértés', 'Skip', 'skip', 'danger', '😵', '1 kör kimaradás.', 1, 0, null, null, 1, 0, '{}'),
   (7, 'Pikáns kártya', 'Kártya', 'card', 'pink', '💌', 'Még egy húzás.', 0, 0, 'chance', null, 0, 0, '{}'),
   (8, 'Parfüm pult', 'Bolt', 'shop', 'gold', '🧴', 'Parfüm vásárlás.', 0, 650, null, 2, 0, 0, '{}'),
-  (9, 'Rajongói borravaló', 'Bónusz', 'money', 'gold', '💰', 'Extra pénz.', 800, 0, null, null, 0, 0, '{}'),
+  (9, 'Rajongói borravaló', 'Bónusz', 'money', 'green', '💰', 'Extra pénz.', 800, 0, null, null, 0, 0, '{}'),
   (10, 'Gyors randistart', '+2', 'move', 'violet', '🏃', 'Lépj előre kettőt.', 2, 0, null, null, 0, 2, '{}'),
   (11, 'Pezsgő sarok', 'Bolt', 'shop', 'gold', '🍾', 'Pezsgő vásárlás.', 0, 900, null, 3, 0, 0, '{}'),
   (12, 'Pikáns kártya', 'Kártya', 'card', 'pink', '💌', 'Újabb lap.', 0, 0, 'chance', null, 0, 0, '{}'),
@@ -152,16 +153,16 @@ values
   (15, 'Vakmerő siker', 'Jutalom', 'money', 'pink', '🔥', 'Szép kör volt.', 1200, 0, null, null, 0, 0, '{}'),
   (16, 'Vissza a valóságba', '-2', 'move', 'violet', '↩️', 'Lépj vissza kettőt.', -2, 0, null, null, 0, -2, '{}'),
   (17, 'Pikáns kártya', 'Kártya', 'card', 'pink', '💌', 'Húzz még.', 0, 0, 'chance', null, 0, 0, '{}'),
-  (18, 'Lepedő bolt', 'Bolt', 'shop', 'gold', '🧺', 'Lepedőszett vásárlás.', 0, 800, null, 5, 0, 0, '{}'),
-  (19, 'Show végén kassza', 'Kassza', 'money', 'pink', '🎉', 'Újabb pénz.', 1000, 0, null, null, 0, 0, '{}');
+  (18, 'Lepedő bolt', 'Bolt', 'shop', 'gold', '🧺', 'Lepedőszett vásárlás.', 0, 800, null, 6, 0, 0, '{}'),
+  (19, 'Show végén kassza', 'Kassza', 'money', 'green', '🎉', 'Újabb pénz.', 1000, 0, null, null, 0, 0, '{}');
 
-insert into public.game_cards (card_group, title, body, amount, skip_turns, move_steps, item_id, effect)
+insert into public.game_cards (card_group, title, body, amount, skip_turns, move_steps, item_id, icon, effect)
 values
-  ('chance', 'Pezsgős koccintás', 'Kapsz egy kis plusz pénzt.', 700, 0, 0, null, '{}'),
-  ('chance', 'Kínos üzenet', 'Befizetsz egy váratlan büntit.', -500, 0, 0, null, '{}'),
-  ('chance', 'Sikeres nyitás', 'Lépj előre 3 mezőt.', 0, 0, 3, null, '{}'),
-  ('chance', 'Megfázott romantika', '1 kör kimaradás.', 0, 1, 0, null, '{}'),
-  ('chance', 'Ajándék rózsa', 'Kaptál egy tárgyat.', 0, 0, 0, 4, '{}');
+  ('chance', 'Pezsgős koccintás', 'Kapsz egy kis plusz pénzt.', 700, 0, 0, null, '🍾', '{}'),
+  ('chance', 'Kínos üzenet', 'Befizetsz egy váratlan büntit.', -500, 0, 0, null, '📵', '{}'),
+  ('chance', 'Sikeres nyitás', 'Lépj előre 3 mezőt.', 0, 0, 3, null, '💃', '{}'),
+  ('chance', 'Megfázott romantika', '1 kör kimaradás.', 0, 1, 0, null, '🥶', '{}'),
+  ('chance', 'Ajándék rózsa', 'Kaptál egy tárgyat.', 0, 0, 0, 4, '🌹', '{}');
 
 alter table public.game_config enable row level security;
 alter table public.game_items enable row level security;

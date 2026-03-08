@@ -12,14 +12,23 @@
       <div>
         <div class="eyebrow">ADMIN FELÜLET</div>
         <h1>Gazdálkodj Pajkosan - Admin</h1>
-        <p class="subtitle">Mezők, tárgyak, kártyák, dizájn és globális szabályok szerkesztése.</p>
+        <p class="subtitle">Átlátható szerkesztő mezőkhöz, kártyákhoz, tárgyakhoz és globális szabályokhoz.</p>
       </div>
-      <div id="adminStatus" class="status-box">Betöltés...</div>
+      <div class="stack right">
+        <div id="adminStatus" class="status-box">Betöltés...</div>
+        <div class="status-note">Ha schema-hibát látsz, futtasd le a zipben lévő <strong>sql/migrate_v4.sql</strong> fájlt a Supabase SQL Editorban.</div>
+      </div>
     </header>
 
-    <main class="main-wrap admin-layout">
-      <section class="panel parchment-panel">
-        <h2>Globális beállítások</h2>
+    <main class="main-wrap admin-layout-v2">
+      <section class="panel parchment-panel admin-wide-panel">
+        <div class="section-title-wrap">
+          <div>
+            <div class="eyebrow">ALAP BEÁLLÍTÁSOK</div>
+            <h2>Globális szabályok</h2>
+          </div>
+          <button id="saveConfigBtn" class="board-btn board-btn-success">Globális mentés</button>
+        </div>
         <div class="form-grid three-col top-gap">
           <label>Játék címe<input id="cfgGameTitle" type="text" /></label>
           <label>Alcím<input id="cfgGameSubtitle" type="text" /></label>
@@ -31,20 +40,37 @@
           <label>Mező overlay (ms)<input id="cfgEventOverlayMs" type="number" /></label>
           <label>Kártya overlay (ms)<input id="cfgCardOverlayMs" type="number" /></label>
         </div>
-        <label class="top-gap block">Középső szöveg<textarea id="cfgCenterText" rows="3"></textarea></label>
-        <label class="top-gap block">Lobby megjegyzés<textarea id="cfgLobbyNote" rows="3"></textarea></label>
+        <div class="form-grid two-col top-gap">
+          <label class="block">Középső szöveg<textarea id="cfgCenterText" rows="3"></textarea></label>
+          <label class="block">Lobby megjegyzés<textarea id="cfgLobbyNote" rows="3"></textarea></label>
+        </div>
         <label class="top-gap block">Extra config JSON<textarea id="cfgExtraJson" rows="6"></textarea></label>
-        <button id="saveConfigBtn" class="board-btn board-btn-success top-gap">Globális mentés</button>
       </section>
 
-      <section class="panel parchment-panel">
-        <div class="row between wrap"><h2>Tárgyak</h2><button id="newItemBtn" class="board-btn board-btn-primary">Új tárgy</button></div>
-        <div class="editor-grid top-gap">
-          <div><div id="itemList" class="admin-list"></div></div>
-          <div class="sub-panel">
-            <h3>Tárgy szerkesztése</h3>
+      <section class="panel parchment-panel admin-crud-panel">
+        <div class="editor-shell">
+          <aside class="editor-sidebar sticky-panel">
+            <div class="section-title-wrap compact">
+              <div>
+                <div class="eyebrow">TÁRGYAK</div>
+                <h2>Tárgylista</h2>
+              </div>
+              <button id="newItemBtn" class="board-btn board-btn-primary">Új tárgy</button>
+            </div>
+            <label class="block top-gap">Keresés<input id="itemSearch" type="text" placeholder="név, kategória, ikon" /></label>
+            <div class="meta-row top-gap"><span id="itemCount" class="tag-chip">0 db</span><span id="itemSelectedLabel" class="tag-chip">Új tárgy</span></div>
+            <div id="itemList" class="admin-list top-gap always-scroll"></div>
+          </aside>
+          <div class="sub-panel editor-main">
+            <div class="section-title-wrap compact">
+              <div>
+                <div class="eyebrow">SZERKESZTŐ</div>
+                <h3>Tárgy szerkesztése</h3>
+              </div>
+              <div class="row wrap compact-gap"><button id="saveItemBtn" class="board-btn board-btn-success">Mentés</button><button id="deleteItemBtn" class="board-btn board-btn-danger">Törlés</button></div>
+            </div>
             <input id="itemId" type="hidden" />
-            <div class="form-grid two-col">
+            <div class="form-grid two-col top-gap">
               <label>Sorrend<input id="itemSort" type="number" /></label>
               <label>Név<input id="itemName" type="text" /></label>
               <label>Kategória<input id="itemCategory" type="text" /></label>
@@ -55,23 +81,40 @@
               <label>Szövegszín<input id="itemTextColor" type="color" value="#311814" /></label>
             </div>
             <label class="top-gap block">Rövid leírás<textarea id="itemBlurb" rows="3"></textarea></label>
-            <label class="top-gap block">Kép URL<input id="itemImageUrl" type="text" placeholder="https://... vagy data:image/..." /></label>
-            <label class="top-gap block">Kép feltöltés<input id="itemImageFile" type="file" accept="image/*" /></label>
+            <div class="form-grid two-col top-gap">
+              <label class="block">Kép URL<input id="itemImageUrl" type="text" placeholder="https://... vagy data:image/..." /></label>
+              <label class="block">Kép feltöltés<input id="itemImageFile" type="file" accept="image/*" /></label>
+            </div>
             <label class="top-gap block">Extra effect JSON<textarea id="itemEffect" rows="5"></textarea></label>
             <div class="preview-box top-gap"><div id="itemPreview" class="theme-preview"></div></div>
-            <div class="row top-gap wrap"><button id="saveItemBtn" class="board-btn board-btn-success">Tárgy mentése</button><button id="deleteItemBtn" class="board-btn board-btn-danger">Törlés</button></div>
           </div>
         </div>
       </section>
 
-      <section class="panel parchment-panel">
-        <div class="row between wrap"><h2>Mezők</h2><button id="newTileBtn" class="board-btn board-btn-primary">Új mező</button></div>
-        <div class="editor-grid top-gap">
-          <div><div id="tileList" class="admin-list"></div></div>
-          <div class="sub-panel">
-            <h3>Mező szerkesztése</h3>
+      <section class="panel parchment-panel admin-crud-panel">
+        <div class="editor-shell">
+          <aside class="editor-sidebar sticky-panel">
+            <div class="section-title-wrap compact">
+              <div>
+                <div class="eyebrow">MEZŐK</div>
+                <h2>Meglévő mezők</h2>
+              </div>
+              <button id="newTileBtn" class="board-btn board-btn-primary">Új mező</button>
+            </div>
+            <label class="block top-gap">Keresés<input id="tileSearch" type="text" placeholder="név, típus, rövid név" /></label>
+            <div class="meta-row top-gap"><span id="tileCount" class="tag-chip">0 db</span><span id="tileSelectedLabel" class="tag-chip">Új mező</span></div>
+            <div id="tileList" class="admin-list top-gap always-scroll"></div>
+          </aside>
+          <div class="sub-panel editor-main">
+            <div class="section-title-wrap compact">
+              <div>
+                <div class="eyebrow">SZERKESZTŐ</div>
+                <h3>Mező szerkesztése</h3>
+              </div>
+              <div class="row wrap compact-gap"><button id="saveTileBtn" class="board-btn board-btn-success">Mentés</button><button id="deleteTileBtn" class="board-btn board-btn-danger">Törlés</button></div>
+            </div>
             <input id="tileId" type="hidden" />
-            <div class="form-grid two-col">
+            <div class="form-grid three-col top-gap">
               <label>Sorrend<input id="tileSort" type="number" /></label>
               <label>Név<input id="tileName" type="text" /></label>
               <label>Rövid név<input id="tileShortName" type="text" /></label>
@@ -98,39 +141,57 @@
               <label>Szövegszín<input id="tileTextColor" type="color" value="#311814" /></label>
             </div>
             <label class="top-gap block">Leírás<textarea id="tileDescription" rows="4"></textarea></label>
-            <label class="top-gap block">Kép URL<input id="tileImageUrl" type="text" placeholder="https://... vagy data:image/..." /></label>
-            <label class="top-gap block">Kép feltöltés<input id="tileImageFile" type="file" accept="image/*" /></label>
+            <div class="form-grid two-col top-gap">
+              <label class="block">Kép URL<input id="tileImageUrl" type="text" placeholder="https://... vagy data:image/..." /></label>
+              <label class="block">Kép feltöltés<input id="tileImageFile" type="file" accept="image/*" /></label>
+            </div>
             <label class="top-gap block">Extra effect JSON<textarea id="tileEffect" rows="5"></textarea></label>
             <div class="preview-box top-gap"><div id="tilePreview" class="theme-preview"></div></div>
-            <div class="row top-gap wrap"><button id="saveTileBtn" class="board-btn board-btn-success">Mező mentése</button><button id="deleteTileBtn" class="board-btn board-btn-danger">Törlés</button></div>
           </div>
         </div>
       </section>
 
-      <section class="panel parchment-panel">
-        <div class="row between wrap"><h2>Kártyák</h2><button id="newCardBtn" class="board-btn board-btn-primary">Új kártya</button></div>
-        <div class="editor-grid top-gap">
-          <div><div id="cardList" class="admin-list"></div></div>
-          <div class="sub-panel">
-            <h3>Kártya szerkesztése</h3>
+      <section class="panel parchment-panel admin-crud-panel">
+        <div class="editor-shell">
+          <aside class="editor-sidebar sticky-panel">
+            <div class="section-title-wrap compact">
+              <div>
+                <div class="eyebrow">KÁRTYÁK</div>
+                <h2>Meglévő kártyák</h2>
+              </div>
+              <button id="newCardBtn" class="board-btn board-btn-primary">Új kártya</button>
+            </div>
+            <label class="block top-gap">Keresés<input id="cardSearch" type="text" placeholder="cím, pakli, ikon" /></label>
+            <div class="meta-row top-gap"><span id="cardCount" class="tag-chip">0 db</span><span id="cardSelectedLabel" class="tag-chip">Új kártya</span></div>
+            <div id="cardList" class="admin-list top-gap always-scroll"></div>
+          </aside>
+          <div class="sub-panel editor-main">
+            <div class="section-title-wrap compact">
+              <div>
+                <div class="eyebrow">SZERKESZTŐ</div>
+                <h3>Kártya szerkesztése</h3>
+              </div>
+              <div class="row wrap compact-gap"><button id="saveCardBtn" class="board-btn board-btn-success">Mentés</button><button id="deleteCardBtn" class="board-btn board-btn-danger">Törlés</button></div>
+            </div>
             <input id="cardId" type="hidden" />
-            <div class="form-grid two-col">
+            <div class="form-grid three-col top-gap">
               <label>Pakli<input id="cardGroup" type="text" value="chance" /></label>
               <label>Cím<input id="cardTitle" type="text" /></label>
+              <label>Ikon<input id="cardIcon" type="text" /></label>
               <label>Pénz változás<input id="cardAmount" type="number" value="0" /></label>
               <label>Kimaradás<input id="cardSkipTurns" type="number" value="0" /></label>
               <label>Lépés<input id="cardMoveSteps" type="number" value="0" /></label>
               <label>Kapcsolt tárgy<select id="cardItemId"></select></label>
-              <label>Ikon<input id="cardIcon" type="text" /></label>
               <label>Háttérszín<input id="cardAccentColor" type="color" value="#ffd8e8" /></label>
               <label>Szövegszín<input id="cardTextColor" type="color" value="#311814" /></label>
             </div>
             <label class="top-gap block">Leírás<textarea id="cardBody" rows="4"></textarea></label>
-            <label class="top-gap block">Kép URL<input id="cardImageUrl" type="text" placeholder="https://... vagy data:image/..." /></label>
-            <label class="top-gap block">Kép feltöltés<input id="cardImageFile" type="file" accept="image/*" /></label>
+            <div class="form-grid two-col top-gap">
+              <label class="block">Kép URL<input id="cardImageUrl" type="text" placeholder="https://... vagy data:image/..." /></label>
+              <label class="block">Kép feltöltés<input id="cardImageFile" type="file" accept="image/*" /></label>
+            </div>
             <label class="top-gap block">Extra effect JSON<textarea id="cardEffect" rows="5"></textarea></label>
             <div class="preview-box top-gap"><div id="cardPreview" class="theme-preview"></div></div>
-            <div class="row top-gap wrap"><button id="saveCardBtn" class="board-btn board-btn-success">Kártya mentése</button><button id="deleteCardBtn" class="board-btn board-btn-danger">Törlés</button></div>
           </div>
         </div>
       </section>

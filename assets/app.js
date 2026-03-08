@@ -1613,8 +1613,12 @@ function clearSession() {
 
 function readableError(error) {
   if (!error) return 'Ismeretlen hiba.';
-  if (typeof error === 'string') return error;
-  return error.message || error.details || JSON.stringify(error);
+  const message = typeof error === 'string' ? error : (error.message || error.details || JSON.stringify(error));
+  const match = String(message || '').match(/Could not find the '([^']+)' column of '([^']+)'/i);
+  if (match) {
+    return `Hiányzó adatbázis oszlop: ${match[2]}.${match[1]}. Futtasd le a zipben lévő sql/migrate_v4.sql fájlt a Supabase SQL Editorban.`;
+  }
+  return message;
 }
 
 function valueFromConfig(raw) {

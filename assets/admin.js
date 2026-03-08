@@ -1,4 +1,3 @@
-
 import { SUPABASE_URL, SUPABASE_ANON_KEY, DEMO_MODE } from './config.js';
 
 const supabase = !DEMO_MODE && window.supabase
@@ -6,12 +5,19 @@ const supabase = !DEMO_MODE && window.supabase
   : null;
 
 const els = Object.fromEntries([...document.querySelectorAll('[id]')].map((el) => [el.id, el]));
-const state = { config: fallbackConfig(), items: [], tiles: [], cards: [] };
+const state = {
+  config: fallbackConfig(),
+  items: [],
+  tiles: [],
+  cards: [],
+  filters: { item: '', tile: '', card: '' },
+};
 
 init();
 
 async function init() {
   bindEvents();
+  updatePreviews();
   if (!supabase) {
     setStatus('Nincs beállítva a Supabase.');
     return;
@@ -36,7 +42,7 @@ function bindEvents() {
   els.saveCardBtn?.addEventListener('click', saveCard);
   els.deleteCardBtn?.addEventListener('click', deleteCard);
 
-  [['itemImageFile','itemImageUrl'],['tileImageFile','tileImageUrl'],['cardImageFile','cardImageUrl']].forEach(([fileId,urlId]) => {
+  [['itemImageFile', 'itemImageUrl'], ['tileImageFile', 'tileImageUrl'], ['cardImageFile', 'cardImageUrl']].forEach(([fileId, urlId]) => {
     els[fileId]?.addEventListener('change', async () => {
       const file = els[fileId].files?.[0];
       if (!file) return;
@@ -45,9 +51,20 @@ function bindEvents() {
     });
   });
 
-  ['itemName','itemIcon','itemAccentColor','itemTextColor','itemImageUrl','itemBlurb'].forEach((id) => els[id]?.addEventListener('input', updatePreviews));
-  ['tileName','tileShortName','tileIcon','tileAccentColor','tileTextColor','tileImageUrl','tileDescription','tileColorKey'].forEach((id) => els[id]?.addEventListener('input', updatePreviews));
-  ['cardTitle','cardIcon','cardAccentColor','cardTextColor','cardImageUrl','cardBody'].forEach((id) => els[id]?.addEventListener('input', updatePreviews));
+  [
+    'itemName', 'itemIcon', 'itemAccentColor', 'itemTextColor', 'itemImageUrl', 'itemBlurb',
+    'tileName', 'tileShortName', 'tileIcon', 'tileAccentColor', 'tileTextColor', 'tileImageUrl', 'tileDescription', 'tileColorKey',
+    'cardTitle', 'cardIcon', 'cardAccentColor', 'cardTextColor', 'cardImageUrl', 'cardBody',
+  ].forEach((id) => els[id]?.addEventListener('input', updatePreviews));
+
+  [['itemSearch', 'item'], ['tileSearch', 'tile'], ['cardSearch', 'card']].forEach(([id, key]) => {
+    els[id]?.addEventListener('input', () => {
+      state.filters[key] = els[id].value.trim().toLowerCase();
+      if (key === 'item') renderItems();
+      if (key === 'tile') renderTiles();
+      if (key === 'card') renderCards();
+    });
+  });
 }
 
 async function loadAll() {
@@ -57,6 +74,7 @@ async function loadAll() {
     supabase.from('game_tiles').select('*').order('sort_order', { ascending: true }),
     supabase.from('game_cards').select('*').order('id', { ascending: true }),
   ]);
+
   if (configRes.error) throw configRes.error;
   if (itemsRes.error) throw itemsRes.error;
   if (tilesRes.error) throw tilesRes.error;
@@ -66,14 +84,20 @@ async function loadAll() {
   state.items = itemsRes.data || [];
   state.tiles = tilesRes.data || [];
   state.cards = cardsRes.data || [];
+
   renderConfig();
   renderItemOptions();
   renderItems();
   renderTiles();
   renderCards();
-  clearItemForm();
-  clearTileForm();
-  clearCardForm();
+
+  if (!els.itemId.value) clearItemForm();
+  else fillItemForm(state.items.find((row) => Number(row.id) === Number(els.itemId.value)));
+  if (!els.tileId.value) clearTileForm();
+  else fillTileForm(state.tiles.find((row) => Number(row.id) === Number(els.tileId.value)));
+  if (!els.cardId.value) clearCardForm();
+  else fillCardForm(state.cards.find((row) => Number(row.id) === Number(els.cardId.value)));
+
   setStatus('Admin betöltve.');
 }
 
@@ -113,46 +137,69 @@ function renderConfig() {
   els.cfgCenterText.value = config.center_text ?? '';
   els.cfgLobbyNote.value = config.lobby_note ?? '';
   const extra = { ...config };
-  ['game_title','game_subtitle','currency_name','starting_money','start_bonus','win_money','required_items','event_overlay_ms','card_overlay_ms','center_text','lobby_note'].forEach((k) => delete extra[k]);
+  ['game_title', 'game_subtitle', 'currency_name', 'starting_money', 'start_bonus', 'win_money', 'required_items', 'event_overlay_ms', 'card_overlay_ms', 'center_text', 'lobby_note'].forEach((k) => delete extra[k]);
   els.cfgExtraJson.value = JSON.stringify(extra, null, 2);
 }
 
 function renderItemOptions() {
-  const options = ['<option value="">-- nincs --</option>'].concat(state.items.map((item) => `<option value="${item.id}">${escapeHtml(item.icon || '🎁')} ${escapeHtml(item.name || '')}</option>`));
+  const options = ['<option value="">-- nincs --</option>'].concat(
+    state.items.map((item) => `<option value="${item.id}">${escapeHtml(item.icon || '🎁')} ${escapeHtml(item.name || '')}</option>`),
+  );
   els.tileItemId.innerHTML = options.join('');
   els.cardItemId.innerHTML = options.join('');
 }
 
 function renderItems() {
-  els.itemList.innerHTML = state.items.map((item) => `
-    <div class="admin-item ${Number(els.itemId.value) === Number(item.id) ? 'active' : ''}" data-id="${item.id}" data-kind="item">
+  const activeId = Number(els.itemId.value || 0);
+  const rows = state.items.filter((item) => matchesFilter(item, state.filters.item, ['name', 'category', 'icon', 'blurb']));
+  els.itemCount.textContent = `${rows.length} db`;
+  els.itemList.innerHTML = rows.map((item) => `
+    <button type="button" class="admin-item admin-clickable ${activeId === Number(item.id) ? 'active' : ''}" data-id="${item.id}" data-kind="item">
       <div class="admin-item-head"><strong>${escapeHtml(item.icon || '🎁')} ${escapeHtml(item.name || '')}</strong><small>${escapeHtml(item.category || '')}</small></div>
       <div class="item-badges top-gap">
         <span class="tag-chip">ár: ${Number(item.price || 0)}</span>
         <span class="tag-chip">${item.required ? 'kötelező' : 'opcionális'}</span>
       </div>
-    </div>
-  `).join('');
+      <div class="microcopy">${escapeHtml(item.blurb || 'Nincs rövid leírás.')}</div>
+    </button>
+  `).join('') || '<div class="empty-state-box">Nincs találat a tárgyaknál.</div>';
+  els.itemSelectedLabel.textContent = activeId ? (itemNameFromId(activeId) || 'Kiválasztott tárgy') : 'Új tárgy';
   els.itemList.querySelectorAll('[data-kind="item"]').forEach((el) => el.addEventListener('click', () => fillItemForm(state.items.find((row) => Number(row.id) === Number(el.dataset.id)))));
 }
 
 function renderTiles() {
-  els.tileList.innerHTML = state.tiles.map((tile) => `
-    <div class="admin-item ${Number(els.tileId.value) === Number(tile.id) ? 'active' : ''}" data-id="${tile.id}" data-kind="tile">
+  const activeId = Number(els.tileId.value || 0);
+  const rows = state.tiles.filter((tile) => matchesFilter(tile, state.filters.tile, ['name', 'short_name', 'kind', 'description', 'icon']));
+  els.tileCount.textContent = `${rows.length} db`;
+  els.tileList.innerHTML = rows.map((tile) => `
+    <button type="button" class="admin-item admin-clickable ${activeId === Number(tile.id) ? 'active' : ''}" data-id="${tile.id}" data-kind="tile">
       <div class="admin-item-head"><strong>#${Number(tile.sort_order ?? 0)} ${escapeHtml(tile.icon || '✨')} ${escapeHtml(tile.name || '')}</strong><small>${escapeHtml(tile.kind || '')}</small></div>
-      <div class="item-badges top-gap"><span class="tag-chip">rövid: ${escapeHtml(tile.short_name || '-')}</span><span class="tag-chip">tárgy: ${escapeHtml(itemNameFromId(tile.item_id) || '-')}</span></div>
-    </div>
-  `).join('');
+      <div class="item-badges top-gap">
+        <span class="tag-chip">rövid: ${escapeHtml(tile.short_name || '-')}</span>
+        <span class="tag-chip">tárgy: ${escapeHtml(itemNameFromId(tile.item_id) || '-')}</span>
+      </div>
+      <div class="microcopy">${escapeHtml(tile.description || 'Nincs mezőleírás.')}</div>
+    </button>
+  `).join('') || '<div class="empty-state-box">Nincs találat a mezőknél.</div>';
+  els.tileSelectedLabel.textContent = activeId ? (state.tiles.find((row) => Number(row.id) === activeId)?.name || 'Kiválasztott mező') : 'Új mező';
   els.tileList.querySelectorAll('[data-kind="tile"]').forEach((el) => el.addEventListener('click', () => fillTileForm(state.tiles.find((row) => Number(row.id) === Number(el.dataset.id)))));
 }
 
 function renderCards() {
-  els.cardList.innerHTML = state.cards.map((card) => `
-    <div class="admin-item ${Number(els.cardId.value) === Number(card.id) ? 'active' : ''}" data-id="${card.id}" data-kind="card">
-      <div class="admin-item-head"><strong>${escapeHtml(card.title || '')}</strong><small>${escapeHtml(card.card_group || 'chance')}</small></div>
-      <div class="item-badges top-gap"><span class="tag-chip">pénz: ${Number(card.amount || 0)}</span><span class="tag-chip">tárgy: ${escapeHtml(itemNameFromId(card.item_id) || '-')}</span></div>
-    </div>
-  `).join('');
+  const activeId = Number(els.cardId.value || 0);
+  const rows = state.cards.filter((card) => matchesFilter(card, state.filters.card, ['title', 'card_group', 'icon', 'body']));
+  els.cardCount.textContent = `${rows.length} db`;
+  els.cardList.innerHTML = rows.map((card) => `
+    <button type="button" class="admin-item admin-clickable ${activeId === Number(card.id) ? 'active' : ''}" data-id="${card.id}" data-kind="card">
+      <div class="admin-item-head"><strong>${escapeHtml(card.icon || '💌')} ${escapeHtml(card.title || '')}</strong><small>${escapeHtml(card.card_group || 'chance')}</small></div>
+      <div class="item-badges top-gap">
+        <span class="tag-chip">pénz: ${Number(card.amount || 0)}</span>
+        <span class="tag-chip">tárgy: ${escapeHtml(itemNameFromId(card.item_id) || '-')}</span>
+      </div>
+      <div class="microcopy">${escapeHtml(card.body || 'Nincs leírás.')}</div>
+    </button>
+  `).join('') || '<div class="empty-state-box">Nincs találat a kártyáknál.</div>';
+  els.cardSelectedLabel.textContent = activeId ? (state.cards.find((row) => Number(row.id) === activeId)?.title || 'Kiválasztott kártya') : 'Új kártya';
   els.cardList.querySelectorAll('[data-kind="card"]').forEach((el) => el.addEventListener('click', () => fillCardForm(state.cards.find((row) => Number(row.id) === Number(el.dataset.id)))));
 }
 
@@ -170,7 +217,8 @@ function clearItemForm() {
   els.itemImageUrl.value = '';
   els.itemImageFile.value = '';
   els.itemEffect.value = '{}';
-  renderItems(); updatePreviews();
+  renderItems();
+  updatePreviews();
 }
 
 function fillItemForm(item) {
@@ -188,7 +236,8 @@ function fillItemForm(item) {
   els.itemImageUrl.value = item.image_url ?? '';
   els.itemImageFile.value = '';
   els.itemEffect.value = prettyJson(item.effect);
-  renderItems(); updatePreviews();
+  renderItems();
+  updatePreviews();
 }
 
 function clearTileForm() {
@@ -211,7 +260,8 @@ function clearTileForm() {
   els.tileImageUrl.value = '';
   els.tileImageFile.value = '';
   els.tileEffect.value = '{}';
-  renderTiles(); updatePreviews();
+  renderTiles();
+  updatePreviews();
 }
 
 function fillTileForm(tile) {
@@ -235,7 +285,8 @@ function fillTileForm(tile) {
   els.tileImageUrl.value = tile.image_url ?? '';
   els.tileImageFile.value = '';
   els.tileEffect.value = prettyJson(tile.effect);
-  renderTiles(); updatePreviews();
+  renderTiles();
+  updatePreviews();
 }
 
 function clearCardForm() {
@@ -253,7 +304,8 @@ function clearCardForm() {
   els.cardImageUrl.value = '';
   els.cardImageFile.value = '';
   els.cardEffect.value = '{}';
-  renderCards(); updatePreviews();
+  renderCards();
+  updatePreviews();
 }
 
 function fillCardForm(card) {
@@ -272,13 +324,14 @@ function fillCardForm(card) {
   els.cardImageUrl.value = card.image_url ?? '';
   els.cardImageFile.value = '';
   els.cardEffect.value = prettyJson(card.effect);
-  renderCards(); updatePreviews();
+  renderCards();
+  updatePreviews();
 }
 
 function updatePreviews() {
-  els.itemPreview.innerHTML = buildPreviewHtml(els.itemName.value || 'Tárgy', els.itemIcon.value || '🎁', els.itemBlurb.value || 'Leírás', els.itemAccentColor.value, els.itemTextColor.value, els.itemImageUrl.value);
-  els.tilePreview.innerHTML = buildPreviewHtml(els.tileShortName.value || els.tileName.value || 'Mező', els.tileIcon.value || '✨', els.tileDescription.value || 'Mező leírás', els.tileAccentColor.value, els.tileTextColor.value, els.tileImageUrl.value);
-  els.cardPreview.innerHTML = buildPreviewHtml(els.cardTitle.value || 'Kártya', els.cardIcon.value || '💌', els.cardBody.value || 'Kártya szöveg', els.cardAccentColor.value, els.cardTextColor.value, els.cardImageUrl.value);
+  if (els.itemPreview) els.itemPreview.innerHTML = buildPreviewHtml(els.itemName.value || 'Tárgy', els.itemIcon.value || '🎁', els.itemBlurb.value || 'Leírás', els.itemAccentColor.value, els.itemTextColor.value, els.itemImageUrl.value);
+  if (els.tilePreview) els.tilePreview.innerHTML = buildPreviewHtml(els.tileShortName.value || els.tileName.value || 'Mező', els.tileIcon.value || '✨', els.tileDescription.value || 'Mező leírás', els.tileAccentColor.value, els.tileTextColor.value, els.tileImageUrl.value);
+  if (els.cardPreview) els.cardPreview.innerHTML = buildPreviewHtml(els.cardTitle.value || 'Kártya', els.cardIcon.value || '💌', els.cardBody.value || 'Kártya szöveg', els.cardAccentColor.value, els.cardTextColor.value, els.cardImageUrl.value);
 }
 
 function buildPreviewHtml(title, icon, text, bg, color, image) {
@@ -288,7 +341,12 @@ function buildPreviewHtml(title, icon, text, bg, color, image) {
 
 async function saveConfig() {
   let extra = {};
-  try { extra = parseJson(els.cfgExtraJson.value); } catch (error) { alert(error.message || error); return; }
+  try {
+    extra = parseJson(els.cfgExtraJson.value);
+  } catch (error) {
+    alert(error.message || error);
+    return;
+  }
   const payload = {
     game_title: els.cfgGameTitle.value.trim(),
     game_subtitle: els.cfgGameSubtitle.value.trim(),
@@ -305,7 +363,10 @@ async function saveConfig() {
   };
   for (const [key, value] of Object.entries(payload)) {
     const res = await supabase.from('game_config').upsert({ key, value: { value } }, { onConflict: 'key' });
-    if (res.error) { setStatus(res.error.message); return; }
+    if (res.error) {
+      setStatus(readableError(res.error));
+      return;
+    }
   }
   setStatus('Globális beállítások elmentve.');
   await loadAll();
@@ -313,82 +374,188 @@ async function saveConfig() {
 
 async function saveItem() {
   let effect = {};
-  try { effect = parseJson(els.itemEffect.value); } catch (error) { alert(error.message || error); return; }
+  try {
+    effect = parseJson(els.itemEffect.value);
+  } catch (error) {
+    alert(error.message || error);
+    return;
+  }
   const payload = {
-    sort_order: Number(els.itemSort.value || 0), name: els.itemName.value.trim(), category: els.itemCategory.value.trim(), price: Number(els.itemPrice.value || 0), icon: els.itemIcon.value.trim(), required: els.itemRequired.checked,
-    blurb: els.itemBlurb.value.trim(), image_url: els.itemImageUrl.value.trim(), accent_color: els.itemAccentColor.value, text_color: els.itemTextColor.value, effect,
+    sort_order: Number(els.itemSort.value || 0),
+    name: els.itemName.value.trim(),
+    category: els.itemCategory.value.trim(),
+    price: Number(els.itemPrice.value || 0),
+    icon: els.itemIcon.value.trim(),
+    required: els.itemRequired.checked,
+    blurb: els.itemBlurb.value.trim(),
+    image_url: els.itemImageUrl.value.trim(),
+    accent_color: els.itemAccentColor.value,
+    text_color: els.itemTextColor.value,
+    effect,
   };
   if (!payload.name) return alert('Adj nevet a tárgynak.');
   const id = Number(els.itemId.value || 0);
   const res = await (id ? supabase.from('game_items').update(payload).eq('id', id) : supabase.from('game_items').insert(payload));
-  if (res.error) return setStatus(res.error.message);
+  if (res.error) return setStatus(readableError(res.error));
   setStatus('Tárgy elmentve.');
   await loadAll();
 }
 
 async function deleteItem() {
-  const id = Number(els.itemId.value || 0); if (!id || !confirm('Biztos törlöd ezt a tárgyat?')) return;
+  const id = Number(els.itemId.value || 0);
+  if (!id || !confirm('Biztos törlöd ezt a tárgyat?')) return;
   const res = await supabase.from('game_items').delete().eq('id', id);
-  if (res.error) return setStatus(res.error.message);
+  if (res.error) return setStatus(readableError(res.error));
+  clearItemForm();
   setStatus('Tárgy törölve.');
   await loadAll();
 }
 
 async function saveTile() {
   let effect = {};
-  try { effect = parseJson(els.tileEffect.value); } catch (error) { alert(error.message || error); return; }
+  try {
+    effect = parseJson(els.tileEffect.value);
+  } catch (error) {
+    alert(error.message || error);
+    return;
+  }
   const payload = {
-    sort_order: Number(els.tileSort.value || 0), name: els.tileName.value.trim(), short_name: els.tileShortName.value.trim(), icon: els.tileIcon.value.trim(), kind: els.tileKind.value, color_key: els.tileColorKey.value.trim(),
-    amount: Number(els.tileAmount.value || 0), price: Number(els.tilePrice.value || 0), card_group: els.tileCardGroup.value.trim() || 'chance', item_id: nullableNumber(els.tileItemId.value), skip_turns: Number(els.tileSkipTurns.value || 0), move_steps: Number(els.tileMoveSteps.value || 0),
-    description: els.tileDescription.value.trim(), image_url: els.tileImageUrl.value.trim(), accent_color: els.tileAccentColor.value, text_color: els.tileTextColor.value, effect,
+    sort_order: Number(els.tileSort.value || 0),
+    name: els.tileName.value.trim(),
+    short_name: els.tileShortName.value.trim(),
+    icon: els.tileIcon.value.trim(),
+    kind: els.tileKind.value,
+    color_key: els.tileColorKey.value.trim(),
+    amount: Number(els.tileAmount.value || 0),
+    price: Number(els.tilePrice.value || 0),
+    card_group: els.tileCardGroup.value.trim() || 'chance',
+    item_id: nullableNumber(els.tileItemId.value),
+    skip_turns: Number(els.tileSkipTurns.value || 0),
+    move_steps: Number(els.tileMoveSteps.value || 0),
+    description: els.tileDescription.value.trim(),
+    image_url: els.tileImageUrl.value.trim(),
+    accent_color: els.tileAccentColor.value,
+    text_color: els.tileTextColor.value,
+    effect,
   };
   if (!payload.name) return alert('Adj nevet a mezőnek.');
   const id = Number(els.tileId.value || 0);
   const res = await (id ? supabase.from('game_tiles').update(payload).eq('id', id) : supabase.from('game_tiles').insert(payload));
-  if (res.error) return setStatus(res.error.message);
+  if (res.error) return setStatus(readableError(res.error));
   setStatus('Mező elmentve.');
   await loadAll();
 }
 
 async function deleteTile() {
-  const id = Number(els.tileId.value || 0); if (!id || !confirm('Biztos törlöd ezt a mezőt?')) return;
+  const id = Number(els.tileId.value || 0);
+  if (!id || !confirm('Biztos törlöd ezt a mezőt?')) return;
   const res = await supabase.from('game_tiles').delete().eq('id', id);
-  if (res.error) return setStatus(res.error.message);
+  if (res.error) return setStatus(readableError(res.error));
+  clearTileForm();
   setStatus('Mező törölve.');
   await loadAll();
 }
 
 async function saveCard() {
   let effect = {};
-  try { effect = parseJson(els.cardEffect.value); } catch (error) { alert(error.message || error); return; }
+  try {
+    effect = parseJson(els.cardEffect.value);
+  } catch (error) {
+    alert(error.message || error);
+    return;
+  }
   const payload = {
-    card_group: els.cardGroup.value.trim() || 'chance', title: els.cardTitle.value.trim(), amount: Number(els.cardAmount.value || 0), skip_turns: Number(els.cardSkipTurns.value || 0), move_steps: Number(els.cardMoveSteps.value || 0), item_id: nullableNumber(els.cardItemId.value),
-    body: els.cardBody.value.trim(), icon: els.cardIcon.value.trim(), image_url: els.cardImageUrl.value.trim(), accent_color: els.cardAccentColor.value, text_color: els.cardTextColor.value, effect,
+    card_group: els.cardGroup.value.trim() || 'chance',
+    title: els.cardTitle.value.trim(),
+    amount: Number(els.cardAmount.value || 0),
+    skip_turns: Number(els.cardSkipTurns.value || 0),
+    move_steps: Number(els.cardMoveSteps.value || 0),
+    item_id: nullableNumber(els.cardItemId.value),
+    body: els.cardBody.value.trim(),
+    icon: els.cardIcon.value.trim(),
+    image_url: els.cardImageUrl.value.trim(),
+    accent_color: els.cardAccentColor.value,
+    text_color: els.cardTextColor.value,
+    effect,
   };
   if (!payload.title) return alert('Adj címet a kártyának.');
   const id = Number(els.cardId.value || 0);
   const res = await (id ? supabase.from('game_cards').update(payload).eq('id', id) : supabase.from('game_cards').insert(payload));
-  if (res.error) return setStatus(res.error.message);
+  if (res.error) return setStatus(readableError(res.error));
   setStatus('Kártya elmentve.');
   await loadAll();
 }
 
 async function deleteCard() {
-  const id = Number(els.cardId.value || 0); if (!id || !confirm('Biztos törlöd ezt a kártyát?')) return;
+  const id = Number(els.cardId.value || 0);
+  if (!id || !confirm('Biztos törlöd ezt a kártyát?')) return;
   const res = await supabase.from('game_cards').delete().eq('id', id);
-  if (res.error) return setStatus(res.error.message);
+  if (res.error) return setStatus(readableError(res.error));
+  clearCardForm();
   setStatus('Kártya törölve.');
   await loadAll();
 }
 
-function itemNameFromId(id) { return state.items.find((row) => Number(row.id) === Number(id))?.name || ''; }
-function nullableNumber(value) { const trimmed = String(value ?? '').trim(); if (!trimmed) return null; const num = Number(trimmed); return Number.isFinite(num) ? num : null; }
-function setStatus(message) { els.adminStatus.textContent = message; }
-function parseJson(value) { const trimmed = String(value || '').trim(); if (!trimmed) return {}; try { return JSON.parse(trimmed); } catch { throw new Error('Hibás JSON.'); } }
-function prettyJson(value) { try { return JSON.stringify(typeof value === 'string' ? JSON.parse(value) : (value || {}), null, 2); } catch { return '{}'; } }
-function valueFromConfig(raw) { return typeof raw === 'object' && raw !== null && 'value' in raw ? raw.value : raw; }
-function escapeHtml(value) { return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }
-function escapeAttr(value) { return escapeHtml(value).replaceAll('\n', ' '); }
-function readableError(error) { if (!error) return 'Ismeretlen hiba.'; if (typeof error === 'string') return error; return error.message || error.details || JSON.stringify(error); }
-function normalizeColor(value, fallback) { const v = String(value || '').trim(); return /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback; }
-function fileToDataUrl(file) { return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result || '')); r.onerror = reject; r.readAsDataURL(file); }); }
+function matchesFilter(row, query, keys) {
+  if (!query) return true;
+  const haystack = keys.map((key) => String(row?.[key] ?? '')).join(' ').toLowerCase();
+  return haystack.includes(query);
+}
+
+function itemNameFromId(id) {
+  return state.items.find((row) => Number(row.id) === Number(id))?.name || '';
+}
+function nullableNumber(value) {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return null;
+  const num = Number(trimmed);
+  return Number.isFinite(num) ? num : null;
+}
+function setStatus(message) {
+  els.adminStatus.textContent = message;
+}
+function parseJson(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return {};
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    throw new Error('Hibás JSON.');
+  }
+}
+function prettyJson(value) {
+  try {
+    return JSON.stringify(typeof value === 'string' ? JSON.parse(value) : (value || {}), null, 2);
+  } catch {
+    return '{}';
+  }
+}
+function valueFromConfig(raw) {
+  return typeof raw === 'object' && raw !== null && 'value' in raw ? raw.value : raw;
+}
+function escapeHtml(value) {
+  return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+function escapeAttr(value) {
+  return escapeHtml(value).replaceAll('\n', ' ');
+}
+function readableError(error) {
+  const message = typeof error === 'string' ? error : (error?.message || error?.details || JSON.stringify(error));
+  if (/Could not find the '([^']+)' column of '([^']+)'/i.test(message || '')) {
+    const [, column, table] = message.match(/Could not find the '([^']+)' column of '([^']+)'/i) || [];
+    return `Hiányzó adatbázis oszlop: ${table}.${column}. Futtasd le a zipben lévő sql/migrate_v4.sql fájlt a Supabase SQL Editorban.`;
+  }
+  return message || 'Ismeretlen hiba.';
+}
+function normalizeColor(value, fallback) {
+  const v = String(value || '').trim();
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
+}
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
