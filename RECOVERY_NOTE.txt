@@ -1,0 +1,10 @@
+Ez egy ujraepitett csomag a legutobbi elerheto projektallapotbol.
+Az eredeti v9 zip nem maradt meg a munkamenetben, ezert ezt a csomagot a legfrissebb elerheto forrasbol raktuk ossze ujra.
+
+Fajlok:
+- index.html
+- admin.html
+- assets/*
+- sql/*
+
+Ha szukseges, a kovetkezo korben a konkret v9 bugfixeket kulon ra lehet huzni erre a csomagra.
