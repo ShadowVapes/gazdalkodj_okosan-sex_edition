@@ -22,7 +22,7 @@
         <div class="lobby-grid">
           <section class="panel parchment-panel">
             <h2>Lobby</h2>
-            <p class="muted">Szobát létrehozol, csatlakozol, aztán a játék külön képernyőn indul. Nem modern app kinézet, hanem egyszerű társas hangulat.</p>
+            <p class="muted">Hozz létre egy szobát vagy csatlakozz egy meglévőhöz. A lobby és a játéktér külön nézet.</p>
             <div id="loadErrorBox" class="notice danger hidden"></div>
 
             <div class="form-stack">
@@ -49,8 +49,8 @@
             <ul class="plain-list">
               <li>A host indítja a játékot.</li>
               <li>Dobni az aktív játékos tud.</li>
-              <li>A mezők, kártyák, tárgyak és globális dolgok adminból állíthatók.</li>
-              <li>A téma csak poénos, felnőttes társasparódia.</li>
+              <li>A mezők, kártyák, tárgyak és beállítások az adminból állíthatók.</li>
+              <li>A dizájn direkt egyszerű társasjátékos, nem modern webappos.</li>
             </ul>
             <div class="notice top-gap">
               <strong>Admin:</strong>
@@ -101,22 +101,37 @@
           <section class="panel board-panel">
             <div class="board-topline">
               <div id="turnInfo" class="info-strip">Kör információk...</div>
-              <div class="mini-strip" id="diceInfo">-</div>
+              <div id="diceInfo" class="mini-strip">-</div>
             </div>
-            <div id="board" class="board-grid"></div>
+
+            <div class="board-stage">
+              <div id="board" class="board-grid"></div>
+
+              <div class="center-control">
+                <div class="center-heading">Dobás</div>
+                <div id="diceFace" class="dice-face" aria-label="Dobókocka"></div>
+                <div id="diceLabel" class="dice-label">Készen áll</div>
+                <button id="rollBtn" class="board-btn board-btn-primary full top-gap">Dobás</button>
+                <div id="actionInfo" class="action-box top-gap">Várakozás...</div>
+              </div>
+
+              <div id="eventOverlay" class="event-overlay hidden" aria-live="polite">
+                <div id="eventBanner" class="event-banner"></div>
+                <div id="eventCard" class="event-card tile-gold">
+                  <div class="event-icon-wrap">
+                    <div id="eventIcon" class="event-icon">✨</div>
+                  </div>
+                  <div class="event-body">
+                    <div id="eventType" class="event-type">MEZŐ</div>
+                    <h3 id="eventTitle">Esemény</h3>
+                    <p id="eventText">Leírás</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
 
           <aside class="side-grid">
-            <section class="panel parchment-panel action-panel">
-              <h3>Dobás</h3>
-              <div class="dice-area">
-                <div id="diceFace" class="dice-face" aria-label="Dobókocka"></div>
-                <div id="diceLabel" class="dice-label">Készen áll</div>
-              </div>
-              <div id="actionInfo" class="action-box">Várakozás...</div>
-              <button id="rollBtn" class="board-btn board-btn-primary full top-gap">Dobás</button>
-            </section>
-
             <section class="panel parchment-panel">
               <h3>Játékosok</h3>
               <div id="gamePlayers" class="card-stack"></div>
