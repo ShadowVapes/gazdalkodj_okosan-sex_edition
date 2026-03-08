@@ -12,7 +12,7 @@
       <div>
         <div class="eyebrow">MULTIPLAYER TÁRSAS ALAP</div>
         <h1 id="titleMain">Gazdálkodj Pajkosan</h1>
-        <p id="subtitleMain" class="subtitle">Egyszerű, vicces felnőttes paródia társasjáték.</p>
+        <p id="subtitleMain" class="subtitle">Vicces, egyszerű társas paródia multiplayerben.</p>
       </div>
       <div id="connectionStatus" class="status-box">Kapcsolódás...</div>
     </header>
@@ -22,24 +22,17 @@
         <div class="lobby-grid">
           <section class="panel parchment-panel">
             <h2>Lobby</h2>
-            <p class="muted">Hozz létre egy szobát vagy csatlakozz egy meglévőhöz. A lobby és a játéktér külön nézet.</p>
+            <p class="muted">Hozz létre egy szobát vagy csatlakozz. A lobby és a játéktér külön nézet.</p>
             <div id="loadErrorBox" class="notice danger hidden"></div>
-
             <div class="form-stack">
-              <label>
-                Játékosnév
+              <label>Játékosnév
                 <input id="playerName" type="text" maxlength="24" placeholder="pl. Tesó" />
               </label>
-
               <button id="createRoomBtn" class="board-btn board-btn-primary">Új szoba</button>
-
               <div class="separator">vagy</div>
-
-              <label>
-                Szobakód
+              <label>Szobakód
                 <input id="roomCodeInput" type="text" maxlength="6" placeholder="pl. AB12C" />
               </label>
-
               <button id="joinRoomBtn" class="board-btn">Csatlakozás</button>
             </div>
           </section>
@@ -48,14 +41,11 @@
             <h2>Alap infó</h2>
             <ul class="plain-list">
               <li>A host indítja a játékot.</li>
-              <li>Dobni az aktív játékos tud.</li>
-              <li>A mezők, kártyák, tárgyak és beállítások az adminból állíthatók.</li>
+              <li>Dobni az aktív játékos tud, a kockára kattintva.</li>
+              <li>A mezők, kártyák, tárgyak és az animációk ideje adminból állítható.</li>
               <li>A dizájn direkt egyszerű társasjátékos, nem modern webappos.</li>
             </ul>
-            <div class="notice top-gap">
-              <strong>Admin:</strong>
-              <a href="./admin.html">admin.html</a>
-            </div>
+            <div class="notice top-gap"><strong>Admin:</strong> <a href="./admin.html">admin.html</a></div>
           </section>
         </div>
 
@@ -70,7 +60,6 @@
               <button id="leaveRoomBtn" class="board-btn board-btn-danger">Kilépés</button>
             </div>
           </div>
-
           <div class="room-grid top-gap">
             <section class="sub-panel">
               <h3>Játékosok</h3>
@@ -106,21 +95,28 @@
 
             <div class="board-stage">
               <div id="board" class="board-grid"></div>
-
               <div class="center-control">
                 <div class="center-heading">Dobás</div>
-                <div id="diceFace" class="dice-face" aria-label="Dobókocka"></div>
-                <div id="diceLabel" class="dice-label">Készen áll</div>
-                <button id="rollBtn" class="board-btn board-btn-primary full top-gap">Dobás</button>
+                <div id="diceFace" class="dice-face clickable" aria-label="Dobókocka"></div>
+                <div id="diceLabel" class="dice-label">Kattints a kockára!</div>
+                <div id="deckArea" class="deck-area hidden">
+                  <button id="drawCardBtn" class="card-deck">💌 Húzás a pakliból</button>
+                </div>
+                <div id="decisionArea" class="decision-area hidden">
+                  <div id="decisionTitle" class="decision-title">Vásárlás</div>
+                  <div id="decisionText" class="decision-text">Döntsd el, megveszed-e.</div>
+                  <div class="row wrap center-row">
+                    <button id="buyItemBtn" class="board-btn board-btn-success">Megveszem</button>
+                    <button id="skipItemBtn" class="board-btn">Kihagyom</button>
+                  </div>
+                </div>
                 <div id="actionInfo" class="action-box top-gap">Várakozás...</div>
               </div>
 
               <div id="eventOverlay" class="event-overlay hidden" aria-live="polite">
                 <div id="eventBanner" class="event-banner"></div>
                 <div id="eventCard" class="event-card tile-gold">
-                  <div class="event-icon-wrap">
-                    <div id="eventIcon" class="event-icon">✨</div>
-                  </div>
+                  <div class="event-icon-wrap"><div id="eventIcon" class="event-icon">✨</div></div>
                   <div class="event-body">
                     <div id="eventType" class="event-type">MEZŐ</div>
                     <h3 id="eventTitle">Esemény</h3>
@@ -133,10 +129,9 @@
 
           <aside class="side-grid">
             <section class="panel parchment-panel">
-              <h3>Játékosok</h3>
+              <h3>Játékosok és tárgyak</h3>
               <div id="gamePlayers" class="card-stack"></div>
             </section>
-
             <section class="panel parchment-panel">
               <h3>Legutóbbi események</h3>
               <div id="logList" class="log-list"></div>

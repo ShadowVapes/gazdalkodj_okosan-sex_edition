@@ -22,6 +22,19 @@ alter table public.game_tiles add column if not exists skip_turns integer not nu
 alter table public.game_tiles add column if not exists move_steps integer not null default 0;
 
 alter table public.game_cards add column if not exists item_id bigint;
+alter table public.game_items add column if not exists image_url text not null default '';
+alter table public.game_items add column if not exists accent_color text not null default '';
+alter table public.game_items add column if not exists text_color text not null default '';
+alter table public.game_tiles add column if not exists image_url text not null default '';
+alter table public.game_tiles add column if not exists accent_color text not null default '';
+alter table public.game_tiles add column if not exists text_color text not null default '';
+alter table public.game_cards add column if not exists icon text not null default '💌';
+alter table public.game_cards add column if not exists image_url text not null default '';
+alter table public.game_cards add column if not exists accent_color text not null default '';
+alter table public.game_cards add column if not exists text_color text not null default '';
+alter table public.rooms add column if not exists phase text not null default 'roll';
+alter table public.rooms add column if not exists pending_payload jsonb not null default '{}'::jsonb;
+
 
 alter table public.rooms add column if not exists host_player_id uuid;
 alter table public.rooms add column if not exists turn_index integer not null default 0;
@@ -79,6 +92,8 @@ values
   ('start_bonus', '{"value":400}'),
   ('win_money', '{"value":10000}'),
   ('required_items', '{"value":4}'),
+  ('event_overlay_ms', '{"value":3500}'),
+  ('card_overlay_ms', '{"value":3500}'),
   ('center_text', '{"value":"Szedd össze a szükséges tárgyakat vagy gyűjts elég pénzt."}'),
   ('lobby_note', '{"value":"Az egész csak poén, társasjátékos paródia hangulattal."}')
 on conflict (key) do nothing;

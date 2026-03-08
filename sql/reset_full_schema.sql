@@ -23,6 +23,16 @@ create table public.game_items (
   icon text not null default '🎁',
   required boolean not null default true,
   blurb text not null default '',
+  image_url text not null default '',
+  accent_color text not null default '',
+  text_color text not null default '',
+  image_url text not null default '',
+  accent_color text not null default '',
+  text_color text not null default '',
+  icon text not null default '💌',
+  image_url text not null default '',
+  accent_color text not null default '',
+  text_color text not null default '',
   effect jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
@@ -67,6 +77,8 @@ create table public.rooms (
   turn_index integer not null default 0,
   turn_no integer not null default 1,
   last_roll integer,
+  phase text not null default 'roll',
+  pending_payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -105,8 +117,10 @@ values
   ('start_bonus', '{"value":400}'),
   ('win_money', '{"value":10000}'),
   ('required_items', '{"value":4}'),
-  ('center_text', '{"value":"Szedd össze a szükséges tárgyakat vagy gyűjts elég pénzt."}'),
-  ('lobby_note', '{"value":"Az egész csak poén, társasjátékos paródia hangulattal."}');
+  ('event_overlay_ms', '{"value":3500}'),
+  ('card_overlay_ms', '{"value":3500}'),
+  ('center_text', '{"value":"Szedd össze a szükséges tárgyakat vagy gyűjts pénzt."}'),
+  ('lobby_note', '{"value":"Az egész poén, társasjátékos hangulattal."}');
 
 insert into public.game_items (id, sort_order, name, category, price, icon, required, blurb, effect)
 values
