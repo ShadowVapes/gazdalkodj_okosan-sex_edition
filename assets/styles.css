@@ -233,7 +233,7 @@ input[type="checkbox"] {
 
 .board-panel {
   padding: 12px;
-  background: linear-gradient(180deg, #f0dcbb, #e7d0aa);
+  background: linear-gradient(180deg, #f1dfbf, #e6cfaa);
 }
 .board-topline {
   display: grid;
@@ -244,25 +244,26 @@ input[type="checkbox"] {
 .board-grid {
   --board-size: 6;
   display: grid;
-  grid-template-columns: repeat(var(--board-size), minmax(74px, 1fr));
-  grid-template-rows: repeat(var(--board-size), minmax(74px, 1fr));
+  grid-template-columns: repeat(var(--board-size), minmax(92px, 1fr));
+  grid-template-rows: repeat(var(--board-size), minmax(92px, 1fr));
   gap: 5px;
   padding: 5px;
   background: var(--line);
-  min-height: 620px;
+  min-height: 650px;
 }
 .board-cell {
   position: relative;
   background: #fff7e7;
-  min-height: 74px;
+  min-height: 92px;
   overflow: hidden;
 }
 .board-cell.empty { background: #f1dcc0; }
 .board-cell.path {
-  padding: 6px;
+  padding: 7px;
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(0,0,0,0.1);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .board-cell.center {
   display: flex;
@@ -296,21 +297,23 @@ input[type="checkbox"] {
   line-height: 1;
 }
 .tile-title {
-  margin-top: 3px;
-  font-size: 12px;
-  line-height: 1.12;
-  font-weight: 800;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: -0.2px;
   word-break: break-word;
   overflow-wrap: anywhere;
+  hyphens: auto;
 }
 .tile-desc {
   margin-top: 4px;
   font-size: 10px;
-  line-height: 1.15;
+  line-height: 1.2;
   color: var(--muted);
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
 .pawn-list {
@@ -320,16 +323,19 @@ input[type="checkbox"] {
   flex-wrap: wrap;
 }
 .pawn {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 2px solid rgba(0,0,0,0.28);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 800;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.18);
+  transform: translateZ(0);
 }
+.pawn span { transform: translateY(-1px); }
 .pawn-0 { background: #ffc0cb; }
 .pawn-1 { background: #c4dbff; }
 .pawn-2 { background: #cbefbe; }
@@ -409,13 +415,172 @@ input[type="checkbox"] {
   .main-wrap { padding: 10px; }
   .topbar { padding: 12px; }
   .board-grid {
-    grid-template-columns: repeat(var(--board-size), minmax(46px, 1fr));
-    grid-template-rows: repeat(var(--board-size), minmax(46px, 1fr));
-    min-height: 410px;
+    grid-template-columns: repeat(var(--board-size), minmax(52px, 1fr));
+    grid-template-rows: repeat(var(--board-size), minmax(52px, 1fr));
+    min-height: 430px;
   }
   .board-cell.center h2 { font-size: 24px; }
   .tile-title { font-size: 10px; }
+  .overlay-title { font-size: 26px; }
+  .overlay-body { font-size: 15px; }
+  .overlay-change { font-size: 18px; }
   .tile-desc, .tile-index { font-size: 8px; }
   .pawn { width: 18px; height: 18px; font-size: 9px; }
   .dice-area { grid-template-columns: 1fr; }
+}
+
+
+.player-pawn-inline {
+  display: inline-flex;
+  width: 22px;
+  justify-content: center;
+}
+
+.tile-focus {
+  transform: scale(1.05);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.68), 0 0 0 3px rgba(122,38,70,0.3);
+  z-index: 2;
+}
+
+@keyframes tilePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1.05); }
+}
+
+.tile-focus {
+  animation: tilePulse 0.45s ease;
+}
+
+.event-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(34, 13, 18, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+}
+
+.event-overlay.show {
+  display: flex;
+}
+
+.overlay-stage {
+  width: min(680px, 100%);
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.overlay-heading,
+.overlay-subheading {
+  color: #fff7ef;
+  text-align: center;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.35);
+}
+
+.overlay-heading {
+  font-size: clamp(24px, 4vw, 34px);
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+}
+
+.overlay-subheading {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.overlay-card {
+  width: min(520px, 100%);
+  min-height: 320px;
+  border: 5px solid var(--line);
+  box-shadow: 0 16px 42px rgba(0,0,0,0.28);
+  background: linear-gradient(180deg, #fff2de, #f4dfbf);
+  padding: 18px;
+  animation: overlayPop 0.25s ease;
+}
+
+.overlay-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.overlay-kind {
+  padding: 6px 10px;
+  border: 2px solid rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.45);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+}
+
+.overlay-icon {
+  font-size: 44px;
+  line-height: 1;
+}
+
+.overlay-title {
+  margin-top: 16px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(30px, 4vw, 42px);
+  line-height: 1;
+  font-weight: 700;
+}
+
+.overlay-body {
+  margin-top: 16px;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 2px solid rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.42);
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.overlay-change {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 3px solid rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.68);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.overlay-card.tone-pink,
+.overlay-card.tone-card {
+  background: linear-gradient(180deg, #ffe3ee, #f5bfd0);
+}
+
+.overlay-card.tone-gold,
+.overlay-card.tone-start,
+.overlay-card.tone-shop {
+  background: linear-gradient(180deg, #ffefca, #f0d38a);
+}
+
+.overlay-card.tone-danger,
+.overlay-card.tone-skip {
+  background: linear-gradient(180deg, #ffe0df, #efb4b4);
+}
+
+.overlay-card.tone-violet,
+.overlay-card.tone-move,
+.overlay-card.tone-neutral {
+  background: linear-gradient(180deg, #ece2ff, #d5c8ef);
+}
+
+.overlay-card.tone-money {
+  background: linear-gradient(180deg, #e8f6d8, #c9e2a7);
+}
+
+@keyframes overlayPop {
+  0% { transform: scale(0.86); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }

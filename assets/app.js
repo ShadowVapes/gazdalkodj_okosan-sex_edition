@@ -34,7 +34,27 @@ const els = {
   actionInfo: document.getElementById('actionInfo'),
   logList: document.getElementById('logList'),
   board: document.getElementById('board'),
+  eventOverlay: document.getElementById('eventOverlay'),
+  overlayHeading: document.getElementById('overlayHeading'),
+  overlaySubheading: document.getElementById('overlaySubheading'),
+  overlayCard: document.getElementById('overlayCard'),
+  overlayKind: document.getElementById('overlayKind'),
+  overlayIcon: document.getElementById('overlayIcon'),
+  overlayTitle: document.getElementById('overlayTitle'),
+  overlayBody: document.getElementById('overlayBody'),
+  overlayChange: document.getElementById('overlayChange'),
 };
+
+const pawnTheme = [
+  { icon: '💋', label: 'Csók' },
+  { icon: '🍓', label: 'Eper' },
+  { icon: '👠', label: 'Sarok' },
+  { icon: '🔥', label: 'Láng' },
+  { icon: '🍾', label: 'Pezsgő' },
+  { icon: '😈', label: 'Ördög' },
+  { icon: '💄', label: 'Rúzs' },
+  { icon: '🎭', label: 'Maszk' },
+];
 
 const state = {
   isBusy: false,
@@ -48,6 +68,11 @@ const state = {
   session: loadSession(),
   refreshTimer: null,
   diceValue: 1,
+  visualPositions: {},
+  highlightedTileIndex: null,
+  actionAnimating: false,
+  overlayRunId: 0,
+  lastSeenOverlayLogId: null,
 };
 
 init();
@@ -56,6 +81,7 @@ async function init() {
   bindEvents();
   renderDice(1);
   renderBoard();
+  hideOverlay();
 
   if (!supabase) {
     setStatus('Nincs beállítva a Supabase');
@@ -82,14 +108,14 @@ async function init() {
 
   if (state.session?.roomCode && state.session?.playerId) {
     els.playerName.value = state.session.playerName || '';
-    await refreshRoom();
+    await refreshRoom(true);
   }
 }
 
 function bindEvents() {
   els.createRoomBtn?.addEventListener('click', createRoom);
   els.joinRoomBtn?.addEventListener('click', joinRoom);
-  els.refreshLobbyBtn?.addEventListener('click', refreshRoom);
+  els.refreshLobbyBtn?.addEventListener('click', () => refreshRoom(true));
   els.startGameBtn?.addEventListener('click', startGame);
   els.rollBtn?.addEventListener('click', rollDice);
   els.leaveRoomBtn?.addEventListener('click', leaveRoom);
@@ -306,7 +332,7 @@ async function createRoom() {
 
     await addLog(room.id, `${playerName} létrehozta a szobát.`);
     saveSession({ roomCode, playerId: playerInsert.data.id, playerName });
-    await refreshRoom();
+    await refreshRoom(true);
     setStatus('Szoba létrehozva');
   } catch (error) {
     console.error(error);
@@ -357,7 +383,7 @@ async function joinRoom() {
 
     await addLog(roomRes.data.id, `${playerName} csatlakozott a szobához.`);
     saveSession({ roomCode, playerId: insertRes.data.id, playerName });
-    await refreshRoom();
+    await refreshRoom(true);
     setStatus('Csatlakozva');
   } catch (error) {
     console.error(error);
@@ -368,8 +394,14 @@ async function joinRoom() {
   }
 }
 
-async function refreshRoom() {
+async function refreshRoom(force = false) {
+  if ((state.actionAnimating || state.isBusy) && !force) return;
   if (!state.session?.roomCode || !state.session?.playerId) return;
+
+  const prevRoomId = state.room?.id || null;
+  const prevPositions = new Map(
+    (state.players || []).map((player) => [player.id, Number(state.visualPositions[player.id] ?? player.position ?? 0)])
+  );
 
   const roomRes = await supabase.from('rooms').select('*').eq('code', state.session.roomCode).maybeSingle();
   if (roomRes.error) {
@@ -396,13 +428,15 @@ async function refreshRoom() {
 
   state.players = playersRes.data || [];
   state.logs = logsRes.data || [];
+  cleanupVisualPositions();
   renderRoom();
+  handleIncomingOverlay(prevPositions, prevRoomId);
   ensureRefreshLoop();
 }
 
 function ensureRefreshLoop() {
   if (state.refreshTimer) return;
-  state.refreshTimer = setInterval(refreshRoom, 2200);
+  state.refreshTimer = setInterval(() => refreshRoom(false), 2200);
 }
 
 function stopRefreshLoop() {
@@ -458,7 +492,7 @@ function renderRoom() {
 
   els.startGameBtn.disabled = !(isHost && state.room.status === 'lobby' && state.players.length >= 2);
   const yourTurn = activePlayer?.id === me?.id;
-  els.rollBtn.disabled = !(state.room.status === 'playing' && yourTurn && !state.isBusy);
+  els.rollBtn.disabled = !(state.room.status === 'playing' && yourTurn && !state.isBusy && !state.actionAnimating);
 
   els.turnInfo.textContent = state.room.status === 'playing'
     ? `Aktív játékos: ${activePlayer?.name || '-'} | Kör: ${Number(state.room.turn_no || 1)}`
@@ -490,16 +524,17 @@ function playerCardHtml(player, isActive, colorIndex) {
   const classes = ['player-card'];
   if (me) classes.push('me');
   if (isActive) classes.push('active-turn');
+  const pawn = pawnForIndex(colorIndex);
 
   return `
     <div class="${classes.join(' ')}">
       <div class="player-topline">
-        <div class="player-name">${escapeHtml(player.name || 'Névtelen')}</div>
+        <div class="player-name"><span class="player-pawn-inline">${escapeHtml(pawn.icon)}</span> ${escapeHtml(player.name || 'Névtelen')}</div>
         <div class="player-sub">${player.is_host ? 'HOST' : 'JÁTÉKOS'}</div>
       </div>
       <div class="player-meta">
         <span>Pénz: ${Number(player.money || 0)} ${escapeHtml(currency)}</span>
-        <span>Mező: ${Number(player.position || 0)}</span>
+        <span>Mező: ${Number(state.visualPositions[player.id] ?? player.position ?? 0)}</span>
       </div>
       <div class="player-meta">
         <span>Kimaradás: ${Number(player.skip_turns || 0)}</span>
@@ -537,7 +572,7 @@ function renderBoard() {
 
   const pawnsByPos = new Map();
   state.players.forEach((player, idx) => {
-    const pos = ((Number(player.position || 0) % tileCount) + tileCount) % tileCount;
+    const pos = wrapPosition(state.visualPositions[player.id] ?? Number(player.position || 0), tileCount);
     if (!pawnsByPos.has(pos)) pawnsByPos.set(pos, []);
     pawnsByPos.get(pos).push({ player, idx });
   });
@@ -573,8 +608,9 @@ function renderBoard() {
       const pawns = pawnsByPos.get(info.index) || [];
       const kindClass = sanitizeCssClass(tile.color_key || tile.kind || 'neutral');
       const title = tile.short_name || tile.name || `Mező ${info.index}`;
+      const isFocused = state.highlightedTileIndex === info.index;
       cells.push(`
-        <div class="board-cell path tile-${kindClass}" title="${escapeHtml(tile.name || '')}">
+        <div class="board-cell path tile-${kindClass} ${isFocused ? 'tile-focus' : ''}" title="${escapeHtml(tile.name || '')}">
           <div class="tile-topline">
             <div class="tile-index">#${info.index}</div>
             <div class="tile-icon">${escapeHtml(tile.icon || defaultTileIcon(tile.kind))}</div>
@@ -582,7 +618,7 @@ function renderBoard() {
           <div class="tile-title">${escapeHtml(title)}</div>
           <div class="tile-desc">${escapeHtml(tile.description || tile.kind || '')}</div>
           <div class="pawn-list">
-            ${pawns.map((entry) => `<div class="pawn pawn-${entry.idx % 6}" title="${escapeHtml(entry.player.name || '')}">${escapeHtml((entry.player.name || '?').slice(0, 1).toUpperCase())}</div>`).join('')}
+            ${pawns.map((entry) => pawnHtml(entry.idx, entry.player.name || '')).join('')}
           </div>
         </div>
       `);
@@ -624,7 +660,9 @@ async function startGame() {
     if (updateRes.error) throw updateRes.error;
 
     await addLog(state.room.id, 'A játék elindult.');
-    await refreshRoom();
+    state.visualPositions = {};
+    state.highlightedTileIndex = 0;
+    await refreshRoom(true);
   } catch (error) {
     alert(readableError(error));
   } finally {
@@ -635,9 +673,10 @@ async function startGame() {
 async function rollDice() {
   const me = getMe();
   const activePlayer = getActivePlayer();
-  if (!me || !activePlayer || me.id !== activePlayer.id || state.room?.status !== 'playing' || state.isBusy) return;
+  if (!me || !activePlayer || me.id !== activePlayer.id || state.room?.status !== 'playing' || state.isBusy || state.actionAnimating) return;
 
   state.isBusy = true;
+  state.actionAnimating = true;
   els.rollBtn.disabled = true;
 
   try {
@@ -647,28 +686,57 @@ async function rollDice() {
       const skipLeft = Number(workingPlayer.skip_turns || 0) - 1;
       const skipRes = await supabase.from('room_players').update({ skip_turns: skipLeft }).eq('id', workingPlayer.id);
       if (skipRes.error) throw skipRes.error;
-      await addLog(state.room.id, `${workingPlayer.name} kimarad egy kört.`);
+      const overlaySequence = [{
+        kind: 'tile',
+        label: 'Kimaradás',
+        icon: '😵',
+        title: 'Kimaradsz ebből a körből',
+        description: 'Most csak nézelődsz, ebben a körben nincs dobás.',
+        change: `Még ${skipLeft} kihagyás maradt.`,
+        colorKey: 'danger',
+      }];
+      const logRes = await addLog(state.room.id, `${workingPlayer.name} kimarad egy kört.`, {
+        actorPlayerId: workingPlayer.id,
+        actorName: workingPlayer.name,
+        initialRoll: 0,
+        overlaySequence,
+      });
+      if (logRes?.id) state.lastSeenOverlayLogId = logRes.id;
       await advanceTurn();
-      await refreshRoom();
+      await showOverlaySequence(overlaySequence, { actorName: workingPlayer.name });
+      await refreshRoom(true);
       return;
     }
 
     const roll = await animateDiceRoll();
     const tileCount = Math.max(state.tiles.length, 1);
-    let nextPos = Number(workingPlayer.position || 0) + roll;
+    const startPos = Number(workingPlayer.position || 0);
+    let landedPos = startPos + roll;
     let money = Number(workingPlayer.money || 0);
     let inventory = normalizeInventory(workingPlayer.inventory);
     let skipTurns = Number(workingPlayer.skip_turns || 0);
     const logParts = [`${workingPlayer.name} dobott: ${roll}.`];
+    let passedStartBonus = 0;
 
-    if (nextPos >= tileCount) {
-      nextPos %= tileCount;
-      const bonus = Number(state.config.start_bonus || 0);
-      money += bonus;
-      logParts.push(`Áthaladt a starton és kapott ${bonus} ${getCurrencyLabel()}.`);
+    if (landedPos >= tileCount) {
+      landedPos %= tileCount;
+      passedStartBonus = Number(state.config.start_bonus || 0);
+      money += passedStartBonus;
+      logParts.push(`Áthaladt a starton és kapott ${passedStartBonus} ${getCurrencyLabel()}.`);
     }
 
-    const result = applyTileEffect({ position: nextPos, money, inventory, skipTurns, logParts });
+    state.highlightedTileIndex = null;
+    await animatePawnBySteps(workingPlayer.id, startPos, roll);
+
+    const result = applyTileEffect({
+      actorName: workingPlayer.name,
+      position: landedPos,
+      money,
+      inventory,
+      skipTurns,
+      logParts,
+      passedStartBonus,
+    });
 
     const updatePlayer = await supabase
       .from('room_players')
@@ -690,74 +758,113 @@ async function rollDice() {
 
     if (roomUpdate.error) throw roomUpdate.error;
 
-    await addLog(state.room.id, result.logParts.join(' '));
+    const payload = {
+      actorPlayerId: workingPlayer.id,
+      actorName: workingPlayer.name,
+      initialRoll: roll,
+      overlaySequence: result.overlaySequence,
+    };
+
+    const logRes = await addLog(state.room.id, result.logParts.join(' '), payload);
+    if (logRes?.id) state.lastSeenOverlayLogId = logRes.id;
+
     if (winner) {
       await addLog(state.room.id, `${workingPlayer.name} megnyerte a játékot!`);
     } else {
       await advanceTurn();
     }
 
-    await refreshRoom();
+    await showOverlaySequence(result.overlaySequence, { playerId: workingPlayer.id, actorName: workingPlayer.name });
+    await refreshRoom(true);
   } catch (error) {
     console.error(error);
     alert(readableError(error));
   } finally {
     state.isBusy = false;
+    state.actionAnimating = false;
     renderDice(state.room?.last_roll || state.diceValue || 1);
     els.rollBtn.disabled = false;
+    cleanupVisualPositions();
+    renderBoard();
   }
 }
 
-function applyTileEffect({ position, money, inventory, skipTurns, logParts }) {
+function applyTileEffect({ actorName, position, money, inventory, skipTurns, logParts, passedStartBonus }) {
   const tile = state.tiles[position];
-  if (!tile) return { position, money, inventory, skipTurns, logParts };
+  if (!tile) return { position, money, inventory, skipTurns, logParts, overlaySequence: [] };
 
   const extra = parseObject(tile.effect);
   const currency = getCurrencyLabel();
+  const overlaySequence = [];
+  const tileMessages = [];
+
   logParts.push(`Rálépett: ${tile.name || 'ismeretlen mező'}.`);
+
+  const tileOverlay = {
+    kind: 'tile',
+    label: overlayLabelForTile(tile.kind),
+    icon: tile.icon || defaultTileIcon(tile.kind),
+    title: tile.name || 'Ismeretlen mező',
+    description: tile.description || overlayLabelForTile(tile.kind),
+    change: '',
+    colorKey: tile.color_key || tile.kind || 'neutral',
+  };
 
   switch (tile.kind) {
     case 'money': {
       const amount = Number(tile.amount || extra.amount || 0);
       money += amount;
+      const text = amount >= 0 ? `+${amount} ${currency}` : `-${Math.abs(amount)} ${currency}`;
+      tileMessages.push(text);
       logParts.push(amount >= 0 ? `Kapott ${amount} ${currency}.` : `Fizetett ${Math.abs(amount)} ${currency}.`);
       break;
     }
     case 'skip': {
       const count = Number(tile.skip_turns || extra.skip_turns || tile.amount || 1);
       skipTurns += count;
+      tileMessages.push(`${count} kör kimaradás`);
       logParts.push(`${count} kör kimaradás.`);
       break;
     }
     case 'move': {
       const steps = Number(tile.move_steps || extra.move_steps || tile.amount || 0);
       position = wrapPosition(position + steps, state.tiles.length);
+      tileMessages.push(`${steps >= 0 ? 'Előre' : 'Vissza'} ${Math.abs(steps)} mező`);
+      tileOverlay.afterMoveSteps = steps;
       logParts.push(`${steps >= 0 ? 'Előre' : 'Vissza'} ${Math.abs(steps)} mező.`);
       break;
     }
     case 'card': {
+      tileMessages.push('Húzz 1 kártyát');
       const group = tile.card_group || extra.card_group || 'chance';
       const card = randomCard(group);
+      logParts.push('Szerencsekártyát húzott.');
+      tileOverlay.change = tileMessages.join(' · ');
+      overlaySequence.push(tileOverlay);
+
       if (card) {
-        const cardEffect = parseObject(card.effect);
-        const amount = Number(card.amount || cardEffect.amount || 0);
-        const skip = Number(card.skip_turns || cardEffect.skip_turns || 0);
-        const move = Number(card.move_steps || cardEffect.move_steps || 0);
-        money += amount;
-        skipTurns += skip;
-        if (move) position = wrapPosition(position + move, state.tiles.length);
-        if (card.item_id) {
-          const item = getItemById(card.item_id);
-          inventory = maybeAddInventoryItem(inventory, item);
-          if (item) logParts.push(`Kártyából megkapta: ${item.name}.`);
-        } else if (cardEffect.item_name) {
-          inventory = maybeAddInventoryItem(inventory, { name: cardEffect.item_name, icon: '🎁', required: false });
-        }
-        logParts.push(`Kártya: ${card.title}. ${card.body || ''}`.trim());
+        const cardResult = applyCardEffect(card, { actorName, position, money, inventory, skipTurns, logParts });
+        position = cardResult.position;
+        money = cardResult.money;
+        inventory = cardResult.inventory;
+        skipTurns = cardResult.skipTurns;
+        overlaySequence.push(cardResult.overlay);
       } else {
+        overlaySequence.push({
+          kind: 'card',
+          label: 'Kártya',
+          icon: '💌',
+          title: 'Nem volt húzható kártya',
+          description: 'A pakli most üres.',
+          change: 'Semmi nem történt.',
+          colorKey: 'card',
+        });
         logParts.push('Nem volt húzható kártya.');
       }
-      break;
+      if (passedStartBonus) {
+        overlaySequence[0].change += ` · Start bónusz +${passedStartBonus} ${currency}`;
+      }
+      return { position, money, inventory, skipTurns, logParts, overlaySequence };
     }
     case 'shop': {
       const item = tile.item_id ? getItemById(tile.item_id) : null;
@@ -766,27 +873,96 @@ function applyTileEffect({ position, money, inventory, skipTurns, logParts }) {
       const alreadyOwn = item ? hasItem(inventory, item) : inventory.some((row) => String(row.name || '').toLowerCase() === String(fallbackName).toLowerCase());
 
       if (alreadyOwn) {
-        logParts.push(`Már megvan neki ez a tárgy.`);
+        tileMessages.push('Ez már megvan');
+        logParts.push('Már megvan neki ez a tárgy.');
       } else if (price > 0 && money >= price) {
         money -= price;
         inventory = maybeAddInventoryItem(inventory, item || { name: fallbackName, icon: tile.icon || '🎁', required: false });
+        tileMessages.push(`Megvetted: ${item?.name || fallbackName}`);
+        tileMessages.push(`-${price} ${currency}`);
         logParts.push(`Megvette: ${(item?.name || fallbackName)} (${price} ${currency}).`);
       } else {
+        tileMessages.push('Nincs elég pénz');
+        tileMessages.push(`${price} ${currency} kéne`);
         logParts.push(`Nem tudta megvenni: ${(item?.name || fallbackName)}.`);
       }
       break;
     }
+    case 'start': {
+      tileMessages.push('Biztonságos kezdőmező');
+      logParts.push('A start mezőn áll meg.');
+      break;
+    }
     default:
+      tileMessages.push(tile.description || 'Semmi extra nem történt');
       logParts.push(tile.description || 'Semmi extra nem történt.');
       break;
   }
 
   if (extra.bonus_money) {
     money += Number(extra.bonus_money || 0);
+    tileMessages.push(`Extra +${Number(extra.bonus_money)} ${currency}`);
     logParts.push(`Extra bónusz: +${Number(extra.bonus_money)} ${currency}.`);
   }
 
-  return { position, money, inventory, skipTurns, logParts };
+  if (passedStartBonus) {
+    tileMessages.push(`Start bónusz +${passedStartBonus} ${currency}`);
+  }
+
+  tileOverlay.change = tileMessages.join(' · ');
+  overlaySequence.push(tileOverlay);
+  return { position, money, inventory, skipTurns, logParts, overlaySequence };
+}
+
+function applyCardEffect(card, { actorName, position, money, inventory, skipTurns, logParts }) {
+  const cardEffect = parseObject(card.effect);
+  const currency = getCurrencyLabel();
+  const messages = [];
+  const amount = Number(card.amount || cardEffect.amount || 0);
+  const skip = Number(card.skip_turns || cardEffect.skip_turns || 0);
+  const move = Number(card.move_steps || cardEffect.move_steps || 0);
+
+  if (amount) {
+    money += amount;
+    messages.push(amount > 0 ? `+${amount} ${currency}` : `-${Math.abs(amount)} ${currency}`);
+  }
+  if (skip) {
+    skipTurns += skip;
+    messages.push(`${skip} kör kimaradás`);
+  }
+  if (move) {
+    position = wrapPosition(position + move, state.tiles.length);
+    messages.push(`${move > 0 ? 'Előre' : 'Vissza'} ${Math.abs(move)} mező`);
+  }
+
+  if (card.item_id) {
+    const item = getItemById(card.item_id);
+    inventory = maybeAddInventoryItem(inventory, item);
+    if (item) messages.push(`Tárgy: ${item.name}`);
+  } else if (cardEffect.item_name) {
+    inventory = maybeAddInventoryItem(inventory, { name: cardEffect.item_name, icon: '🎁', required: false });
+    messages.push(`Tárgy: ${cardEffect.item_name}`);
+  }
+
+  if (!messages.length) messages.push('Semmi extra nem történt');
+  logParts.push(`Kártya: ${card.title}. ${card.body || ''}`.trim());
+
+  return {
+    position,
+    money,
+    inventory,
+    skipTurns,
+    overlay: {
+      kind: 'card',
+      label: 'Szerencsekártya',
+      icon: '💌',
+      title: card.title || 'Kártya',
+      description: card.body || 'Meglepetés hatás.',
+      change: messages.join(' · '),
+      colorKey: 'card',
+      afterMoveSteps: move || 0,
+    },
+  };
 }
 
 function randomCard(group) {
@@ -810,9 +986,13 @@ async function advanceTurn() {
   if (update.error) throw update.error;
 }
 
-async function addLog(roomId, entry) {
-  const res = await supabase.from('room_logs').insert({ room_id: roomId, entry });
-  if (res.error) console.error(res.error);
+async function addLog(roomId, entry, payload = {}) {
+  const res = await supabase.from('room_logs').insert({ room_id: roomId, entry, payload }).select('*').single();
+  if (res.error) {
+    console.error(res.error);
+    return null;
+  }
+  return res.data || null;
 }
 
 async function leaveRoom() {
@@ -840,6 +1020,9 @@ function renderEmptyState() {
   state.room = null;
   state.players = [];
   state.logs = [];
+  state.visualPositions = {};
+  state.highlightedTileIndex = null;
+  state.lastSeenOverlayLogId = null;
   els.roomLobbyPanel.classList.add('hidden');
   els.roomCodeTitle.textContent = '---';
   els.gameRoomTitle.textContent = 'Szoba: ---';
@@ -853,6 +1036,7 @@ function renderEmptyState() {
   setAction('Hozz létre vagy lépj be egy szobába.');
   renderDice(1);
   renderBoard();
+  hideOverlay();
   showScreen('lobby');
 }
 
@@ -896,6 +1080,18 @@ function defaultTileIcon(kind) {
     case 'skip': return '😵';
     case 'move': return '↔️';
     default: return '✨';
+  }
+}
+
+function overlayLabelForTile(kind) {
+  switch (kind) {
+    case 'start': return 'Start mező';
+    case 'money': return 'Pénzmező';
+    case 'card': return 'Szerencsekártya mező';
+    case 'shop': return 'Bolt mező';
+    case 'skip': return 'Kimaradás mező';
+    case 'move': return 'Mozgás mező';
+    default: return 'Semleges mező';
   }
 }
 
@@ -1005,15 +1201,139 @@ function renderDice(value) {
 async function animateDiceRoll() {
   els.diceFace.classList.add('rolling');
   let value = 1;
-  for (let i = 0; i < 10; i += 1) {
+  for (let i = 0; i < 11; i += 1) {
     value = Math.floor(Math.random() * 6) + 1;
     renderDice(value);
     els.diceLabel.textContent = `Pörög... ${value}`;
-    await delay(70 + i * 8);
+    await delay(65 + i * 11);
   }
   els.diceFace.classList.remove('rolling');
   els.diceLabel.textContent = `Dobás: ${value}`;
   return value;
+}
+
+async function animatePawnBySteps(playerId, startPos, steps) {
+  const total = Math.abs(Number(steps || 0));
+  if (!playerId || !total) {
+    state.highlightedTileIndex = wrapPosition(startPos, state.tiles.length);
+    renderBoard();
+    return wrapPosition(startPos, state.tiles.length);
+  }
+
+  let pos = wrapPosition(startPos, state.tiles.length);
+  const dir = Number(steps) >= 0 ? 1 : -1;
+  state.visualPositions[playerId] = pos;
+  renderBoard();
+  await delay(120);
+
+  for (let i = 0; i < total; i += 1) {
+    pos = wrapPosition(pos + dir, state.tiles.length);
+    state.visualPositions[playerId] = pos;
+    state.highlightedTileIndex = pos;
+    renderBoard();
+    await delay(290);
+  }
+
+  return pos;
+}
+
+function handleIncomingOverlay(prevPositions, prevRoomId) {
+  const latest = state.logs[0];
+  if (!latest) return;
+
+  if (state.room?.id !== prevRoomId || state.lastSeenOverlayLogId == null) {
+    state.lastSeenOverlayLogId = latest.id;
+    return;
+  }
+
+  if (Number(latest.id) === Number(state.lastSeenOverlayLogId)) return;
+  state.lastSeenOverlayLogId = latest.id;
+
+  const payload = parseObject(latest.payload);
+  const sequence = Array.isArray(payload.overlaySequence) ? payload.overlaySequence : [];
+  if (!sequence.length) return;
+
+  const actorId = payload.actorPlayerId || null;
+  const initialRoll = Number(payload.initialRoll || 0);
+  const prevPos = actorId ? prevPositions.get(actorId) : null;
+
+  (async () => {
+    state.actionAnimating = true;
+    if (actorId && prevPos != null && initialRoll) {
+      state.visualPositions[actorId] = wrapPosition(prevPos, state.tiles.length);
+      renderBoard();
+      await animatePawnBySteps(actorId, prevPos, initialRoll);
+    }
+    await showOverlaySequence(sequence, { playerId: actorId, actorName: payload.actorName || '' });
+    state.actionAnimating = false;
+    cleanupVisualPositions();
+    renderBoard();
+  })().catch((error) => {
+    console.error(error);
+    state.actionAnimating = false;
+  });
+}
+
+function cleanupVisualPositions() {
+  const next = {};
+  const ids = new Set(state.players.map((player) => player.id));
+  for (const [playerId, pos] of Object.entries(state.visualPositions)) {
+    if (ids.has(playerId)) next[playerId] = pos;
+  }
+  state.visualPositions = next;
+}
+
+function hideOverlay() {
+  els.eventOverlay?.classList.remove('show');
+}
+
+function displayOverlay(entry) {
+  const colorKey = sanitizeCssClass(entry.colorKey || entry.kind || 'neutral');
+  els.eventOverlay.className = `event-overlay show tone-${colorKey}`;
+  els.overlayCard.className = `overlay-card tone-${colorKey}`;
+  els.overlayHeading.textContent = entry.actorName ? `${entry.actorName} erre a mezőre ért` : 'Mi történt?';
+  els.overlaySubheading.textContent = entry.label || (entry.kind === 'card' ? 'Szerencsekártya' : 'Mezőhatás');
+  els.overlayKind.textContent = entry.kind === 'card' ? 'KÁRTYA' : 'MEZŐ';
+  els.overlayIcon.textContent = entry.icon || '✨';
+  els.overlayTitle.textContent = entry.title || 'Esemény';
+  els.overlayBody.textContent = entry.description || '';
+  els.overlayChange.textContent = entry.change || 'Semmi extra nem történt.';
+}
+
+async function showOverlaySequence(sequence, options = {}) {
+  if (!Array.isArray(sequence) || !sequence.length) return;
+  const runId = ++state.overlayRunId;
+
+  for (const rawEntry of sequence) {
+    if (runId !== state.overlayRunId) return;
+    const entry = {
+      actorName: options.actorName || rawEntry.actorName || '',
+      ...rawEntry,
+    };
+    displayOverlay(entry);
+    await delay(3500);
+    if (runId !== state.overlayRunId) return;
+    if (options.playerId && Number(entry.afterMoveSteps || 0) !== 0) {
+      const currentPos = Number(state.visualPositions[options.playerId] ?? getPlayerPositionById(options.playerId));
+      await animatePawnBySteps(options.playerId, currentPos, Number(entry.afterMoveSteps || 0));
+    }
+  }
+
+  hideOverlay();
+}
+
+function getPlayerPositionById(playerId) {
+  const player = state.players.find((row) => row.id === playerId);
+  return Number(player?.position || 0);
+}
+
+function pawnForIndex(index) {
+  return pawnTheme[index % pawnTheme.length];
+}
+
+function pawnHtml(index, playerName) {
+  const pawn = pawnForIndex(index);
+  return `<div class="pawn pawn-${index % pawnTheme.length}" title="${escapeHtml(playerName)} - ${escapeHtml(pawn.label)}"><span>${escapeHtml(pawn.icon)}</span></div>`;
 }
 
 function delay(ms) {
