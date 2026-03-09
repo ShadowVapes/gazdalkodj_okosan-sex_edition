@@ -1,699 +1,498 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, DEMO_MODE } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (s) => document.querySelector(s);
 
 const refs = {
-  status: $('#adminStatus'),
+  adminStatus: $('#adminStatus'),
   saveConfigBtn: $('#saveConfigBtn'),
-  saveRepoBtn: $('#saveRepoBtn'),
+  cfgTitle: $('#cfgTitle'),
+  cfgSubtitle: $('#cfgSubtitle'),
+  cfgCurrency: $('#cfgCurrency'),
+  cfgStartingMoney: $('#cfgStartingMoney'),
+  cfgPassStart: $('#cfgPassStart'),
+  cfgLandStart: $('#cfgLandStart'),
+  cfgCols: $('#cfgCols'),
+  cfgRows: $('#cfgRows'),
+  cfgAnimMs: $('#cfgAnimMs'),
+
+  itemsList: $('#itemsList'),
+  itemId: $('#itemId'),
+  itemName: $('#itemName'),
+  itemIcon: $('#itemIcon'),
+  itemPrice: $('#itemPrice'),
+  itemSort: $('#itemSort'),
+  itemColor: $('#itemColor'),
+  itemActive: $('#itemActive'),
+  itemDesc: $('#itemDesc'),
   newItemBtn: $('#newItemBtn'),
   saveItemBtn: $('#saveItemBtn'),
   deleteItemBtn: $('#deleteItemBtn'),
+
+  tilesList: $('#tilesList'),
+  tileId: $('#tileId'),
+  tileName: $('#tileName'),
+  tileShort: $('#tileShort'),
+  tileIcon: $('#tileIcon'),
+  tileKind: $('#tileKind'),
+  tileSort: $('#tileSort'),
+  tileNext: $('#tileNext'),
+  tileAmount: $('#tileAmount'),
+  tileSkip: $('#tileSkip'),
+  tileMove: $('#tileMove'),
+  tileGroup: $('#tileGroup'),
+  tileBuyLimit: $('#tileBuyLimit'),
+  tileGiftCount: $('#tileGiftCount'),
+  tileBuyIds: $('#tileBuyIds'),
+  tileGiftIds: $('#tileGiftIds'),
+  tileX: $('#tileX'),
+  tileY: $('#tileY'),
+  tileColor: $('#tileColor'),
+  tileDesc: $('#tileDesc'),
   newTileBtn: $('#newTileBtn'),
   saveTileBtn: $('#saveTileBtn'),
   deleteTileBtn: $('#deleteTileBtn'),
-  autoLayoutBtn: $('#autoLayoutBtn'),
+  autoPlaceBtn: $('#autoPlaceBtn'),
+  autoLinkBtn: $('#autoLinkBtn'),
+  boardEditor: $('#boardEditor'),
+
+  cardsList: $('#cardsList'),
+  cardId: $('#cardId'),
+  cardTitle: $('#cardTitle'),
+  cardIcon: $('#cardIcon'),
+  cardSort: $('#cardSort'),
+  cardGroup: $('#cardGroup'),
+  cardAmount: $('#cardAmount'),
+  cardSkip: $('#cardSkip'),
+  cardMove: $('#cardMove'),
+  cardBuyLimit: $('#cardBuyLimit'),
+  cardGiftCount: $('#cardGiftCount'),
+  cardBuyIds: $('#cardBuyIds'),
+  cardGiftIds: $('#cardGiftIds'),
+  cardColor: $('#cardColor'),
+  cardBody: $('#cardBody'),
   newCardBtn: $('#newCardBtn'),
   saveCardBtn: $('#saveCardBtn'),
   deleteCardBtn: $('#deleteCardBtn'),
-  itemSearch: $('#itemSearch'),
-  itemList: $('#itemList'),
-  tileSearch: $('#tileSearch'),
-  tileList: $('#tileList'),
-  cardSearch: $('#cardSearch'),
-  cardList: $('#cardList'),
-  tileGridPreview: $('#tileGridPreview'),
-  tileNext: $('#tileNext'),
-};
-
-const CONFIG_KEYS = [
-  'game_title',
-  'game_subtitle',
-  'starting_money',
-  'currency_name',
-  'start_pass_bonus',
-  'start_land_bonus',
-  'win_money',
-  'required_items_to_win',
-  'board_cols',
-  'board_rows',
-  'event_overlay_ms',
-  'pawn_step_ms',
-  'dice_animation_ms',
-  'poll_ms',
-];
-
-const STORAGE = {
-  repoOwner: 'gp_rewrite_repo_owner',
-  repoName: 'gp_rewrite_repo_name',
-  repoBranch: 'gp_rewrite_repo_branch',
-  repoToken: 'gp_rewrite_repo_token',
 };
 
 const state = {
-  configRows: [],
   config: {},
   items: [],
   tiles: [],
   cards: [],
-  selectedItemId: null,
-  selectedTileId: null,
-  selectedCardId: null,
-  selectedGridX: 0,
-  selectedGridY: 0,
 };
 
-function num(value, fallback = 0) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
-}
-function text(value, fallback = '') {
-  return value == null ? fallback : String(value);
-}
-function ensureHex(value, fallback = '#24427e') {
-  const v = text(value).trim();
-  return /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
-}
-function parseEffect(value) {
-  if (!value) return {};
-  if (typeof value === 'object') return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return {};
-  }
-}
-function bySortThenId(a, b) {
-  return num(a.sort_order) - num(b.sort_order) || num(a.id) - num(b.id);
-}
+function num(v, fb = 0) { const n = Number(v); return Number.isFinite(n) ? n : fb; }
+function txt(v, fb = '') { return v == null ? fb : String(v); }
 function setStatus(msg, bad = false) {
-  refs.status.textContent = msg;
-  refs.status.style.background = bad ? 'rgba(135,37,53,.35)' : '#1b2649';
+  refs.adminStatus.textContent = msg;
+  refs.adminStatus.style.background = bad ? 'rgba(214,91,116,0.22)' : 'rgba(70,98,160,0.28)';
 }
-function getConfigValue(key, fallback = '') {
-  return state.config[key] === undefined ? fallback : state.config[key];
+function parseCfgValue(v) {
+  try {
+    const parsed = typeof v === 'string' ? JSON.parse(v) : v;
+    if (parsed && typeof parsed === 'object' && 'value' in parsed) return parsed.value;
+  } catch {}
+  return v;
 }
-function uniqueIds(ids) {
-  return [...new Set((ids || []).map((x) => num(x)).filter(Boolean))];
+function packCfgValue(v) { return { value: v }; }
+function toIdCsv(value) {
+  if (Array.isArray(value)) return value.join(',');
+  try { return JSON.parse(value).join(','); } catch { return ''; }
 }
-function itemLabel(item) {
-  return `${text(item.icon || '🎁')} ${text(item.name || 'Névtelen')}`;
-}
-async function fileToDataUrl(file) {
-  if (!file) return '';
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(text(reader.result));
-    reader.onerror = () => reject(new Error('Nem sikerült beolvasni a képet.'));
-    reader.readAsDataURL(file);
-  });
-}
-
-function getCheckIds(containerId) {
-  return Array.from(document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`))
-    .map((el) => num(el.value))
-    .filter(Boolean);
-}
-function fillCheckList(containerId, selectedIds = []) {
-  const wrap = document.getElementById(containerId);
-  const selected = new Set(uniqueIds(selectedIds));
-  wrap.innerHTML = state.items.length
-    ? state.items.map((item) => `
-        <label>
-          <input type="checkbox" value="${item.id}" ${selected.has(item.id) ? 'checked' : ''}>
-          <span>${itemLabel(item)}</span>
-        </label>
-      `).join('')
-    : '<div class="muted-text tiny">Még nincs tárgy.</div>';
-}
-function buildEffectFromEditor(prefix) {
-  const giftAll = document.getElementById(`${prefix}GiftAll`).checked;
-  const buyAll = document.getElementById(`${prefix}BuyAll`).checked;
-  const effect = {
-    gift_all_items: giftAll,
-    gift_item_ids: giftAll ? [] : getCheckIds(`${prefix}GiftItems`),
-    gift_count: Math.max(0, num(document.getElementById(`${prefix}GiftCount`).value, 0)),
-    buy_all_items: buyAll,
-    buy_item_ids: buyAll ? [] : getCheckIds(`${prefix}BuyItems`),
-    buy_pick_limit: Math.max(1, num(document.getElementById(`${prefix}BuyPickLimit`).value, 1)),
-  };
-  return effect;
-}
-function applyEffectToEditor(prefix, effect) {
-  const fx = parseEffect(effect);
-  document.getElementById(`${prefix}GiftAll`).checked = Boolean(fx.gift_all_items);
-  document.getElementById(`${prefix}GiftCount`).value = String(Math.max(0, num(fx.gift_count, 0)));
-  document.getElementById(`${prefix}BuyAll`).checked = Boolean(fx.buy_all_items);
-  document.getElementById(`${prefix}BuyPickLimit`).value = String(Math.max(1, num(fx.buy_pick_limit, 1)));
-  fillCheckList(`${prefix}GiftItems`, fx.gift_item_ids || []);
-  fillCheckList(`${prefix}BuyItems`, fx.buy_item_ids || []);
+function csvToIds(value) {
+  return String(value || '').split(',').map((v) => Number(v.trim())).filter((v) => Number.isFinite(v) && v > 0);
 }
 
 async function loadAll() {
-  const [cfgRes, itemRes, tileRes, cardRes] = await Promise.all([
+  setStatus('Betöltés…');
+  const [cfgRes, itemsRes, tilesRes, cardsRes] = await Promise.all([
     supabase.from('game_config').select('*').order('key'),
-    supabase.from('game_items').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }),
-    supabase.from('game_tiles').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }),
-    supabase.from('game_cards').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }),
+    supabase.from('game_items').select('*').order('sort_order').order('id'),
+    supabase.from('game_tiles').select('*').order('sort_order').order('id'),
+    supabase.from('game_cards').select('*').order('sort_order').order('id'),
   ]);
-  const failed = [cfgRes, itemRes, tileRes, cardRes].find((r) => r.error);
+  const failed = [cfgRes, itemsRes, tilesRes, cardsRes].find((r) => r.error);
   if (failed) throw failed.error;
 
-  state.configRows = cfgRes.data || [];
   state.config = {};
-  state.configRows.forEach((row) => {
-    const parsed = parseEffect(row.value);
-    state.config[row.key] = parsed.value;
-  });
-  state.items = (itemRes.data || []).sort(bySortThenId);
-  state.tiles = (tileRes.data || []).sort(bySortThenId);
-  state.cards = (cardRes.data || []).sort(bySortThenId);
-
-  renderConfig();
-  renderItemList();
-  renderTileList();
-  renderCardList();
-  renderTileNextOptions();
-  renderTileGrid();
-
-  if (!state.selectedItemId && state.items[0]) state.selectedItemId = state.items[0].id;
-  if (!state.selectedTileId && state.tiles[0]) state.selectedTileId = state.tiles[0].id;
-  if (!state.selectedCardId && state.cards[0]) state.selectedCardId = state.cards[0].id;
-
-  if (state.selectedItemId) loadItemIntoForm(state.selectedItemId);
-  else resetItemForm();
-  if (state.selectedTileId) loadTileIntoForm(state.selectedTileId);
-  else resetTileForm();
-  if (state.selectedCardId) loadCardIntoForm(state.selectedCardId);
-  else resetCardForm();
+  (cfgRes.data || []).forEach((row) => { state.config[row.key] = parseCfgValue(row.value); });
+  state.items = itemsRes.data || [];
+  state.tiles = tilesRes.data || [];
+  state.cards = cardsRes.data || [];
+  fillConfig();
+  renderItems();
+  renderTiles();
+  renderCards();
+  renderBoardEditor();
+  setStatus('Kapcsolódva');
 }
 
-function renderConfig() {
-  CONFIG_KEYS.forEach((key) => {
-    const el = document.getElementById(`cfg_${key}`);
-    if (!el) return;
-    const value = getConfigValue(key, '');
-    el.value = value == null ? '' : String(value);
-  });
-}
-
-function renderItemList() {
-  const q = text(refs.itemSearch.value).trim().toLowerCase();
-  const rows = state.items.filter((item) => !q || `${item.name} ${item.category} ${item.icon}`.toLowerCase().includes(q));
-  refs.itemList.innerHTML = rows.map((item) => `
-    <button type="button" class="admin-list-card ${item.id === state.selectedItemId ? 'active' : ''}" data-item-id="${item.id}">
-      <div><strong>${itemLabel(item)}</strong></div>
-      <div class="tiny muted-text">#${item.sort_order} • ${text(item.category || '-')} • ${item.price} Ft</div>
-    </button>
-  `).join('') || '<div class="muted-text tiny">Nincs találat.</div>';
-
-  refs.itemList.querySelectorAll('[data-item-id]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.selectedItemId = num(btn.dataset.itemId);
-      loadItemIntoForm(state.selectedItemId);
-      renderItemList();
-    });
-  });
-}
-
-function renderTileList() {
-  const q = text(refs.tileSearch.value).trim().toLowerCase();
-  const rows = state.tiles.filter((tile) => !q || `${tile.name} ${tile.short_name} ${tile.kind} ${tile.icon}`.toLowerCase().includes(q));
-  refs.tileList.innerHTML = rows.map((tile) => `
-    <button type="button" class="admin-list-card ${tile.id === state.selectedTileId ? 'active' : ''}" data-tile-id="${tile.id}">
-      <div><strong>${text(tile.icon || '⬢')} ${text(tile.name || 'Névtelen mező')}</strong></div>
-      <div class="tiny muted-text">#${tile.sort_order} • ${tile.kind} • (${num(tile.board_x)}, ${num(tile.board_y)})</div>
-    </button>
-  `).join('') || '<div class="muted-text tiny">Nincs találat.</div>';
-
-  refs.tileList.querySelectorAll('[data-tile-id]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.selectedTileId = num(btn.dataset.tileId);
-      loadTileIntoForm(state.selectedTileId);
-      renderTileList();
-      renderTileGrid();
-    });
-  });
-}
-
-function renderCardList() {
-  const q = text(refs.cardSearch.value).trim().toLowerCase();
-  const rows = state.cards.filter((card) => !q || `${card.title} ${card.card_group} ${card.icon}`.toLowerCase().includes(q));
-  refs.cardList.innerHTML = rows.map((card) => `
-    <button type="button" class="admin-list-card ${card.id === state.selectedCardId ? 'active' : ''}" data-card-id="${card.id}">
-      <div><strong>${text(card.icon || '💌')} ${text(card.title || 'Névtelen kártya')}</strong></div>
-      <div class="tiny muted-text">#${card.sort_order} • ${text(card.card_group || 'chance')}</div>
-    </button>
-  `).join('') || '<div class="muted-text tiny">Nincs találat.</div>';
-
-  refs.cardList.querySelectorAll('[data-card-id]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.selectedCardId = num(btn.dataset.cardId);
-      loadCardIntoForm(state.selectedCardId);
-      renderCardList();
-    });
-  });
-}
-
-function renderTileNextOptions() {
-  const currentId = num(document.getElementById('tileId').value, 0) || state.selectedTileId;
-  refs.tileNext.innerHTML = '<option value="">-- nincs / még nincs --</option>' + state.tiles
-    .map((tile) => `<option value="${tile.id}">${tile.sort_order}. ${text(tile.icon || '⬢')} ${text(tile.name || 'Mező')}</option>`)
-    .join('');
-  const current = state.tiles.find((tile) => tile.id === currentId);
-  refs.tileNext.value = current?.next_tile_id ? String(current.next_tile_id) : '';
-}
-
-function renderTileGrid() {
-  const cols = Math.max(8, num(document.getElementById('cfg_board_cols').value || getConfigValue('board_cols', 12), 12));
-  const rows = Math.max(8, num(document.getElementById('cfg_board_rows').value || getConfigValue('board_rows', 12), 12));
-  refs.tileGridPreview.style.setProperty('--cols', cols);
-  refs.tileGridPreview.style.setProperty('--rows', rows);
-
-  const selectedId = num(document.getElementById('tileId').value, 0) || state.selectedTileId;
-  const selectedX = num(document.getElementById('tileX').value, 0);
-  const selectedY = num(document.getElementById('tileY').value, 0);
-
-  const occupied = new Map();
-  state.tiles.forEach((tile) => {
-    if (tile.id === selectedId) return;
-    occupied.set(`${num(tile.board_x)},${num(tile.board_y)}`, tile);
-  });
-
-  const cells = [];
-  for (let y = 0; y < rows; y += 1) {
-    for (let x = 0; x < cols; x += 1) {
-      const key = `${x},${y}`;
-      const occ = occupied.get(key);
-      const selected = x === selectedX && y === selectedY;
-      cells.push(`
-        <button type="button" class="grid-cell ${occ ? 'occupied' : ''} ${selected ? 'selected' : ''}" data-grid-x="${x}" data-grid-y="${y}" title="${occ ? text(occ.name) : `(${x}, ${y})`}">
-          ${occ ? `<span>${text(occ.short_name || occ.name || 'M')}</span>` : `<span>${x},${y}</span>`}
-        </button>
-      `);
-    }
-  }
-  refs.tileGridPreview.innerHTML = cells.join('');
-  refs.tileGridPreview.querySelectorAll('[data-grid-x]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.getElementById('tileX').value = btn.dataset.gridX;
-      document.getElementById('tileY').value = btn.dataset.gridY;
-      renderTileGrid();
-    });
-  });
-}
-
-function resetItemForm() {
-  document.getElementById('itemId').value = '';
-  document.getElementById('itemSort').value = String((state.items.at(-1)?.sort_order || 0) + 1);
-  document.getElementById('itemName').value = '';
-  document.getElementById('itemCategory').value = '';
-  document.getElementById('itemPrice').value = '0';
-  document.getElementById('itemIcon').value = '🎁';
-  document.getElementById('itemRequired').value = 'false';
-  document.getElementById('itemAccent').value = '#24427e';
-  document.getElementById('itemTextColor').value = '#eef5ff';
-  document.getElementById('itemBlurb').value = '';
-  document.getElementById('itemImageUrl').value = '';
-  document.getElementById('itemImageFile').value = '';
-}
-function loadItemIntoForm(id) {
-  const item = state.items.find((row) => row.id === id);
-  if (!item) return resetItemForm();
-  document.getElementById('itemId').value = String(item.id);
-  document.getElementById('itemSort').value = String(num(item.sort_order));
-  document.getElementById('itemName').value = text(item.name);
-  document.getElementById('itemCategory').value = text(item.category);
-  document.getElementById('itemPrice').value = String(num(item.price));
-  document.getElementById('itemIcon').value = text(item.icon || '🎁');
-  document.getElementById('itemRequired').value = item.required ? 'true' : 'false';
-  document.getElementById('itemAccent').value = ensureHex(item.accent_color, '#24427e');
-  document.getElementById('itemTextColor').value = ensureHex(item.text_color, '#eef5ff');
-  document.getElementById('itemBlurb').value = text(item.blurb);
-  document.getElementById('itemImageUrl').value = text(item.image_url);
-  document.getElementById('itemImageFile').value = '';
-}
-
-function defaultNextTileId(forSort) {
-  const ordered = [...state.tiles].sort(bySortThenId);
-  const next = ordered.find((tile) => num(tile.sort_order) > forSort);
-  return next?.id || ordered.find((tile) => tile.kind === 'start')?.id || ordered[0]?.id || null;
-}
-function resetTileForm() {
-  const nextSort = (state.tiles.at(-1)?.sort_order || 0) + 1;
-  document.getElementById('tileId').value = '';
-  document.getElementById('tileSort').value = String(nextSort);
-  document.getElementById('tileName').value = '';
-  document.getElementById('tileShortName').value = '';
-  document.getElementById('tileKind').value = 'neutral';
-  document.getElementById('tileIcon').value = '⬢';
-  document.getElementById('tileCardGroup').value = 'chance';
-  document.getElementById('tileAmount').value = '0';
-  document.getElementById('tileSkip').value = '0';
-  document.getElementById('tileMove').value = '0';
-  document.getElementById('tileX').value = '0';
-  document.getElementById('tileY').value = '0';
-  document.getElementById('tileAccent').value = '#32476f';
-  document.getElementById('tileTextColor').value = '#eef5ff';
-  document.getElementById('tileImageUrl').value = '';
-  document.getElementById('tileDescription').value = '';
-  document.getElementById('tileImageFile').value = '';
-  renderTileNextOptions();
-  refs.tileNext.value = defaultNextTileId(nextSort) ? String(defaultNextTileId(nextSort)) : '';
-  applyEffectToEditor('tile', {});
-  renderTileGrid();
-}
-function loadTileIntoForm(id) {
-  const tile = state.tiles.find((row) => row.id === id);
-  if (!tile) return resetTileForm();
-  document.getElementById('tileId').value = String(tile.id);
-  document.getElementById('tileSort').value = String(num(tile.sort_order));
-  document.getElementById('tileName').value = text(tile.name);
-  document.getElementById('tileShortName').value = text(tile.short_name);
-  document.getElementById('tileKind').value = text(tile.kind || 'neutral');
-  document.getElementById('tileIcon').value = text(tile.icon || '⬢');
-  document.getElementById('tileCardGroup').value = text(tile.card_group || 'chance');
-  document.getElementById('tileAmount').value = String(num(tile.amount));
-  document.getElementById('tileSkip').value = String(num(tile.skip_turns));
-  document.getElementById('tileMove').value = String(num(tile.move_steps));
-  document.getElementById('tileX').value = String(num(tile.board_x));
-  document.getElementById('tileY').value = String(num(tile.board_y));
-  document.getElementById('tileAccent').value = ensureHex(tile.accent_color, '#32476f');
-  document.getElementById('tileTextColor').value = ensureHex(tile.text_color, '#eef5ff');
-  document.getElementById('tileImageUrl').value = text(tile.image_url);
-  document.getElementById('tileDescription').value = text(tile.description);
-  document.getElementById('tileImageFile').value = '';
-  renderTileNextOptions();
-  refs.tileNext.value = tile.next_tile_id ? String(tile.next_tile_id) : '';
-  applyEffectToEditor('tile', tile.effect);
-  renderTileGrid();
-}
-
-function resetCardForm() {
-  document.getElementById('cardId').value = '';
-  document.getElementById('cardSort').value = String((state.cards.at(-1)?.sort_order || 0) + 1);
-  document.getElementById('cardGroup').value = 'chance';
-  document.getElementById('cardTitle').value = '';
-  document.getElementById('cardIcon').value = '💌';
-  document.getElementById('cardAmount').value = '0';
-  document.getElementById('cardSkip').value = '0';
-  document.getElementById('cardMove').value = '0';
-  document.getElementById('cardAccent').value = '#6a2d55';
-  document.getElementById('cardTextColor').value = '#fff0fa';
-  document.getElementById('cardImageUrl').value = '';
-  document.getElementById('cardBody').value = '';
-  document.getElementById('cardImageFile').value = '';
-  applyEffectToEditor('card', {});
-}
-function loadCardIntoForm(id) {
-  const card = state.cards.find((row) => row.id === id);
-  if (!card) return resetCardForm();
-  document.getElementById('cardId').value = String(card.id);
-  document.getElementById('cardSort').value = String(num(card.sort_order));
-  document.getElementById('cardGroup').value = text(card.card_group || 'chance');
-  document.getElementById('cardTitle').value = text(card.title);
-  document.getElementById('cardIcon').value = text(card.icon || '💌');
-  document.getElementById('cardAmount').value = String(num(card.amount));
-  document.getElementById('cardSkip').value = String(num(card.skip_turns));
-  document.getElementById('cardMove').value = String(num(card.move_steps));
-  document.getElementById('cardAccent').value = ensureHex(card.accent_color, '#6a2d55');
-  document.getElementById('cardTextColor').value = ensureHex(card.text_color, '#fff0fa');
-  document.getElementById('cardImageUrl').value = text(card.image_url);
-  document.getElementById('cardBody').value = text(card.body);
-  document.getElementById('cardImageFile').value = '';
-  applyEffectToEditor('card', card.effect);
+function fillConfig() {
+  refs.cfgTitle.value = txt(state.config.game_title, 'Gazdálkodj Pajkosan');
+  refs.cfgSubtitle.value = txt(state.config.game_subtitle, 'Stabil alapverzió.');
+  refs.cfgCurrency.value = txt(state.config.currency_name, 'Ft');
+  refs.cfgStartingMoney.value = num(state.config.starting_money, 3000);
+  refs.cfgPassStart.value = num(state.config.pass_start_bonus, 400);
+  refs.cfgLandStart.value = num(state.config.land_start_bonus, 800);
+  refs.cfgCols.value = num(state.config.board_cols, 10);
+  refs.cfgRows.value = num(state.config.board_rows, 10);
+  refs.cfgAnimMs.value = num(state.config.animation_ms_per_step, 430);
 }
 
 async function saveConfig() {
-  const payload = CONFIG_KEYS.map((key) => {
-    const input = document.getElementById(`cfg_${key}`);
-    const raw = input?.value ?? '';
-    const value = input?.type === 'number' ? num(raw) : raw;
-    return { key, value: { value } };
-  });
-  const res = await supabase.from('game_config').upsert(payload, { onConflict: 'key' }).select();
+  const rows = [
+    ['game_title', refs.cfgTitle.value],
+    ['game_subtitle', refs.cfgSubtitle.value],
+    ['currency_name', refs.cfgCurrency.value],
+    ['starting_money', num(refs.cfgStartingMoney.value, 3000)],
+    ['pass_start_bonus', num(refs.cfgPassStart.value, 400)],
+    ['land_start_bonus', num(refs.cfgLandStart.value, 800)],
+    ['board_cols', num(refs.cfgCols.value, 10)],
+    ['board_rows', num(refs.cfgRows.value, 10)],
+    ['animation_ms_per_step', num(refs.cfgAnimMs.value, 430)],
+  ].map(([key, value]) => ({ key, value: packCfgValue(value) }));
+  const res = await supabase.from('game_config').upsert(rows, { onConflict: 'key' });
   if (res.error) throw res.error;
-  setStatus('Config elmentve.');
   await loadAll();
 }
 
-function loadRepoFields() {
-  $('#repoOwner').value = localStorage.getItem(STORAGE.repoOwner) || '';
-  $('#repoName').value = localStorage.getItem(STORAGE.repoName) || '';
-  $('#repoBranch').value = localStorage.getItem(STORAGE.repoBranch) || 'main';
-  $('#repoToken').value = localStorage.getItem(STORAGE.repoToken) || '';
+function renderItems() {
+  refs.itemsList.innerHTML = '';
+  state.items.forEach((item) => {
+    const row = document.createElement('div');
+    row.className = `admin-row ${String(item.id) === refs.itemId.value ? 'active' : ''}`;
+    row.innerHTML = `<div><strong>${item.icon} ${item.name}</strong><div class="muted">#${item.id} • ${item.price} Ft</div></div><div class="muted">${item.sort_order}</div>`;
+    row.addEventListener('click', () => editItem(item.id));
+    refs.itemsList.appendChild(row);
+  });
 }
-function saveRepoFields() {
-  localStorage.setItem(STORAGE.repoOwner, $('#repoOwner').value.trim());
-  localStorage.setItem(STORAGE.repoName, $('#repoName').value.trim());
-  localStorage.setItem(STORAGE.repoBranch, $('#repoBranch').value.trim() || 'main');
-  localStorage.setItem(STORAGE.repoToken, $('#repoToken').value.trim());
-  setStatus('Repo adatok helyben elmentve.');
+function editItem(id) {
+  const item = state.items.find((x) => x.id === id);
+  if (!item) return;
+  refs.itemId.value = item.id;
+  refs.itemName.value = txt(item.name);
+  refs.itemIcon.value = txt(item.icon);
+  refs.itemPrice.value = num(item.price);
+  refs.itemSort.value = num(item.sort_order);
+  refs.itemColor.value = txt(item.accent_color);
+  refs.itemActive.value = String(!!item.active);
+  refs.itemDesc.value = txt(item.description);
+  renderItems();
 }
-
+function clearItem() {
+  refs.itemId.value = '';
+  refs.itemName.value = '';
+  refs.itemIcon.value = '🎁';
+  refs.itemPrice.value = 500;
+  refs.itemSort.value = state.items.length + 1;
+  refs.itemColor.value = '#3d5afe';
+  refs.itemActive.value = 'true';
+  refs.itemDesc.value = '';
+  renderItems();
+}
 async function saveItem() {
-  const id = num(document.getElementById('itemId').value, 0);
-  const file = document.getElementById('itemImageFile').files?.[0];
-  const uploaded = file ? await fileToDataUrl(file) : '';
   const payload = {
-    sort_order: num(document.getElementById('itemSort').value, 0),
-    name: text(document.getElementById('itemName').value).trim(),
-    category: text(document.getElementById('itemCategory').value).trim(),
-    price: num(document.getElementById('itemPrice').value, 0),
-    icon: text(document.getElementById('itemIcon').value || '🎁').trim() || '🎁',
-    required: document.getElementById('itemRequired').value === 'true',
-    blurb: text(document.getElementById('itemBlurb').value).trim(),
-    image_url: uploaded || text(document.getElementById('itemImageUrl').value).trim(),
-    accent_color: ensureHex(document.getElementById('itemAccent').value, '#24427e'),
-    text_color: ensureHex(document.getElementById('itemTextColor').value, '#eef5ff'),
-    effect: {},
+    name: refs.itemName.value.trim() || 'Új tárgy',
+    icon: refs.itemIcon.value.trim() || '🎁',
+    price: num(refs.itemPrice.value),
+    sort_order: num(refs.itemSort.value),
+    accent_color: refs.itemColor.value.trim() || '#3d5afe',
+    active: refs.itemActive.value === 'true',
+    description: refs.itemDesc.value.trim(),
   };
-  if (!payload.name) throw new Error('Adj nevet a tárgynak.');
-
-  let saved;
-  if (id) {
-    const res = await supabase.from('game_items').update(payload).eq('id', id).select().single();
-    if (res.error) throw res.error;
-    saved = res.data;
-  } else {
-    const res = await supabase.from('game_items').insert(payload).select().single();
-    if (res.error) throw res.error;
-    saved = res.data;
-  }
-  state.selectedItemId = saved.id;
-  setStatus('Tárgy elmentve.');
+  const id = num(refs.itemId.value, 0);
+  const res = id
+    ? await supabase.from('game_items').update(payload).eq('id', id)
+    : await supabase.from('game_items').insert(payload);
+  if (res.error) throw res.error;
   await loadAll();
 }
-
 async function deleteItem() {
-  const id = num(document.getElementById('itemId').value, 0);
+  const id = num(refs.itemId.value, 0);
   if (!id) return;
   const res = await supabase.from('game_items').delete().eq('id', id);
   if (res.error) throw res.error;
-  state.selectedItemId = state.items.find((item) => item.id !== id)?.id || null;
-  setStatus('Tárgy törölve.');
+  clearItem();
   await loadAll();
 }
 
+function fillTileSelect() {
+  refs.tileNext.innerHTML = '<option value="">- nincs -</option>';
+  state.tiles.forEach((tile) => {
+    const op = document.createElement('option');
+    op.value = tile.id;
+    op.textContent = `${tile.sort_order}. ${tile.name}`;
+    refs.tileNext.appendChild(op);
+  });
+}
+function renderTiles() {
+  fillTileSelect();
+  refs.tilesList.innerHTML = '';
+  state.tiles.forEach((tile) => {
+    const row = document.createElement('div');
+    row.className = `admin-row ${String(tile.id) === refs.tileId.value ? 'active' : ''}`;
+    row.innerHTML = `<div><strong>${tile.icon} ${tile.name}</strong><div class="muted">#${tile.id} • ${tile.kind} • (${txt(tile.board_x,'-')}, ${txt(tile.board_y,'-')})</div></div><div class="muted">${tile.sort_order}</div>`;
+    row.addEventListener('click', () => editTile(tile.id));
+    refs.tilesList.appendChild(row);
+  });
+}
+function editTile(id) {
+  const tile = state.tiles.find((x) => x.id === id);
+  if (!tile) return;
+  refs.tileId.value = tile.id;
+  refs.tileName.value = txt(tile.name);
+  refs.tileShort.value = txt(tile.short_name);
+  refs.tileIcon.value = txt(tile.icon);
+  refs.tileKind.value = txt(tile.kind, 'neutral');
+  refs.tileSort.value = num(tile.sort_order);
+  refs.tileNext.value = tile.next_tile_id || '';
+  refs.tileAmount.value = num(tile.amount);
+  refs.tileSkip.value = num(tile.skip_turns);
+  refs.tileMove.value = num(tile.move_steps);
+  refs.tileGroup.value = txt(tile.card_group, 'chance');
+  refs.tileBuyLimit.value = num(tile.buy_pick_limit, 1);
+  refs.tileGiftCount.value = num(tile.gift_count, 1);
+  refs.tileBuyIds.value = toIdCsv(tile.buy_item_ids);
+  refs.tileGiftIds.value = toIdCsv(tile.gift_item_ids);
+  refs.tileX.value = tile.board_x ?? '';
+  refs.tileY.value = tile.board_y ?? '';
+  refs.tileColor.value = txt(tile.accent_color);
+  refs.tileDesc.value = txt(tile.description);
+  renderTiles();
+  renderBoardEditor();
+}
+function clearTile() {
+  refs.tileId.value = '';
+  refs.tileName.value = '';
+  refs.tileShort.value = '';
+  refs.tileIcon.value = '⬢';
+  refs.tileKind.value = 'neutral';
+  refs.tileSort.value = state.tiles.length + 1;
+  refs.tileNext.value = '';
+  refs.tileAmount.value = 0;
+  refs.tileSkip.value = 0;
+  refs.tileMove.value = 0;
+  refs.tileGroup.value = 'chance';
+  refs.tileBuyLimit.value = 1;
+  refs.tileGiftCount.value = 1;
+  refs.tileBuyIds.value = '';
+  refs.tileGiftIds.value = '';
+  refs.tileX.value = '';
+  refs.tileY.value = '';
+  refs.tileColor.value = '';
+  refs.tileDesc.value = '';
+  renderTiles();
+  renderBoardEditor();
+}
 async function saveTile() {
-  const id = num(document.getElementById('tileId').value, 0);
-  const file = document.getElementById('tileImageFile').files?.[0];
-  const uploaded = file ? await fileToDataUrl(file) : '';
-  const effect = buildEffectFromEditor('tile');
   const payload = {
-    sort_order: num(document.getElementById('tileSort').value, 0),
-    name: text(document.getElementById('tileName').value).trim(),
-    short_name: text(document.getElementById('tileShortName').value).trim(),
-    kind: text(document.getElementById('tileKind').value || 'neutral').trim() || 'neutral',
-    icon: text(document.getElementById('tileIcon').value || '⬢').trim() || '⬢',
-    card_group: text(document.getElementById('tileCardGroup').value || 'chance').trim() || 'chance',
-    amount: num(document.getElementById('tileAmount').value, 0),
-    skip_turns: num(document.getElementById('tileSkip').value, 0),
-    move_steps: num(document.getElementById('tileMove').value, 0),
-    board_x: Math.max(0, num(document.getElementById('tileX').value, 0)),
-    board_y: Math.max(0, num(document.getElementById('tileY').value, 0)),
-    next_tile_id: num(refs.tileNext.value, 0) || null,
-    accent_color: ensureHex(document.getElementById('tileAccent').value, '#32476f'),
-    text_color: ensureHex(document.getElementById('tileTextColor').value, '#eef5ff'),
-    image_url: uploaded || text(document.getElementById('tileImageUrl').value).trim(),
-    description: text(document.getElementById('tileDescription').value).trim(),
-    effect,
-    item_id: null,
+    name: refs.tileName.value.trim() || 'Új mező',
+    short_name: refs.tileShort.value.trim() || refs.tileName.value.trim().slice(0, 8).toUpperCase(),
+    icon: refs.tileIcon.value.trim() || '⬢',
+    kind: refs.tileKind.value,
+    sort_order: num(refs.tileSort.value),
+    next_tile_id: refs.tileNext.value ? num(refs.tileNext.value) : null,
+    amount: num(refs.tileAmount.value),
+    skip_turns: num(refs.tileSkip.value),
+    move_steps: num(refs.tileMove.value),
+    card_group: refs.tileGroup.value.trim() || 'chance',
+    buy_pick_limit: Math.max(1, num(refs.tileBuyLimit.value, 1)),
+    gift_count: Math.max(1, num(refs.tileGiftCount.value, 1)),
+    buy_item_ids: csvToIds(refs.tileBuyIds.value),
+    gift_item_ids: csvToIds(refs.tileGiftIds.value),
+    board_x: refs.tileX.value === '' ? null : num(refs.tileX.value),
+    board_y: refs.tileY.value === '' ? null : num(refs.tileY.value),
+    accent_color: refs.tileColor.value.trim(),
+    description: refs.tileDesc.value.trim(),
   };
-  if (!payload.name) throw new Error('Adj nevet a mezőnek.');
-  if (!payload.short_name) payload.short_name = payload.name.slice(0, 10).toUpperCase();
-
-  let saved;
-  if (id) {
-    const res = await supabase.from('game_tiles').update(payload).eq('id', id).select().single();
-    if (res.error) throw res.error;
-    saved = res.data;
-  } else {
-    const res = await supabase.from('game_tiles').insert(payload).select().single();
-    if (res.error) throw res.error;
-    saved = res.data;
-  }
-  state.selectedTileId = saved.id;
-  setStatus('Mező elmentve.');
+  const id = num(refs.tileId.value, 0);
+  const res = id
+    ? await supabase.from('game_tiles').update(payload).eq('id', id)
+    : await supabase.from('game_tiles').insert(payload);
+  if (res.error) throw res.error;
   await loadAll();
 }
-
 async function deleteTile() {
-  const id = num(document.getElementById('tileId').value, 0);
+  const id = num(refs.tileId.value, 0);
   if (!id) return;
   const res = await supabase.from('game_tiles').delete().eq('id', id);
   if (res.error) throw res.error;
-  state.selectedTileId = state.tiles.find((tile) => tile.id !== id)?.id || null;
-  setStatus('Mező törölve.');
+  clearTile();
   await loadAll();
 }
 
+function renderCards() {
+  refs.cardsList.innerHTML = '';
+  state.cards.forEach((card) => {
+    const row = document.createElement('div');
+    row.className = `admin-row ${String(card.id) === refs.cardId.value ? 'active' : ''}`;
+    row.innerHTML = `<div><strong>${card.icon} ${card.title}</strong><div class="muted">#${card.id} • ${card.card_group}</div></div><div class="muted">${card.sort_order}</div>`;
+    row.addEventListener('click', () => editCard(card.id));
+    refs.cardsList.appendChild(row);
+  });
+}
+function editCard(id) {
+  const card = state.cards.find((x) => x.id === id);
+  if (!card) return;
+  refs.cardId.value = card.id;
+  refs.cardTitle.value = txt(card.title);
+  refs.cardIcon.value = txt(card.icon);
+  refs.cardSort.value = num(card.sort_order);
+  refs.cardGroup.value = txt(card.card_group, 'chance');
+  refs.cardAmount.value = num(card.amount);
+  refs.cardSkip.value = num(card.skip_turns);
+  refs.cardMove.value = num(card.move_steps);
+  refs.cardBuyLimit.value = num(card.buy_pick_limit, 1);
+  refs.cardGiftCount.value = num(card.gift_count, 1);
+  refs.cardBuyIds.value = toIdCsv(card.buy_item_ids);
+  refs.cardGiftIds.value = toIdCsv(card.gift_item_ids);
+  refs.cardColor.value = txt(card.accent_color);
+  refs.cardBody.value = txt(card.body);
+  renderCards();
+}
+function clearCard() {
+  refs.cardId.value = '';
+  refs.cardTitle.value = '';
+  refs.cardIcon.value = '💌';
+  refs.cardSort.value = state.cards.length + 1;
+  refs.cardGroup.value = 'chance';
+  refs.cardAmount.value = 0;
+  refs.cardSkip.value = 0;
+  refs.cardMove.value = 0;
+  refs.cardBuyLimit.value = 1;
+  refs.cardGiftCount.value = 1;
+  refs.cardBuyIds.value = '';
+  refs.cardGiftIds.value = '';
+  refs.cardColor.value = '';
+  refs.cardBody.value = '';
+  renderCards();
+}
 async function saveCard() {
-  const id = num(document.getElementById('cardId').value, 0);
-  const file = document.getElementById('cardImageFile').files?.[0];
-  const uploaded = file ? await fileToDataUrl(file) : '';
   const payload = {
-    sort_order: num(document.getElementById('cardSort').value, 0),
-    card_group: text(document.getElementById('cardGroup').value || 'chance').trim() || 'chance',
-    title: text(document.getElementById('cardTitle').value).trim(),
-    icon: text(document.getElementById('cardIcon').value || '💌').trim() || '💌',
-    amount: num(document.getElementById('cardAmount').value, 0),
-    skip_turns: num(document.getElementById('cardSkip').value, 0),
-    move_steps: num(document.getElementById('cardMove').value, 0),
-    accent_color: ensureHex(document.getElementById('cardAccent').value, '#6a2d55'),
-    text_color: ensureHex(document.getElementById('cardTextColor').value, '#fff0fa'),
-    image_url: uploaded || text(document.getElementById('cardImageUrl').value).trim(),
-    body: text(document.getElementById('cardBody').value).trim(),
-    effect: buildEffectFromEditor('card'),
-    item_id: null,
+    title: refs.cardTitle.value.trim() || 'Új kártya',
+    icon: refs.cardIcon.value.trim() || '💌',
+    sort_order: num(refs.cardSort.value),
+    card_group: refs.cardGroup.value.trim() || 'chance',
+    amount: num(refs.cardAmount.value),
+    skip_turns: num(refs.cardSkip.value),
+    move_steps: num(refs.cardMove.value),
+    buy_pick_limit: Math.max(1, num(refs.cardBuyLimit.value, 1)),
+    gift_count: Math.max(1, num(refs.cardGiftCount.value, 1)),
+    buy_item_ids: csvToIds(refs.cardBuyIds.value),
+    gift_item_ids: csvToIds(refs.cardGiftIds.value),
+    accent_color: refs.cardColor.value.trim(),
+    body: refs.cardBody.value.trim(),
   };
-  if (!payload.title) throw new Error('Adj címet a kártyának.');
-
-  let saved;
-  if (id) {
-    const res = await supabase.from('game_cards').update(payload).eq('id', id).select().single();
-    if (res.error) throw res.error;
-    saved = res.data;
-  } else {
-    const res = await supabase.from('game_cards').insert(payload).select().single();
-    if (res.error) throw res.error;
-    saved = res.data;
-  }
-  state.selectedCardId = saved.id;
-  setStatus('Kártya elmentve.');
+  const id = num(refs.cardId.value, 0);
+  const res = id
+    ? await supabase.from('game_cards').update(payload).eq('id', id)
+    : await supabase.from('game_cards').insert(payload);
+  if (res.error) throw res.error;
   await loadAll();
 }
-
 async function deleteCard() {
-  const id = num(document.getElementById('cardId').value, 0);
+  const id = num(refs.cardId.value, 0);
   if (!id) return;
   const res = await supabase.from('game_cards').delete().eq('id', id);
   if (res.error) throw res.error;
-  state.selectedCardId = state.cards.find((card) => card.id !== id)?.id || null;
-  setStatus('Kártya törölve.');
+  clearCard();
   await loadAll();
 }
 
-function computeRingPositions(count, cols, rows) {
-  const left = 0;
-  const top = 0;
-  const right = Math.max(0, cols - 1);
-  const bottom = Math.max(0, rows - 1);
-  const ring = [];
-  for (let x = left; x <= right; x += 1) ring.push([x, top]);
-  for (let y = top + 1; y <= bottom; y += 1) ring.push([right, y]);
-  for (let x = right - 1; x >= left; x -= 1) ring.push([x, bottom]);
-  for (let y = bottom - 1; y > top; y -= 1) ring.push([left, y]);
-  const unique = [];
-  const seen = new Set();
-  ring.forEach(([x, y]) => {
-    const key = `${x},${y}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push([x, y]);
+function renderBoardEditor() {
+  const cols = Math.max(6, num(refs.cfgCols.value || state.config.board_cols, 10));
+  const rows = Math.max(6, num(refs.cfgRows.value || state.config.board_rows, 10));
+  refs.boardEditor.style.setProperty('--cols', cols);
+  refs.boardEditor.style.setProperty('--rows', rows);
+  refs.boardEditor.innerHTML = '';
+  const selectedId = num(refs.tileId.value, 0);
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'board-cell';
+      const tile = state.tiles.find((t) => num(t.board_x, -1) === x && num(t.board_y, -1) === y);
+      if (tile) {
+        cell.classList.add('used');
+        cell.textContent = tile.sort_order;
+        if (tile.id === selectedId) cell.classList.add('selected');
+        cell.title = `${tile.sort_order}. ${tile.name}`;
+      } else {
+        cell.textContent = `${x},${y}`;
+      }
+      cell.addEventListener('click', () => {
+        if (!selectedId) return;
+        refs.tileX.value = x;
+        refs.tileY.value = y;
+        renderBoardEditor();
+      });
+      refs.boardEditor.appendChild(cell);
     }
-  });
-  return unique.slice(0, count);
+  }
 }
 
-async function autoLayoutTiles() {
-  const cols = Math.max(8, num(document.getElementById('cfg_board_cols').value || getConfigValue('board_cols', 12), 12));
-  const rows = Math.max(8, num(document.getElementById('cfg_board_rows').value || getConfigValue('board_rows', 12), 12));
-  const ordered = [...state.tiles].sort(bySortThenId);
-  const start = ordered.find((tile) => tile.kind === 'start');
-  const withoutStart = ordered.filter((tile) => tile.id !== start?.id);
-  const arranged = start ? [start, ...withoutStart] : ordered;
-  const coords = computeRingPositions(arranged.length, cols, rows);
-  const updates = arranged.map((tile, index) => ({
-    id: tile.id,
-    board_x: coords[index]?.[0] ?? 0,
-    board_y: coords[index]?.[1] ?? 0,
-    next_tile_id: arranged[(index + 1) % arranged.length]?.id || null,
-  }));
-
-  for (const update of updates) {
-    const res = await supabase.from('game_tiles').update({
-      board_x: update.board_x,
-      board_y: update.board_y,
-      next_tile_id: update.next_tile_id,
-    }).eq('id', update.id);
-    if (res.error) throw res.error;
+async function autoLink() {
+  const ordered = [...state.tiles].sort((a, b) => num(a.sort_order) - num(b.sort_order));
+  for (let i = 0; i < ordered.length; i += 1) {
+    const next = ordered[(i + 1) % ordered.length];
+    await supabase.from('game_tiles').update({ next_tile_id: next.id }).eq('id', ordered[i].id);
   }
-  setStatus('Automata körpálya kész.');
+  await loadAll();
+}
+async function autoPlace() {
+  const ordered = [...state.tiles].sort((a, b) => num(a.sort_order) - num(b.sort_order));
+  const cols = Math.max(6, num(refs.cfgCols.value || state.config.board_cols, 10));
+  const rows = Math.max(6, num(refs.cfgRows.value || state.config.board_rows, 10));
+  const coords = [];
+  for (let x = 0; x < cols; x += 1) coords.push([x, 0]);
+  for (let y = 1; y < rows; y += 1) coords.push([cols - 1, y]);
+  for (let x = cols - 2; x >= 0; x -= 1) coords.push([x, rows - 1]);
+  for (let y = rows - 2; y > 0; y -= 1) coords.push([0, y]);
+  for (let i = 0; i < ordered.length; i += 1) {
+    const [x, y] = coords[i % coords.length];
+    await supabase.from('game_tiles').update({ board_x: x, board_y: y }).eq('id', ordered[i].id);
+  }
   await loadAll();
 }
 
-function bindEvents() {
-  refs.saveConfigBtn.addEventListener('click', () => saveConfig().catch(handleError));
-  refs.saveRepoBtn.addEventListener('click', saveRepoFields);
-  refs.newItemBtn.addEventListener('click', () => {
-    state.selectedItemId = null;
-    resetItemForm();
-    renderItemList();
-  });
-  refs.saveItemBtn.addEventListener('click', () => saveItem().catch(handleError));
-  refs.deleteItemBtn.addEventListener('click', () => deleteItem().catch(handleError));
-  refs.newTileBtn.addEventListener('click', () => {
-    state.selectedTileId = null;
-    resetTileForm();
-    renderTileList();
-  });
-  refs.saveTileBtn.addEventListener('click', () => saveTile().catch(handleError));
-  refs.deleteTileBtn.addEventListener('click', () => deleteTile().catch(handleError));
-  refs.autoLayoutBtn.addEventListener('click', () => autoLayoutTiles().catch(handleError));
-  refs.newCardBtn.addEventListener('click', () => {
-    state.selectedCardId = null;
-    resetCardForm();
-    renderCardList();
-  });
-  refs.saveCardBtn.addEventListener('click', () => saveCard().catch(handleError));
-  refs.deleteCardBtn.addEventListener('click', () => deleteCard().catch(handleError));
-
-  refs.itemSearch.addEventListener('input', renderItemList);
-  refs.tileSearch.addEventListener('input', renderTileList);
-  refs.cardSearch.addEventListener('input', renderCardList);
-  ['tileX', 'tileY', 'cfg_board_cols', 'cfg_board_rows'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', renderTileGrid);
-  });
-}
-
-function handleError(err) {
-  setStatus(err?.message || 'Ismeretlen admin hiba', true);
-  console.error(err);
-}
-
-async function init() {
-  bindEvents();
-  loadRepoFields();
+async function guarded(fn) {
   try {
-    if (DEMO_MODE) setStatus('Demo config', true);
-    else setStatus('Betöltés…');
-    await loadAll();
-    setStatus('Admin kész.');
+    setStatus('Mentés…');
+    await fn();
+    setStatus('Mentve');
   } catch (err) {
-    handleError(err);
+    console.error(err);
+    setStatus('Hiba', true);
+    alert(err.message || 'Mentési hiba');
   }
 }
 
-init();
+refs.saveConfigBtn.addEventListener('click', () => guarded(saveConfig));
+refs.newItemBtn.addEventListener('click', clearItem);
+refs.saveItemBtn.addEventListener('click', () => guarded(saveItem));
+refs.deleteItemBtn.addEventListener('click', () => guarded(deleteItem));
+refs.newTileBtn.addEventListener('click', clearTile);
+refs.saveTileBtn.addEventListener('click', () => guarded(saveTile));
+refs.deleteTileBtn.addEventListener('click', () => guarded(deleteTile));
+refs.autoLinkBtn.addEventListener('click', () => guarded(autoLink));
+refs.autoPlaceBtn.addEventListener('click', () => guarded(autoPlace));
+refs.newCardBtn.addEventListener('click', clearCard);
+refs.saveCardBtn.addEventListener('click', () => guarded(saveCard));
+refs.deleteCardBtn.addEventListener('click', () => guarded(deleteCard));
+refs.cfgCols.addEventListener('input', renderBoardEditor);
+refs.cfgRows.addEventListener('input', renderBoardEditor);
+
+(async function init() {
+  try {
+    await loadAll();
+    clearItem();
+    clearTile();
+    clearCard();
+  } catch (err) {
+    console.error(err);
+    setStatus('Betöltési hiba', true);
+    alert('Nem sikerült betölteni az admin adatokat. Futtasd le a mellékelt SQL-t.');
+  }
+})();
