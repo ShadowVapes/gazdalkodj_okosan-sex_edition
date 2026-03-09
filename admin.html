@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gazdálkodj Pajkosan – Admin</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body class="admin-body">
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">NULLÁRÓL ÚJRAÍRT ADMIN</div>
+        <h1>Gazdálkodj Pajkosan – Admin</h1>
+        <p class="subtitle">Config, tárgyak, mezők, kártyák és pályaútvonal külön kezelve.</p>
+      </div>
+      <div class="topbar-right stack-right">
+        <div id="adminStatus" class="status-pill">Betöltés…</div>
+        <a class="ghost-link" href="./index.html">Játék oldal</a>
+      </div>
+    </header>
+
+    <main class="page admin-page">
+      <section class="card panel">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">GLOBÁLIS</div>
+            <h2>Fő beállítások</h2>
+          </div>
+          <button id="saveConfigBtn" class="btn success">Mentés</button>
+        </div>
+
+        <div class="admin-grid two">
+          <label>Játék címe<input id="cfg_game_title" type="text"></label>
+          <label>Alcím<input id="cfg_game_subtitle" type="text"></label>
+          <label>Kezdő pénz<input id="cfg_starting_money" type="number"></label>
+          <label>Pénznem<input id="cfg_currency_name" type="text"></label>
+          <label>Start áthaladás bónusz<input id="cfg_start_pass_bonus" type="number"></label>
+          <label>Start mezőre érkezés bónusz<input id="cfg_start_land_bonus" type="number"></label>
+          <label>Nyerő pénz<input id="cfg_win_money" type="number"></label>
+          <label>Szükséges kötelező tárgyak<input id="cfg_required_items_to_win" type="number"></label>
+          <label>Board oszlopok<input id="cfg_board_cols" type="number"></label>
+          <label>Board sorok<input id="cfg_board_rows" type="number"></label>
+          <label>Kártya / mező overlay ms<input id="cfg_event_overlay_ms" type="number"></label>
+          <label>Lépés ms<input id="cfg_pawn_step_ms" type="number"></label>
+          <label>Kocka animáció ms<input id="cfg_dice_animation_ms" type="number"></label>
+          <label>Polling ms<input id="cfg_poll_ms" type="number"></label>
+        </div>
+      </section>
+
+      <section class="card panel">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">GITHUB</div>
+            <h2>Opcionális repo adatok</h2>
+          </div>
+          <button id="saveRepoBtn" class="btn">Lokális mentés</button>
+        </div>
+        <p class="tiny muted-text">Ez csak a böngésződben mentődik. A játék mentése ettől függetlenül közvetlenül Supabase-be megy.</p>
+        <div class="admin-grid two">
+          <label>Owner<input id="repoOwner" type="text" placeholder="pl. usernev"></label>
+          <label>Repo<input id="repoName" type="text" placeholder="pl. gazdalkodj"></label>
+          <label>Branch<input id="repoBranch" type="text" placeholder="main"></label>
+          <label>Token<input id="repoToken" type="password" placeholder="ghp_..."></label>
+        </div>
+      </section>
+
+      <section class="card panel">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">TÁRGYAK</div>
+            <h2>Tárgykezelő</h2>
+          </div>
+          <div class="row gap">
+            <button id="newItemBtn" class="btn primary">Új tárgy</button>
+            <button id="saveItemBtn" class="btn success">Mentés</button>
+            <button id="deleteItemBtn" class="btn danger">Törlés</button>
+          </div>
+        </div>
+
+        <div class="editor-grid">
+          <aside class="editor-list">
+            <input id="itemSearch" type="text" placeholder="Tárgy keresése">
+            <div id="itemList" class="stack-list admin-list"></div>
+          </aside>
+          <div class="editor-form">
+            <input id="itemId" type="hidden">
+            <div class="admin-grid two">
+              <label>Sorrend<input id="itemSort" type="number"></label>
+              <label>Név<input id="itemName" type="text"></label>
+              <label>Kategória<input id="itemCategory" type="text"></label>
+              <label>Ár<input id="itemPrice" type="number"></label>
+              <label>Ikon<input id="itemIcon" type="text"></label>
+              <label>Kötelező a győzelemhez?
+                <select id="itemRequired">
+                  <option value="true">Igen</option>
+                  <option value="false">Nem</option>
+                </select>
+              </label>
+              <label>Háttérszín<input id="itemAccent" type="color" value="#f7d58d"></label>
+              <label>Szövegszín<input id="itemTextColor" type="color" value="#1e1b2a"></label>
+            </div>
+            <label>Leírás<textarea id="itemBlurb" rows="4"></textarea></label>
+            <label>Kép URL<input id="itemImageUrl" type="text"></label>
+            <label>Kép feltöltés<input id="itemImageFile" type="file" accept="image/*"></label>
+          </div>
+        </div>
+      </section>
+
+      <section class="card panel">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">MEZŐK</div>
+            <h2>Mezőkezelő + útvonal</h2>
+          </div>
+          <div class="row gap">
+            <button id="autoLayoutBtn" class="btn">Automata körpálya</button>
+            <button id="newTileBtn" class="btn primary">Új mező</button>
+            <button id="saveTileBtn" class="btn success">Mentés</button>
+            <button id="deleteTileBtn" class="btn danger">Törlés</button>
+          </div>
+        </div>
+
+        <div class="editor-grid tiles-editor">
+          <aside class="editor-list">
+            <input id="tileSearch" type="text" placeholder="Mező keresése">
+            <div id="tileList" class="stack-list admin-list"></div>
+          </aside>
+
+          <div class="editor-form">
+            <input id="tileId" type="hidden">
+            <div class="admin-grid three">
+              <label>Sorrend<input id="tileSort" type="number"></label>
+              <label>Név<input id="tileName" type="text"></label>
+              <label>Rövid név<input id="tileShortName" type="text"></label>
+              <label>Típus
+                <select id="tileKind">
+                  <option value="start">start</option>
+                  <option value="neutral">neutral</option>
+                  <option value="money">money</option>
+                  <option value="card">card</option>
+                  <option value="shop">shop</option>
+                  <option value="skip">skip</option>
+                  <option value="move">move</option>
+                </select>
+              </label>
+              <label>Ikon<input id="tileIcon" type="text"></label>
+              <label>Kártyapakli<input id="tileCardGroup" type="text" placeholder="chance"></label>
+              <label>Pénz változás<input id="tileAmount" type="number"></label>
+              <label>Kimaradás kör<input id="tileSkip" type="number"></label>
+              <label>Lépés mezők<input id="tileMove" type="number"></label>
+              <label>X pozíció<input id="tileX" type="number"></label>
+              <label>Y pozíció<input id="tileY" type="number"></label>
+              <label>Következő mező
+                <select id="tileNext"></select>
+              </label>
+              <label>Háttérszín<input id="tileAccent" type="color" value="#f7d58d"></label>
+              <label>Szövegszín<input id="tileTextColor" type="color" value="#1e1b2a"></label>
+              <label>Kép URL<input id="tileImageUrl" type="text"></label>
+            </div>
+
+            <label>Leírás<textarea id="tileDescription" rows="4"></textarea></label>
+            <label>Kép feltöltés<input id="tileImageFile" type="file" accept="image/*"></label>
+
+            <div class="sub-edit-grid">
+              <section class="sub-card">
+                <h3>Ajándék tárgyak</h3>
+                <label class="checkline"><input id="tileGiftAll" type="checkbox"> Minden tárgy</label>
+                <label>Ajándék darabszám (0 = mind)<input id="tileGiftCount" type="number" min="0" value="0"></label>
+                <div id="tileGiftItems" class="checklist"></div>
+              </section>
+
+              <section class="sub-card">
+                <h3>Vásárolható tárgyak</h3>
+                <label class="checkline"><input id="tileBuyAll" type="checkbox"> Minden tárgy</label>
+                <label>Egyszerre ennyit vehet<input id="tileBuyPickLimit" type="number" min="1" value="1"></label>
+                <div id="tileBuyItems" class="checklist"></div>
+              </section>
+            </div>
+
+            <section class="sub-card">
+              <div class="section-head small-head">
+                <div>
+                  <div class="eyebrow">PÁLYA PREVIEW</div>
+                  <h3>Admin rács</h3>
+                </div>
+                <div class="tiny muted-text">Katt a cellára és oda kerül az aktuális mező.</div>
+              </div>
+              <div id="tileGridPreview" class="grid-preview"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="card panel">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">KÁRTYÁK</div>
+            <h2>Kártyakezelő</h2>
+          </div>
+          <div class="row gap">
+            <button id="newCardBtn" class="btn primary">Új kártya</button>
+            <button id="saveCardBtn" class="btn success">Mentés</button>
+            <button id="deleteCardBtn" class="btn danger">Törlés</button>
+          </div>
+        </div>
+
+        <div class="editor-grid">
+          <aside class="editor-list">
+            <input id="cardSearch" type="text" placeholder="Kártya keresése">
+            <div id="cardList" class="stack-list admin-list"></div>
+          </aside>
+
+          <div class="editor-form">
+            <input id="cardId" type="hidden">
+            <div class="admin-grid three">
+              <label>Sorrend<input id="cardSort" type="number"></label>
+              <label>Pakli<input id="cardGroup" type="text" value="chance"></label>
+              <label>Cím<input id="cardTitle" type="text"></label>
+              <label>Ikon<input id="cardIcon" type="text"></label>
+              <label>Pénz változás<input id="cardAmount" type="number"></label>
+              <label>Kimaradás kör<input id="cardSkip" type="number"></label>
+              <label>Lépés mezők<input id="cardMove" type="number"></label>
+              <label>Háttérszín<input id="cardAccent" type="color" value="#f0afd4"></label>
+              <label>Szövegszín<input id="cardTextColor" type="color" value="#1e1b2a"></label>
+              <label>Kép URL<input id="cardImageUrl" type="text"></label>
+            </div>
+
+            <label>Leírás<textarea id="cardBody" rows="4"></textarea></label>
+            <label>Kép feltöltés<input id="cardImageFile" type="file" accept="image/*"></label>
+
+            <div class="sub-edit-grid">
+              <section class="sub-card">
+                <h3>Ajándék tárgyak</h3>
+                <label class="checkline"><input id="cardGiftAll" type="checkbox"> Minden tárgy</label>
+                <label>Ajándék darabszám (0 = mind)<input id="cardGiftCount" type="number" min="0" value="0"></label>
+                <div id="cardGiftItems" class="checklist"></div>
+              </section>
+
+              <section class="sub-card">
+                <h3>Vásárolható tárgyak</h3>
+                <label class="checkline"><input id="cardBuyAll" type="checkbox"> Minden tárgy</label>
+                <label>Egyszerre ennyit vehet<input id="cardBuyPickLimit" type="number" min="1" value="1"></label>
+                <div id="cardBuyItems" class="checklist"></div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="./assets/admin.js"></script>
+</body>
+</html>

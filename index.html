@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gazdálkodj Pajkosan – Újraírt verzió</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">ÚJRAÍRT MULTIPLAYER TÁRSAS</div>
+        <h1 id="titleMain">Gazdálkodj Pajkosan</h1>
+        <p id="subtitleMain" class="subtitle">Tiszta új alapokkal, stabilabb szinkronnal és rendes adminnal.</p>
+      </div>
+      <div class="topbar-right">
+        <a class="ghost-link" href="./admin.html">Admin oldal</a>
+        <div id="connectionStatus" class="status-pill">Kapcsolódás…</div>
+      </div>
+    </header>
+
+    <main class="page">
+      <section id="lobbyScreen" class="screen active">
+        <div class="lobby-grid">
+          <section class="card panel">
+            <div class="section-head">
+              <div>
+                <div class="eyebrow">LOBBY</div>
+                <h2>Szoba létrehozás / csatlakozás</h2>
+              </div>
+            </div>
+            <div id="lobbyError" class="notice error hidden"></div>
+            <div class="form-stack">
+              <label>Játékosnév
+                <input id="playerNameInput" type="text" maxlength="24" placeholder="pl. Tesó" />
+              </label>
+              <div class="row gap">
+                <button id="createRoomBtn" class="btn primary grow">Új szoba</button>
+              </div>
+              <div class="separator">vagy</div>
+              <label>Szobakód
+                <input id="roomCodeInput" type="text" maxlength="6" placeholder="pl. Q7M4P2" />
+              </label>
+              <button id="joinRoomBtn" class="btn grow">Csatlakozás</button>
+            </div>
+          </section>
+
+          <section class="card panel">
+            <div class="section-head">
+              <div>
+                <div class="eyebrow">INFÓ</div>
+                <h2>Mit tud ez a verzió?</h2>
+              </div>
+            </div>
+            <ul class="feature-list">
+              <li>Stabilabb, idősáv alapú mozgás, kisebb teleport eséllyel.</li>
+              <li>A mezők útvonala és pozíciója adminból szerkeszthető.</li>
+              <li>A deck mindig látszik, húzni csak akkor lehet, amikor tényleg szabad.</li>
+              <li>A vásárlás és kártya ugyanazon nagy kártya-nézetben jön fel.</li>
+              <li>Pénz és tárgy csak megérkezés után változik.</li>
+            </ul>
+          </section>
+        </div>
+
+        <section id="roomPanel" class="card panel hidden">
+          <div class="section-head">
+            <div>
+              <div class="eyebrow">AKTÍV SZOBA</div>
+              <h2 id="roomCodeTitle">------</h2>
+            </div>
+            <div class="row gap">
+              <button id="refreshLobbyBtn" class="btn">Frissítés</button>
+              <button id="leaveRoomBtn" class="btn danger">Kilépés</button>
+            </div>
+          </div>
+
+          <div class="room-grid">
+            <div class="subpanel">
+              <h3>Játékosok</h3>
+              <div id="lobbyPlayers" class="stack-list"></div>
+            </div>
+            <div class="subpanel">
+              <h3>Szoba állapot</h3>
+              <div id="lobbyMeta" class="meta-box"></div>
+              <button id="startGameBtn" class="btn success wide">Játék indítása</button>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section id="gameScreen" class="screen hidden">
+        <div class="game-layout">
+          <section class="card panel board-wrap">
+            <div class="section-head">
+              <div>
+                <div class="eyebrow">JÁTÉKTÉR</div>
+                <h2 id="gameRoomTitle">Szoba: -</h2>
+              </div>
+              <div class="row gap">
+                <button id="backToLobbyBtn" class="btn">Lobby</button>
+                <button id="leaveGameBtn" class="btn danger">Kilépés</button>
+              </div>
+            </div>
+
+            <div class="board-header">
+              <div id="turnInfo" class="info-strip">Várakozás…</div>
+              <div id="actionInfo" class="mini-strip">-</div>
+            </div>
+
+            <div class="board-stage">
+              <div id="board" class="board"></div>
+
+              <div class="center-hub">
+                <div class="hub-label">Dobókocka</div>
+                <button id="diceBtn" class="dice" aria-label="Dobás">🎲</button>
+                <div id="diceLabel" class="dice-label">A játék indulására várunk.</div>
+
+                <button id="drawDeckBtn" class="deck" aria-label="Pakli">
+                  <span class="deck-title">PAKLI</span>
+                  <span class="deck-sub">Katt ide, ha húzhatsz</span>
+                </button>
+              </div>
+
+              <div id="overlay" class="overlay hidden"></div>
+            </div>
+          </section>
+
+          <aside class="side-column">
+            <section class="card panel">
+              <h3>Játékosok</h3>
+              <div id="playersPanel" class="stack-list"></div>
+            </section>
+            <section class="card panel">
+              <h3>Események</h3>
+              <div id="logPanel" class="log-panel"></div>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="./assets/app.js"></script>
+</body>
+</html>
