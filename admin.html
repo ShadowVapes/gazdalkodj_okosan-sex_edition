@@ -16,9 +16,16 @@
       </div>
       <div class="stack right">
         <div id="adminStatus" class="status-box">Betöltés...</div>
-        <div class="status-note">Ha schema-hibát látsz, futtasd le a zipben lévő <strong>sql/migrate_v4.sql</strong> fájlt a Supabase SQL Editorban.</div>
+        <div class="status-note">Ha schema-hibát látsz, futtasd le a zipben lévő <strong>sql/migrate_v5.sql</strong> fájlt a Supabase SQL Editorban.</div>
       </div>
     </header>
+
+    <section class="summary-strip top-gap">
+      <div class="summary-card"><div class="helper-text">DB mezők</div><strong id="summaryTileDb">0</strong><div class="helper-text">Ennyi mező van eltárolva.</div></div>
+      <div class="summary-card"><div class="helper-text">Pályán látszó mezők</div><strong id="summaryTileVisible">0</strong><div class="helper-text">Ennyit rajzol ki a játék.</div></div>
+      <div class="summary-card"><div class="helper-text">Tárgyak</div><strong id="summaryItems">0</strong><div class="helper-text">Összes tárgy.</div></div>
+      <div class="summary-card"><div class="helper-text">Kártyák</div><strong id="summaryCards">0</strong><div class="helper-text">Összes pakli összes lapja.</div></div>
+    </section>
 
     <main class="main-wrap admin-layout-v2">
       <section class="panel parchment-panel admin-wide-panel">
@@ -29,7 +36,7 @@
           </div>
           <button id="saveConfigBtn" class="board-btn board-btn-success">Globális mentés</button>
         </div>
-        <div class="form-grid three-col top-gap">
+        <div class="form-grid four-col top-gap">
           <label>Játék címe<input id="cfgGameTitle" type="text" /></label>
           <label>Alcím<input id="cfgGameSubtitle" type="text" /></label>
           <label>Pénznem<input id="cfgCurrencyName" type="text" /></label>
@@ -39,7 +46,16 @@
           <label>Kötelező tárgyak száma<input id="cfgRequiredItems" type="number" /></label>
           <label>Mező overlay (ms)<input id="cfgEventOverlayMs" type="number" /></label>
           <label>Kártya overlay (ms)<input id="cfgCardOverlayMs" type="number" /></label>
+          <label>Minimum pályamező<input id="cfgMinBoardTiles" type="number" /></label>
+          <label>Pálya oszlop<input id="cfgBoardCols" type="number" /></label>
+          <label>Pálya sor<input id="cfgBoardRows" type="number" /></label>
+          <label>Dobás szinkron késés (ms)<input id="cfgRollSyncDelayMs" type="number" /></label>
+          <label>Kocka animáció (ms)<input id="cfgDiceAnimationMs" type="number" /></label>
+          <label>Bábu lépés (ms)<input id="cfgPawnStepMs" type="number" /></label>
+          <label class="check-row"><span>Kártyák engedélyezve</span><input id="cfgEnableCards" type="checkbox" checked /></label>
+          <label class="check-row"><span>Boltok engedélyezve</span><input id="cfgEnableShops" type="checkbox" checked /></label>
         </div>
+        <div id="boardConfigNote" class="helper-text top-gap"></div>
         <div class="form-grid two-col top-gap">
           <label class="block">Középső szöveg<textarea id="cfgCenterText" rows="3"></textarea></label>
           <label class="block">Lobby megjegyzés<textarea id="cfgLobbyNote" rows="3"></textarea></label>

@@ -1,23 +1,15 @@
-drop table if exists public.room_logs cascade;
-drop table if exists public.room_players cascade;
-drop table if exists public.rooms cascade;
-drop table if exists public.game_cards cascade;
-drop table if exists public.game_tiles cascade;
-drop table if exists public.game_items cascade;
-drop table if exists public.game_config cascade;
-
 create extension if not exists pgcrypto;
 
-create table public.game_config (
+create table if not exists public.game_config (
   key text primary key,
   value jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
-create table public.game_items (
+create table if not exists public.game_items (
   id bigserial primary key,
   sort_order integer not null default 0,
-  name text not null,
+  name text not null default '',
   category text not null default '',
   price integer not null default 0,
   icon text not null default '🎁',
@@ -30,10 +22,10 @@ create table public.game_items (
   created_at timestamptz not null default now()
 );
 
-create table public.game_tiles (
+create table if not exists public.game_tiles (
   id bigserial primary key,
   sort_order integer not null default 0,
-  name text not null,
+  name text not null default '',
   short_name text not null default '',
   kind text not null default 'neutral',
   color_key text not null default '',
@@ -52,10 +44,10 @@ create table public.game_tiles (
   created_at timestamptz not null default now()
 );
 
-create table public.game_cards (
+create table if not exists public.game_cards (
   id bigserial primary key,
   card_group text not null default 'chance',
-  title text not null,
+  title text not null default '',
   body text not null default '',
   amount integer not null default 0,
   skip_turns integer not null default 0,
@@ -69,7 +61,7 @@ create table public.game_cards (
   created_at timestamptz not null default now()
 );
 
-create table public.rooms (
+create table if not exists public.rooms (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
   status text not null default 'lobby',
@@ -82,7 +74,7 @@ create table public.rooms (
   created_at timestamptz not null default now()
 );
 
-create table public.room_players (
+create table if not exists public.room_players (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.rooms(id) on delete cascade,
   name text not null,
@@ -95,18 +87,57 @@ create table public.room_players (
   created_at timestamptz not null default now()
 );
 
-create table public.room_logs (
+create table if not exists public.room_logs (
   id bigserial primary key,
   room_id uuid not null references public.rooms(id) on delete cascade,
-  entry text not null,
+  entry text not null default '',
   payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
-create index idx_game_items_sort_order on public.game_items(sort_order);
-create index idx_game_tiles_sort_order on public.game_tiles(sort_order);
-create index idx_room_players_room_id on public.room_players(room_id);
-create index idx_room_logs_room_id on public.room_logs(room_id);
+alter table public.rooms add column if not exists host_player_id uuid;
+alter table public.rooms add column if not exists turn_index integer not null default 0;
+alter table public.rooms add column if not exists turn_no integer not null default 1;
+alter table public.rooms add column if not exists last_roll integer;
+alter table public.rooms add column if not exists phase text not null default 'roll';
+alter table public.rooms add column if not exists pending_payload jsonb not null default '{"locked":false}'::jsonb;
+
+alter table public.game_items add column if not exists accent_color text not null default '';
+alter table public.game_items add column if not exists text_color text not null default '';
+alter table public.game_tiles add column if not exists short_name text not null default '';
+alter table public.game_tiles add column if not exists color_key text not null default '';
+alter table public.game_tiles add column if not exists icon text not null default '';
+alter table public.game_tiles add column if not exists description text not null default '';
+alter table public.game_tiles add column if not exists item_id bigint;
+alter table public.game_tiles add column if not exists skip_turns integer not null default 0;
+alter table public.game_tiles add column if not exists move_steps integer not null default 0;
+alter table public.game_tiles add column if not exists image_url text not null default '';
+alter table public.game_tiles add column if not exists accent_color text not null default '';
+alter table public.game_tiles add column if not exists text_color text not null default '';
+alter table public.game_cards add column if not exists item_id bigint;
+alter table public.game_cards add column if not exists icon text not null default '💌';
+alter table public.game_cards add column if not exists image_url text not null default '';
+alter table public.game_cards add column if not exists accent_color text not null default '';
+alter table public.game_cards add column if not exists text_color text not null default '';
+
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.table_constraints
+    where constraint_schema = 'public' and table_name = 'game_tiles' and constraint_name = 'game_tiles_item_id_fkey'
+  ) then
+    alter table public.game_tiles
+      add constraint game_tiles_item_id_fkey foreign key (item_id) references public.game_items(id) on delete set null;
+  end if;
+
+  if not exists (
+    select 1 from information_schema.table_constraints
+    where constraint_schema = 'public' and table_name = 'game_cards' and constraint_name = 'game_cards_item_id_fkey'
+  ) then
+    alter table public.game_cards
+      add constraint game_cards_item_id_fkey foreign key (item_id) references public.game_items(id) on delete set null;
+  end if;
+end $$;
 
 insert into public.game_config (key, value)
 values
@@ -128,49 +159,17 @@ values
   ('enable_cards', '{"value":true}'),
   ('enable_shops', '{"value":true}'),
   ('center_text', '{"value":"Szedd össze a szükséges tárgyakat vagy gyűjts pénzt."}'),
-  ('lobby_note', '{"value":"Az egész poén, társasjátékos hangulattal."}');
+  ('lobby_note', '{"value":"Az egész poén, társasjátékos hangulattal."}')
+on conflict (key) do nothing;
 
-insert into public.game_items (id, sort_order, name, category, price, icon, required, blurb, effect)
-values
-  (1, 0, 'Szatén párna', 'szoba', 450, '🛏️', true, 'A hangulat alapja.', '{}'),
-  (2, 1, 'Parfüm', 'stílus', 650, '🧴', true, 'Ettől minden kacérabb.', '{}'),
-  (3, 2, 'Pezsgő', 'ital', 900, '🍾', true, 'Koccintós kellék.', '{}'),
-  (4, 3, 'Rózsaszirmok', 'romantika', 550, '🌹', true, 'Látványos bónusz.', '{}'),
-  (5, 4, 'Hangulatfény', 'hangulat', 780, '🕯️', false, 'Nem kötelező, de stílusos.', '{}'),
-  (6, 5, 'Lepedőszett', 'szoba', 800, '🧺', false, 'Jó ha van kéznél.', '{}');
+update public.rooms set pending_payload = '{"locked":false}'::jsonb where pending_payload is null or pending_payload = '{}'::jsonb;
+update public.game_cards set card_group = lower(trim(card_group)) where card_group is not null;
+update public.game_tiles set card_group = lower(trim(card_group)) where card_group is not null;
 
-select setval(pg_get_serial_sequence('public.game_items', 'id'), coalesce((select max(id) from public.game_items), 1), true);
-
-insert into public.game_tiles (sort_order, name, short_name, kind, color_key, icon, description, amount, price, card_group, item_id, skip_turns, move_steps, effect)
-values
-  (0, 'Start', 'Start', 'start', 'gold', '💋', 'Indul a játék.', 0, 0, null, null, 0, 0, '{}'),
-  (1, 'Flörtös fizetés', 'Fizu', 'money', 'pink', '💸', 'Kapsz egy kis zsebpénzt.', 600, 0, null, null, 0, 0, '{}'),
-  (2, 'Pikáns kártya', 'Kártya', 'card', 'pink', '💌', 'Húzz egy lapot.', 0, 0, 'chance', null, 0, 0, '{}'),
-  (3, 'Szatén bolt', 'Bolt', 'shop', 'gold', '🛏️', 'Szatén párna vásárlás.', 0, 450, null, 1, 0, 0, '{}'),
-  (4, 'Kínos lebukás', 'Bünti', 'money', 'danger', '🙈', 'Váratlan kiadás.', -350, 0, null, null, 0, 0, '{}'),
-  (5, 'Lazuló sarok', 'Pihi', 'neutral', 'violet', '😌', 'Semmi extra.', 0, 0, null, null, 0, 0, '{}'),
-  (6, 'Félreértés', 'Skip', 'skip', 'danger', '😵', '1 kör kimaradás.', 1, 0, null, null, 1, 0, '{}'),
-  (7, 'Pikáns kártya', 'Kártya', 'card', 'pink', '💌', 'Még egy húzás.', 0, 0, 'chance', null, 0, 0, '{}'),
-  (8, 'Parfüm pult', 'Bolt', 'shop', 'gold', '🧴', 'Parfüm vásárlás.', 0, 650, null, 2, 0, 0, '{}'),
-  (9, 'Rajongói borravaló', 'Bónusz', 'money', 'green', '💰', 'Extra pénz.', 800, 0, null, null, 0, 0, '{}'),
-  (10, 'Gyors randistart', '+2', 'move', 'violet', '🏃', 'Lépj előre kettőt.', 2, 0, null, null, 0, 2, '{}'),
-  (11, 'Pezsgő sarok', 'Bolt', 'shop', 'gold', '🍾', 'Pezsgő vásárlás.', 0, 900, null, 3, 0, 0, '{}'),
-  (12, 'Pikáns kártya', 'Kártya', 'card', 'pink', '💌', 'Újabb lap.', 0, 0, 'chance', null, 0, 0, '{}'),
-  (13, 'Adó és dráma', 'Adó', 'money', 'danger', '🧾', 'Fizesd ki.', -700, 0, null, null, 0, 0, '{}'),
-  (14, 'Rózsás bolt', 'Bolt', 'shop', 'gold', '🌹', 'Rózsaszirmok vásárlás.', 0, 550, null, 4, 0, 0, '{}'),
-  (15, 'Vakmerő siker', 'Jutalom', 'money', 'pink', '🔥', 'Szép kör volt.', 1200, 0, null, null, 0, 0, '{}'),
-  (16, 'Vissza a valóságba', '-2', 'move', 'violet', '↩️', 'Lépj vissza kettőt.', -2, 0, null, null, 0, -2, '{}'),
-  (17, 'Pikáns kártya', 'Kártya', 'card', 'pink', '💌', 'Húzz még.', 0, 0, 'chance', null, 0, 0, '{}'),
-  (18, 'Lepedő bolt', 'Bolt', 'shop', 'gold', '🧺', 'Lepedőszett vásárlás.', 0, 800, null, 6, 0, 0, '{}'),
-  (19, 'Show végén kassza', 'Kassza', 'money', 'green', '🎉', 'Újabb pénz.', 1000, 0, null, null, 0, 0, '{}');
-
-insert into public.game_cards (card_group, title, body, amount, skip_turns, move_steps, item_id, icon, effect)
-values
-  ('chance', 'Pezsgős koccintás', 'Kapsz egy kis plusz pénzt.', 700, 0, 0, null, '🍾', '{}'),
-  ('chance', 'Kínos üzenet', 'Befizetsz egy váratlan büntit.', -500, 0, 0, null, '📵', '{}'),
-  ('chance', 'Sikeres nyitás', 'Lépj előre 3 mezőt.', 0, 0, 3, null, '💃', '{}'),
-  ('chance', 'Megfázott romantika', '1 kör kimaradás.', 0, 1, 0, null, '🥶', '{}'),
-  ('chance', 'Ajándék rózsa', 'Kaptál egy tárgyat.', 0, 0, 0, 4, '🌹', '{}');
+create index if not exists idx_game_items_sort_order on public.game_items(sort_order);
+create index if not exists idx_game_tiles_sort_order on public.game_tiles(sort_order);
+create index if not exists idx_room_players_room_id on public.room_players(room_id);
+create index if not exists idx_room_logs_room_id on public.room_logs(room_id);
 
 alter table public.game_config enable row level security;
 alter table public.game_items enable row level security;

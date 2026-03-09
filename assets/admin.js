@@ -65,6 +65,10 @@ function bindEvents() {
       if (key === 'card') renderCards();
     });
   });
+
+  ['cfgMinBoardTiles','cfgBoardCols','cfgBoardRows'].forEach((id) => {
+    els[id]?.addEventListener('input', updateBoardConfigNote);
+  });
 }
 
 async function loadAll() {
@@ -87,6 +91,7 @@ async function loadAll() {
 
   renderConfig();
   renderItemOptions();
+  renderSummary();
   renderItems();
   renderTiles();
   renderCards();
@@ -114,6 +119,14 @@ function fallbackConfig() {
     lobby_note: 'Az egész poén, társasjátékos hangulattal.',
     event_overlay_ms: 3500,
     card_overlay_ms: 3500,
+    min_board_tiles: 48,
+    board_cols: 16,
+    board_rows: 10,
+    roll_sync_delay_ms: 1500,
+    dice_animation_ms: 1350,
+    pawn_step_ms: 260,
+    enable_cards: true,
+    enable_shops: true,
   };
 }
 
@@ -136,8 +149,17 @@ function renderConfig() {
   els.cfgCardOverlayMs.value = config.card_overlay_ms ?? 3500;
   els.cfgCenterText.value = config.center_text ?? '';
   els.cfgLobbyNote.value = config.lobby_note ?? '';
+  els.cfgMinBoardTiles.value = config.min_board_tiles ?? 48;
+  els.cfgBoardCols.value = config.board_cols ?? 16;
+  els.cfgBoardRows.value = config.board_rows ?? 10;
+  els.cfgRollSyncDelayMs.value = config.roll_sync_delay_ms ?? 1500;
+  els.cfgDiceAnimationMs.value = config.dice_animation_ms ?? 1350;
+  els.cfgPawnStepMs.value = config.pawn_step_ms ?? 260;
+  els.cfgEnableCards.checked = config.enable_cards !== false;
+  els.cfgEnableShops.checked = config.enable_shops !== false;
   const extra = { ...config };
-  ['game_title', 'game_subtitle', 'currency_name', 'starting_money', 'start_bonus', 'win_money', 'required_items', 'event_overlay_ms', 'card_overlay_ms', 'center_text', 'lobby_note'].forEach((k) => delete extra[k]);
+  ['game_title', 'game_subtitle', 'currency_name', 'starting_money', 'start_bonus', 'win_money', 'required_items', 'event_overlay_ms', 'card_overlay_ms', 'center_text', 'lobby_note', 'min_board_tiles', 'board_cols', 'board_rows', 'roll_sync_delay_ms', 'dice_animation_ms', 'pawn_step_ms', 'enable_cards', 'enable_shops'].forEach((k) => delete extra[k]);
+  updateBoardConfigNote();
   els.cfgExtraJson.value = JSON.stringify(extra, null, 2);
 }
 
@@ -147,6 +169,27 @@ function renderItemOptions() {
   );
   els.tileItemId.innerHTML = options.join('');
   els.cardItemId.innerHTML = options.join('');
+}
+
+function renderSummary() {
+  const visibleTiles = Math.max(Number(state.config.min_board_tiles || 48), state.tiles.length || 0);
+  if (els.summaryTileDb) els.summaryTileDb.textContent = String(state.tiles.length || 0);
+  if (els.summaryTileVisible) els.summaryTileVisible.textContent = String(visibleTiles);
+  if (els.summaryItems) els.summaryItems.textContent = String(state.items.length || 0);
+  if (els.summaryCards) els.summaryCards.textContent = String(state.cards.length || 0);
+  updateBoardConfigNote();
+}
+
+function updateBoardConfigNote() {
+  if (!els.boardConfigNote) return;
+  const dbTiles = state.tiles.length || 0;
+  const minTiles = Number(els.cfgMinBoardTiles?.value || state.config.min_board_tiles || 48);
+  const cols = Number(els.cfgBoardCols?.value || state.config.board_cols || 16);
+  const rows = Number(els.cfgBoardRows?.value || state.config.board_rows || 10);
+  const perimeter = 2 * (cols + rows) - 4;
+  const visibleTiles = Math.max(dbTiles, minTiles);
+  const enoughOuter = perimeter >= visibleTiles;
+  els.boardConfigNote.textContent = `DB mezők: ${dbTiles} • Megjelenő mezők: ${visibleTiles} • Külső kör kapacitás: ${perimeter}${enoughOuter ? '' : ' • Tipp: növeld az oszlop/sor értéket, hogy a középső rész üres maradjon.'}`;
 }
 
 function renderItems() {
@@ -171,6 +214,7 @@ function renderTiles() {
   const activeId = Number(els.tileId.value || 0);
   const rows = state.tiles.filter((tile) => matchesFilter(tile, state.filters.tile, ['name', 'short_name', 'kind', 'description', 'icon']));
   els.tileCount.textContent = `${rows.length} db`;
+  updateBoardConfigNote();
   els.tileList.innerHTML = rows.map((tile) => `
     <button type="button" class="admin-item admin-clickable ${activeId === Number(tile.id) ? 'active' : ''}" data-id="${tile.id}" data-kind="tile">
       <div class="admin-item-head"><strong>#${Number(tile.sort_order ?? 0)} ${escapeHtml(tile.icon || '✨')} ${escapeHtml(tile.name || '')}</strong><small>${escapeHtml(tile.kind || '')}</small></div>
@@ -357,6 +401,14 @@ async function saveConfig() {
     required_items: Number(els.cfgRequiredItems.value || 0),
     event_overlay_ms: Number(els.cfgEventOverlayMs.value || 3500),
     card_overlay_ms: Number(els.cfgCardOverlayMs.value || 3500),
+    min_board_tiles: Number(els.cfgMinBoardTiles.value || 48),
+    board_cols: Number(els.cfgBoardCols.value || 16),
+    board_rows: Number(els.cfgBoardRows.value || 10),
+    roll_sync_delay_ms: Number(els.cfgRollSyncDelayMs.value || 1500),
+    dice_animation_ms: Number(els.cfgDiceAnimationMs.value || 1350),
+    pawn_step_ms: Number(els.cfgPawnStepMs.value || 260),
+    enable_cards: !!els.cfgEnableCards.checked,
+    enable_shops: !!els.cfgEnableShops.checked,
     center_text: els.cfgCenterText.value.trim(),
     lobby_note: els.cfgLobbyNote.value.trim(),
     ...extra,
@@ -543,7 +595,7 @@ function readableError(error) {
   const message = typeof error === 'string' ? error : (error?.message || error?.details || JSON.stringify(error));
   if (/Could not find the '([^']+)' column of '([^']+)'/i.test(message || '')) {
     const [, column, table] = message.match(/Could not find the '([^']+)' column of '([^']+)'/i) || [];
-    return `Hiányzó adatbázis oszlop: ${table}.${column}. Futtasd le a zipben lévő sql/migrate_v4.sql fájlt a Supabase SQL Editorban.`;
+    return `Hiányzó adatbázis oszlop: ${table}.${column}. Futtasd le a zipben lévő sql/migrate_v5.sql fájlt a Supabase SQL Editorban.`;
   }
   return message || 'Ismeretlen hiba.';
 }

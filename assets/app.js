@@ -5,11 +5,11 @@ const supabase = !DEMO_MODE && window.supabase
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-const MIN_BOARD_TILES = 34;
-const POLL_MS_PLAYING = 500;
-const POLL_MS_LOBBY = 1800;
-const BOARD_COLS = 12;
-const BOARD_ROWS = 7;
+const DEFAULT_MIN_BOARD_TILES = 48;
+const POLL_MS_PLAYING = 240;
+const POLL_MS_LOBBY = 1400;
+const DEFAULT_BOARD_COLS = 16;
+const DEFAULT_BOARD_ROWS = 10;
 
 const els = {
   connectionStatus: document.getElementById('connectionStatus'),
@@ -197,6 +197,14 @@ function fallbackConfig() {
     lobby_note: 'Az egész poén, könnyed társasos hangulattal.',
     event_overlay_ms: 3500,
     card_overlay_ms: 3500,
+    min_board_tiles: 48,
+    board_cols: 16,
+    board_rows: 10,
+    roll_sync_delay_ms: 1500,
+    dice_animation_ms: 1350,
+    pawn_step_ms: 260,
+    enable_cards: true,
+    enable_shops: true,
   };
 }
 
@@ -261,10 +269,11 @@ function readConfig(rows) {
 
 function buildPlayableTiles() {
   const base = [...(state.tiles || [])].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
-  if (base.length >= MIN_BOARD_TILES) return base;
+  const wanted = Math.max(Number(state.config.min_board_tiles || DEFAULT_MIN_BOARD_TILES), base.length || 0, 1);
+  if (base.length >= wanted) return base;
   const templates = [...fallbackTiles(), ...expandedTemplateTiles()];
   const out = [...base];
-  for (let i = out.length; i < MIN_BOARD_TILES; i += 1) {
+  for (let i = out.length; i < wanted; i += 1) {
     const tpl = templates[i % templates.length] || fallbackTiles()[i % fallbackTiles().length];
     out.push({ ...tpl, sort_order: i, _generated: true, id: tpl.id || `gen-${i}` });
   }
@@ -335,7 +344,7 @@ async function createRoom() {
 
     const roomInsert = await supabase
       .from('rooms')
-      .insert({ code: roomCode, status: 'lobby', turn_index: 0, turn_no: 1, last_roll: null, phase: 'roll', pending_payload: {} })
+      .insert({ code: roomCode, status: 'lobby', turn_index: 0, turn_no: 1, last_roll: null, phase: 'roll', pending_payload: { locked: false } })
       .select('*')
       .single();
     if (roomInsert.error) throw roomInsert.error;
@@ -500,20 +509,25 @@ function debouncedRefresh() {
 }
 
 function getFrozenVisuals(oldLastSeen, firstSync) {
-  if (firstSync) return new Map();
-  const fresh = state.logs.filter((row) => Number(row.id || 0) > Number(oldLastSeen || 0));
   const out = new Map();
+  const payload = parseObject(state.room?.pending_payload);
+  if (!firstSync && payload.actorId && payload.fromPosition != null && payload.roll != null && Date.now() < (Number(payload.startAt || 0) + 80)) {
+    out.set(payload.actorId, wrapPosition(Number(payload.fromPosition), state.boardTiles.length || 1));
+  }
+  if (firstSync) return out;
+  const fresh = state.logs.filter((row) => Number(row.id || 0) > Number(oldLastSeen || 0));
   for (const row of fresh) {
-    const payload = parseObject(row.payload);
-    if (payload.actorId && payload.type === 'turn_action' && payload.fromPosition != null) {
-      out.set(payload.actorId, wrapPosition(Number(payload.fromPosition), state.boardTiles.length || 1));
+    const rowPayload = parseObject(row.payload);
+    if (rowPayload.actorId && rowPayload.type === 'turn_action' && rowPayload.fromPosition != null) {
+      out.set(rowPayload.actorId, wrapPosition(Number(rowPayload.fromPosition), state.boardTiles.length || 1));
     }
-    if (payload.actorId && payload.type === 'card_draw' && payload.fromPosition != null) {
-      out.set(payload.actorId, wrapPosition(Number(payload.fromPosition), state.boardTiles.length || 1));
+    if (rowPayload.actorId && rowPayload.type === 'card_draw' && rowPayload.fromPosition != null) {
+      out.set(rowPayload.actorId, wrapPosition(Number(rowPayload.fromPosition), state.boardTiles.length || 1));
     }
   }
   return out;
 }
+
 
 function syncVisualPositions(frozen = new Map()) {
   if (state.isAnimating) return;
@@ -549,7 +563,7 @@ function renderRoom() {
   const me = getMe();
   const active = getActivePlayer();
   const yourTurn = active?.id === me?.id;
-  const canRoll = state.room.status === 'playing' && state.room.phase === 'roll' && yourTurn && !state.isBusy && !state.isAnimating;
+  const canRoll = state.room.status === 'playing' && state.room.phase === 'roll' && yourTurn && !state.isBusy && !state.isAnimating && !parseObject(state.room.pending_payload).locked;
   const currency = getCurrencyLabel();
 
   els.roomLobbyPanel.classList.remove('hidden');
@@ -573,7 +587,7 @@ function renderRoom() {
   els.diceFace.classList.toggle('clickable', canRoll);
   els.diceFace.classList.toggle('disabled', !canRoll);
   els.diceLabel.textContent = canRoll ? 'Kattints a kockára!' : phaseHint(active, me);
-  els.diceInfo.textContent = state.room.last_roll ? `Utolsó dobás: ${state.room.last_roll}` : '-';
+  els.diceInfo.textContent = getDiceInfoText();
   els.turnInfo.textContent = state.room.status === 'playing'
     ? `Aktív játékos: ${active?.name || '-'} | Kör: ${Number(state.room.turn_no || 1)}`
     : state.room.status === 'finished'
@@ -599,8 +613,10 @@ function phaseHint(active, me) {
 }
 
 function getLatestActionText(currency) {
-  const latest = [...state.logs].reverse().find((row) => row.entry)?.entry;
-  return latest || `Győzelem: ${Number(state.config.required_items || 0)} kötelező tárgy vagy ${Number(state.config.win_money || 0)} ${currency}.`;
+  const latestRow = [...state.logs].reverse().find((row) => row.entry);
+  const latestPayload = parseObject(latestRow?.payload);
+  if (shouldMaskRollInfo(latestPayload)) return `${latestPayload.actorName || 'Valaki'} dobása folyamatban...`;
+  return latestRow?.entry || `Győzelem: ${Number(state.config.required_items || 0)} kötelező tárgy vagy ${Number(state.config.win_money || 0)} ${currency}.`;
 }
 
 function playerCardHtml(player, isActive, colorIndex) {
@@ -608,6 +624,7 @@ function playerCardHtml(player, isActive, colorIndex) {
   const inventory = normalizeInventory(player.inventory);
   const required = state.items.filter((item) => item.required !== false);
   const currency = getCurrencyLabel();
+  const displayPos = state.visualPositions[player.id] ?? wrapPosition(Number(player.position || 0), state.boardTiles.length || 1);
   const classes = ['player-card'];
   if (me) classes.push('me');
   if (isActive) classes.push('active-turn');
@@ -620,7 +637,7 @@ function playerCardHtml(player, isActive, colorIndex) {
       </div>
       <div class="player-meta">
         <span>Pénz: ${Number(player.money || 0)} ${escapeHtml(currency)}</span>
-        <span>Mező: ${Number(player.position || 0)}</span>
+        <span>Mező: ${Number(displayPos || 0)}</span>
       </div>
       <div class="player-meta">
         <span>Kimaradás: ${Number(player.skip_turns || 0)}</span>
@@ -641,12 +658,17 @@ function playerCardHtml(player, isActive, colorIndex) {
 
 function renderLogs() {
   const rows = [...state.logs].slice(-25).reverse();
-  els.logList.innerHTML = rows.map((row) => `
-    <div class="log-item">
-      <strong>${escapeHtml(row.entry || '')}</strong>
-      <div class="log-time">${row.created_at ? new Date(row.created_at).toLocaleString('hu-HU') : '-'}</div>
-    </div>
-  `).join('') || '<div class="meta-box">Még nincs napló.</div>';
+  els.logList.innerHTML = rows.map((row) => {
+    const payload = parseObject(row.payload);
+    const masked = shouldMaskRollInfo(payload);
+    const entry = masked ? `${payload.actorName || 'Valaki'} dobása folyamatban...` : (row.entry || '');
+    return `
+      <div class="log-item">
+        <strong>${escapeHtml(entry)}</strong>
+        <div class="log-time">${row.created_at ? new Date(row.created_at).toLocaleString('hu-HU') : '-'}</div>
+      </div>
+    `;
+  }).join('') || '<div class="meta-box">Még nincs napló.</div>';
 }
 
 function renderDecisionPanels() {
@@ -675,14 +697,17 @@ function renderDecisionPanels() {
     els.skipItemBtn.disabled = !enabled;
     if (!payload.canBuy) els.buyItemBtn.textContent = 'Nincs rá pénz';
     else els.buyItemBtn.textContent = `Megveszem (${Number(payload.price || 0)} ${getCurrencyLabel()})`;
+    els.skipItemBtn.textContent = 'Kihagyom';
   }
 }
 
 function renderBoard() {
   const tiles = state.boardTiles.length ? state.boardTiles : buildPlayableTiles();
-  const pathCells = buildBoardPath(BOARD_COLS, BOARD_ROWS, tiles.length);
-  els.board.style.setProperty('--board-cols', String(BOARD_COLS));
-  els.board.style.setProperty('--board-rows', String(BOARD_ROWS));
+  const geometry = getBoardGeometry(tiles.length);
+  const pathCells = buildBoardPath(geometry.cols, geometry.rows, tiles.length);
+  els.board.style.setProperty('--board-cols', String(geometry.cols));
+  els.board.style.setProperty('--board-rows', String(geometry.rows));
+  els.board.style.setProperty('--board-aspect', `${geometry.cols} / ${geometry.rows}`);
 
   const boardMap = new Map();
   tiles.forEach((tile, index) => {
@@ -698,8 +723,8 @@ function renderBoard() {
   });
 
   const cells = [];
-  for (let row = 1; row <= BOARD_ROWS; row += 1) {
-    for (let col = 1; col <= BOARD_COLS; col += 1) {
+  for (let row = 1; row <= geometry.rows; row += 1) {
+    for (let col = 1; col <= geometry.cols; col += 1) {
       const info = boardMap.get(`${row}-${col}`);
       if (!info) {
         cells.push('<div class="board-cell empty"></div>');
@@ -751,7 +776,7 @@ async function startGame() {
       const reset = await supabase.from('room_players').update({ position: 0, money: Number(state.config.starting_money || 0), skip_turns: 0, inventory: [] }).eq('id', player.id);
       if (reset.error) throw reset.error;
     }
-    const roomUpdate = await supabase.from('rooms').update({ status: 'playing', turn_index: 0, turn_no: 1, last_roll: null, phase: 'roll', pending_payload: {} }).eq('id', state.room.id);
+    const roomUpdate = await supabase.from('rooms').update({ status: 'playing', turn_index: 0, turn_no: 1, last_roll: null, phase: 'roll', pending_payload: { locked: false } }).eq('id', state.room.id);
     if (roomUpdate.error) throw roomUpdate.error;
     await addLog(state.room.id, 'A játék elindult.');
     await refreshRoom();
@@ -809,9 +834,10 @@ async function rollDice() {
     if (playerUpdate.error) throw playerUpdate.error;
 
     const winner = checkWin({ money, inventory });
-    const startAt = Date.now() + 900;
-    const tileDuration = getTileOverlayMs();
-    const autoEndAt = startAt + 1300 + (movePath.length * 260) + tileDuration + (resolution.followupPath.length * 260) + (resolution.tile ? 0 : 0);
+    const syncDelay = getRollSyncDelayMs();
+    const startAt = Date.now() + syncDelay;
+    const tileDuration = resolution.tile ? getTileOverlayMs() : 0;
+    const autoEndAt = startAt + getDiceAnimationMs() + (movePath.length * getPawnStepMs()) + tileDuration + (resolution.followupPath.length * getPawnStepMs());
 
     bannerParts.push(...resolution.bannerParts);
     summaryParts.push(...resolution.summaryParts);
@@ -845,6 +871,11 @@ async function rollDice() {
       summary: summaryParts.join(' '),
       tile,
       resolution,
+      fromPosition,
+      movePath,
+      followupPath: resolution.followupPath,
+      roll,
+      locked: false,
     };
 
     let phase = 'resolving_auto';
@@ -885,7 +916,7 @@ async function initiateSkippedTurn(me) {
   const updatePlayer = await supabase.from('room_players').update({ skip_turns: newSkip }).eq('id', me.id);
   if (updatePlayer.error) throw updatePlayer.error;
 
-  const startAt = Date.now() + 600;
+  const startAt = Date.now() + getRollSyncDelayMs();
   const payload = {
     type: 'skip_notice',
     actorId: me.id,
@@ -904,6 +935,8 @@ async function initiateSkippedTurn(me) {
     finalize: 'advance',
     startAt,
     endAt: startAt + getCardOverlayMs(),
+    fromPosition: Number(me.position || 0),
+    locked: true,
   };
 
   const roomUpdate = await supabase.from('rooms').update({ phase: 'resolving_auto', pending_payload: phasePayload }).eq('id', state.room.id);
@@ -968,13 +1001,23 @@ function resolveTile(tile, current) {
       break;
     }
     case 'card': {
-      const group = tile.card_group || extra.card_group || 'chance';
+      if (state.config.enable_cards === false) {
+        out.tileBanner = 'A kártyák most ki vannak kapcsolva';
+        out.summaryParts.push('A kártyahúzás jelenleg ki van kapcsolva.');
+        break;
+      }
+      const group = normalizeCardGroup(tile.card_group || extra.card_group || 'chance');
       out.tileBanner = 'Szerencsekártya vár';
       out.pendingCard = { cardGroup: group };
       out.summaryParts.push('Kártya húzás következik.');
       break;
     }
     case 'shop': {
+      if (state.config.enable_shops === false) {
+        out.tileBanner = 'A boltok most ki vannak kapcsolva';
+        out.summaryParts.push('A vásárlás jelenleg ki van kapcsolva.');
+        break;
+      }
       const item = tile.item_id ? getItemById(tile.item_id) : null;
       const price = Number(tile.price || item?.price || extra.price || 0);
       const itemName = item?.name || extra.item_name || tile.name || 'Tárgy';
@@ -1044,7 +1087,7 @@ async function drawPendingCard() {
     if (updatePlayer.error) throw updatePlayer.error;
 
     const winner = checkWin({ money: result.money, inventory: result.inventory });
-    const startAt = Date.now() + 700;
+    const startAt = Date.now() + getRollSyncDelayMs();
     const logPayload = {
       type: 'card_draw',
       actorId: me.id,
@@ -1061,7 +1104,9 @@ async function drawPendingCard() {
       token: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       finalize: winner ? 'finish' : 'advance',
       startAt,
-      endAt: startAt + (result.movePath.length * 260) + getCardOverlayMs(),
+      endAt: startAt + (result.movePath.length * getPawnStepMs()) + getCardOverlayMs(),
+      fromPosition: position,
+      locked: true,
     };
 
     const roomUpdate = await supabase.from('rooms').update({ status: winner ? 'finished' : 'playing', phase: 'resolving_auto', pending_payload: phasePayload }).eq('id', state.room.id);
@@ -1165,7 +1210,7 @@ async function resolvePurchase(buy) {
     if (updatePlayer.error) throw updatePlayer.error;
 
     const winner = checkWin({ money, inventory });
-    const startAt = Date.now() + 650;
+    const startAt = Date.now() + getRollSyncDelayMs();
     const roomUpdate = await supabase.from('rooms').update({ status: winner ? 'finished' : 'playing', phase: 'resolving_auto', pending_payload: {
       actorId: me.id,
       actorName: me.name,
@@ -1173,6 +1218,8 @@ async function resolvePurchase(buy) {
       finalize: winner ? 'finish' : 'advance',
       startAt,
       endAt: startAt + getCardOverlayMs(),
+      fromPosition: Number(me.position || 0),
+      locked: true,
     } }).eq('id', state.room.id);
     if (roomUpdate.error) throw roomUpdate.error;
 
@@ -1216,7 +1263,7 @@ async function maybeHandlePhase() {
     state.phaseBusy = true;
     try {
       if (payload.finalize === 'finish') {
-        await supabase.from('rooms').update({ phase: 'roll', pending_payload: {} }).eq('id', state.room.id);
+        await supabase.from('rooms').update({ phase: 'roll', pending_payload: { locked: false } }).eq('id', state.room.id);
       } else {
         await advanceTurn();
       }
@@ -1231,7 +1278,7 @@ async function maybeHandlePhase() {
 async function advanceTurn() {
   const nextIndex = (Number(state.room.turn_index || 0) + 1) % Math.max(state.players.length, 1);
   const nextTurnNo = nextIndex === 0 ? Number(state.room.turn_no || 1) + 1 : Number(state.room.turn_no || 1);
-  const update = await supabase.from('rooms').update({ turn_index: nextIndex, turn_no: nextTurnNo, phase: 'roll', pending_payload: {} }).eq('id', state.room.id);
+  const update = await supabase.from('rooms').update({ turn_index: nextIndex, turn_no: nextTurnNo, phase: 'roll', pending_payload: { locked: false } }).eq('id', state.room.id);
   if (update.error) throw update.error;
 }
 
@@ -1387,7 +1434,7 @@ async function animatePawnPath(playerId, path) {
   for (const pos of path) {
     state.visualPositions[playerId] = wrapPosition(Number(pos || 0), state.boardTiles.length || 1);
     renderBoard();
-    await delay(260);
+    await delay(getPawnStepMs());
   }
 }
 
@@ -1413,12 +1460,15 @@ function hideOverlay() {
 }
 
 async function animateDiceRollShared(finalValue, actorName) {
+  const total = getDiceAnimationMs();
+  const frames = 14;
+  const frameMs = Math.max(40, Math.round(total / frames));
   els.diceFace.classList.add('rolling');
   els.diceLabel.textContent = `${actorName} dob...`;
-  for (let i = 0; i < 14; i += 1) {
-    const value = i === 13 ? finalValue : (Math.floor(Math.random() * 6) + 1);
+  for (let i = 0; i < frames; i += 1) {
+    const value = i === frames - 1 ? finalValue : (Math.floor(Math.random() * 6) + 1);
     renderDice(value);
-    await delay(66 + i * 8);
+    await delay(frameMs);
   }
   els.diceFace.classList.remove('rolling');
   renderDice(finalValue);
@@ -1493,22 +1543,45 @@ function hideLoadError() {
   els.loadErrorBox.classList.add('hidden');
 }
 
+function shouldMaskRollInfo(payload) {
+  if (!payload || payload.type !== 'turn_action' || payload.roll == null) return false;
+  return Date.now() < (Number(payload.startAt || 0) + getDiceAnimationMs());
+}
+
+function getDiceInfoText() {
+  if (!state.room) return '-';
+  const payload = parseObject(state.room.pending_payload);
+  if (state.room.status === 'playing' && state.room.phase !== 'roll' && payload.roll != null) {
+    const revealAt = Number(payload.startAt || 0) + getDiceAnimationMs();
+    if (Date.now() < revealAt) return 'Dobás folyamatban...';
+    return `Utolsó dobás: ${payload.roll}`;
+  }
+  return state.room.last_roll ? `Utolsó dobás: ${state.room.last_roll}` : '-';
+}
+
+function getBoardGeometry(tileCount) {
+  let cols = Math.max(10, Number(state.config.board_cols || DEFAULT_BOARD_COLS));
+  let rows = Math.max(8, Number(state.config.board_rows || DEFAULT_BOARD_ROWS));
+  while ((2 * (cols + rows) - 4) < tileCount) {
+    if (cols <= rows + 4) cols += 2;
+    else rows += 2;
+  }
+  return { cols, rows };
+}
+
 function buildBoardPath(cols, rows, count) {
   const coords = [];
-  for (let offset = 0; offset <= 2; offset += 2) {
-    const left = 1 + offset;
-    const top = 1 + offset;
-    const right = cols - offset;
-    const bottom = rows - offset;
-    if (right - left < 1 || bottom - top < 1) break;
-    for (let col = right; col >= left; col -= 1) coords.push({ row: bottom, col });
-    for (let row = bottom - 1; row >= top; row -= 1) coords.push({ row, col: left });
-    for (let col = left + 1; col <= right; col += 1) coords.push({ row: top, col });
-    for (let row = top + 1; row <= bottom - 1; row += 1) coords.push({ row, col: right });
-    if (coords.length >= count) break;
-  }
+  const left = 1;
+  const top = 1;
+  const right = cols;
+  const bottom = rows;
+  for (let col = right; col >= left; col -= 1) coords.push({ row: bottom, col });
+  for (let row = bottom - 1; row >= top; row -= 1) coords.push({ row, col: left });
+  for (let col = left + 1; col <= right; col += 1) coords.push({ row: top, col });
+  for (let row = top + 1; row <= bottom - 1; row += 1) coords.push({ row, col: right });
   return coords.slice(0, count);
 }
+
 
 function summarizeTileForOverlay(tile, index, banner) {
   if (!tile) return null;
@@ -1571,10 +1644,19 @@ function maybeAddInventoryItem(inventory, item) {
 }
 
 function randomCard(group) {
-  const list = state.cards.filter((card) => String(card.card_group || 'chance') === String(group));
+  const wanted = normalizeCardGroup(group || 'chance');
+  let list = state.cards.filter((card) => normalizeCardGroup(card.card_group || 'chance') === wanted);
+  if (!list.length && wanted) list = state.cards.filter((card) => normalizeCardGroup(card.card_group || 'chance').includes(wanted));
+  if (!list.length) list = state.cards.filter((card) => normalizeCardGroup(card.card_group || 'chance') === 'chance');
+  if (!list.length) list = [...state.cards];
   if (!list.length) return null;
   return list[Math.floor(Math.random() * list.length)];
 }
+
+function normalizeCardGroup(value) {
+  return String(value || 'chance').trim().toLowerCase();
+}
+
 
 function countRequiredOwned(inventory) {
   return normalizeInventory(inventory).filter((item) => item.required !== false).length;
@@ -1616,7 +1698,7 @@ function readableError(error) {
   const message = typeof error === 'string' ? error : (error.message || error.details || JSON.stringify(error));
   const match = String(message || '').match(/Could not find the '([^']+)' column of '([^']+)'/i);
   if (match) {
-    return `Hiányzó adatbázis oszlop: ${match[2]}.${match[1]}. Futtasd le a zipben lévő sql/migrate_v4.sql fájlt a Supabase SQL Editorban.`;
+    return `Hiányzó adatbázis oszlop: ${match[2]}.${match[1]}. Futtasd le a zipben lévő sql/migrate_v5.sql fájlt a Supabase SQL Editorban.`;
   }
   return message;
 }
@@ -1673,6 +1755,18 @@ function getTileOverlayMs() {
 
 function getCardOverlayMs() {
   return Math.max(1200, Number(state.config.card_overlay_ms || state.config.event_overlay_ms || 3500));
+}
+
+function getRollSyncDelayMs() {
+  return Math.max(600, Number(state.config.roll_sync_delay_ms || 1500));
+}
+
+function getDiceAnimationMs() {
+  return Math.max(800, Number(state.config.dice_animation_ms || 1350));
+}
+
+function getPawnStepMs() {
+  return Math.max(120, Number(state.config.pawn_step_ms || 260));
 }
 
 function delay(ms) {
