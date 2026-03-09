@@ -1,0 +1,12 @@
+Gazdálkodj Pajkosan v11 javítások
+
+- Automatikus kimaradás: ha a soron következő játékos skip-es, a host kliens magától lefuttatja, nem kell a kockára kattintani.
+- Teleport bug javítva: a bábu vizuális pozíciója fagyasztva marad a teljes dobás / mező / kártya folyamat alatt.
+- Dobás sorrend javítva: előbb közös kockaanimáció, utána lépés, és csak a mezőanimáció után jön a vásárlás / húzás.
+- Vásárlási döntés már nem jelenik meg a dobásanimáció előtt.
+- Kártyapakli-kezelés javítva: toleránsabb paklinév-normalizálás, jobb fallback, adminban pakli-javaslatok.
+- Kártya / mező nagy overlay már nem áttetsző.
+- Kisebb középső kockablokk, hogy ne takarja az alsó mezőket.
+- Nagyobb alap pálya: 72 mező, 24x14-es alap geometria.
+- Admin mezőlista már a generált pályakitöltő helyeket is mutatja, így a játékban látható mezőszám követhető és bővíthető.
+- Új SQL: sql/migrate_v6.sql

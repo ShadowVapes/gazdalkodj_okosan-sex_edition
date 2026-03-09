@@ -5,11 +5,11 @@ const supabase = !DEMO_MODE && window.supabase
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-const DEFAULT_MIN_BOARD_TILES = 48;
+const DEFAULT_MIN_BOARD_TILES = 72;
 const POLL_MS_PLAYING = 240;
 const POLL_MS_LOBBY = 1400;
-const DEFAULT_BOARD_COLS = 16;
-const DEFAULT_BOARD_ROWS = 10;
+const DEFAULT_BOARD_COLS = 24;
+const DEFAULT_BOARD_ROWS = 14;
 
 const els = {
   connectionStatus: document.getElementById('connectionStatus'),
@@ -79,6 +79,7 @@ const state = {
   phaseBusy: false,
   currentOverlayTimeout: null,
   phaseTokenHandled: null,
+  autoSkipKey: null,
 };
 
 init();
@@ -197,12 +198,12 @@ function fallbackConfig() {
     lobby_note: 'Az egész poén, könnyed társasos hangulattal.',
     event_overlay_ms: 3500,
     card_overlay_ms: 3500,
-    min_board_tiles: 48,
-    board_cols: 16,
-    board_rows: 10,
-    roll_sync_delay_ms: 1500,
-    dice_animation_ms: 1350,
-    pawn_step_ms: 260,
+    min_board_tiles: 72,
+    board_cols: 24,
+    board_rows: 14,
+    roll_sync_delay_ms: 1800,
+    dice_animation_ms: 1450,
+    pawn_step_ms: 220,
     enable_cards: true,
     enable_shops: true,
   };
@@ -464,6 +465,7 @@ async function refreshRoom(options = {}) {
     state.highlightedTileIndex = null;
     state.processedEventIds = new Set();
     state.phaseTokenHandled = null;
+  state.autoSkipKey = null;
     state.lastSeenLogId = options.firstSync ? maxLogId(state.logs) : oldLastSeen;
     subscribeRoom();
   }
@@ -472,7 +474,27 @@ async function refreshRoom(options = {}) {
   renderRoom();
   processIncomingLogs(state.logs, { skipReplay: options.firstSync === true && prevRoomId !== state.room.id });
   maybeHandlePhase().catch(console.error);
+  maybeAutoSkipTurn().catch(console.error);
   ensureRefreshLoop();
+}
+
+
+async function maybeAutoSkipTurn() {
+  if (!state.room || state.room.status !== 'playing' || state.room.phase !== 'roll' || state.isAnimating || state.isBusy) return;
+  const active = getActivePlayer();
+  const me = getMe();
+  if (!active || Number(active.skip_turns || 0) <= 0 || !me) return;
+  const hostExists = state.players.some((player) => player.id === state.room.host_player_id);
+  const designatedId = hostExists ? state.room.host_player_id : active.id;
+  if (me.id !== designatedId) return;
+  const key = `${state.room.id}:${Number(state.room.turn_no || 0)}:${Number(state.room.turn_index || 0)}:${active.id}:${Number(active.skip_turns || 0)}`;
+  if (state.autoSkipKey === key) return;
+  state.autoSkipKey = key;
+  try {
+    await initiateSkippedTurn(active);
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function ensureRefreshLoop() {
@@ -511,17 +533,16 @@ function debouncedRefresh() {
 function getFrozenVisuals(oldLastSeen, firstSync) {
   const out = new Map();
   const payload = parseObject(state.room?.pending_payload);
-  if (!firstSync && payload.actorId && payload.fromPosition != null && payload.roll != null && Date.now() < (Number(payload.startAt || 0) + 80)) {
+  if (payload.actorId && payload.fromPosition != null && state.room?.phase !== 'roll') {
+    out.set(payload.actorId, wrapPosition(Number(payload.fromPosition), state.boardTiles.length || 1));
+  } else if (!firstSync && payload.actorId && payload.fromPosition != null && payload.roll != null && Date.now() < (Number(payload.startAt || 0) + 120)) {
     out.set(payload.actorId, wrapPosition(Number(payload.fromPosition), state.boardTiles.length || 1));
   }
   if (firstSync) return out;
   const fresh = state.logs.filter((row) => Number(row.id || 0) > Number(oldLastSeen || 0));
   for (const row of fresh) {
     const rowPayload = parseObject(row.payload);
-    if (rowPayload.actorId && rowPayload.type === 'turn_action' && rowPayload.fromPosition != null) {
-      out.set(rowPayload.actorId, wrapPosition(Number(rowPayload.fromPosition), state.boardTiles.length || 1));
-    }
-    if (rowPayload.actorId && rowPayload.type === 'card_draw' && rowPayload.fromPosition != null) {
+    if (rowPayload.actorId && ['turn_action', 'card_draw', 'purchase_result', 'skip_notice'].includes(rowPayload.type) && rowPayload.fromPosition != null) {
       out.set(rowPayload.actorId, wrapPosition(Number(rowPayload.fromPosition), state.boardTiles.length || 1));
     }
   }
@@ -676,6 +697,7 @@ function renderDecisionPanels() {
   const active = getActivePlayer();
   const payload = parseObject(state.room?.pending_payload);
   const isActor = active?.id === me?.id && payload.actorId === me?.id;
+  const waitLeft = Math.max(0, Number(payload.availableAt || 0) - Date.now());
 
   els.deckArea.classList.add('hidden');
   els.decisionArea.classList.add('hidden');
@@ -684,11 +706,14 @@ function renderDecisionPanels() {
 
   if (state.room.phase === 'awaiting_card_draw') {
     els.deckArea.classList.remove('hidden');
-    els.drawCardBtn.disabled = !(isActor && !state.isBusy && !state.isAnimating);
-    els.drawCardBtn.textContent = isActor ? 'Kattints a húzáshoz' : `${payload.actorName || active?.name || 'Valaki'} húz...`;
+    const canDraw = isActor && !state.isBusy && !state.isAnimating && waitLeft <= 50;
+    els.drawCardBtn.disabled = !canDraw;
+    if (waitLeft > 50) els.drawCardBtn.textContent = 'A mezőhatás még fut...';
+    else els.drawCardBtn.textContent = isActor ? 'Kattints a húzáshoz' : `${payload.actorName || active?.name || 'Valaki'} húz...`;
   }
 
   if (state.room.phase === 'awaiting_purchase') {
+    if (waitLeft > 50) return;
     els.decisionArea.classList.remove('hidden');
     els.decisionTitle.textContent = payload.itemName || 'Vásárlás';
     els.decisionText.textContent = payload.message || 'Döntsd el, megveszed-e.';
@@ -830,9 +855,6 @@ async function rollDice() {
     inventory = resolution.inventory;
     skipTurns = resolution.skipTurns;
 
-    const playerUpdate = await supabase.from('room_players').update({ position: resolution.position, money, inventory, skip_turns: skipTurns }).eq('id', me.id);
-    if (playerUpdate.error) throw playerUpdate.error;
-
     const winner = checkWin({ money, inventory });
     const syncDelay = getRollSyncDelayMs();
     const startAt = Date.now() + syncDelay;
@@ -874,13 +896,11 @@ async function rollDice() {
       fromPosition,
       movePath,
       followupPath: resolution.followupPath,
-      roll,
       locked: false,
     };
 
     let phase = 'resolving_auto';
     if (winner) {
-      phase = 'resolving_auto';
       phasePayload.finalize = 'finish';
     } else if (resolution.pendingCard) {
       phase = 'awaiting_card_draw';
@@ -898,6 +918,9 @@ async function rollDice() {
     const roomUpdate = await supabase.from('rooms').update({ last_roll: roll, status: winner ? 'finished' : 'playing', phase, pending_payload: phasePayload }).eq('id', state.room.id);
     if (roomUpdate.error) throw roomUpdate.error;
 
+    const playerUpdate = await supabase.from('room_players').update({ position: resolution.position, money, inventory, skip_turns: skipTurns }).eq('id', me.id);
+    if (playerUpdate.error) throw playerUpdate.error;
+
     const logRow = await addLog(state.room.id, summaryParts.join(' '), logPayload);
     if (winner) await addLog(state.room.id, `${me.name} megnyerte a játékot!`);
     if (logRow) queueEventFromLog(logRow);
@@ -911,37 +934,41 @@ async function rollDice() {
   }
 }
 
-async function initiateSkippedTurn(me) {
-  const newSkip = Math.max(0, Number(me.skip_turns || 0) - 1);
-  const updatePlayer = await supabase.from('room_players').update({ skip_turns: newSkip }).eq('id', me.id);
+async function initiateSkippedTurn(targetPlayer) {
+  const me = getMe();
+  const actor = targetPlayer || getActivePlayer();
+  if (!me || !actor || !state.room?.id) return;
+
+  const newSkip = Math.max(0, Number(actor.skip_turns || 0) - 1);
+  const updatePlayer = await supabase.from('room_players').update({ skip_turns: newSkip }).eq('id', actor.id);
   if (updatePlayer.error) throw updatePlayer.error;
 
   const startAt = Date.now() + getRollSyncDelayMs();
   const payload = {
     type: 'skip_notice',
-    actorId: me.id,
-    actorName: me.name,
+    actorId: actor.id,
+    actorName: actor.name,
     title: 'Kör kimarad',
-    body: `${me.name} most pihen egy kört.`,
-    banner: `${me.name} kimarad ebből a körből.`,
+    body: `${actor.name} most pihen egy kört.`,
+    banner: `${actor.name} kimarad ebből a körből.`,
     icon: '😴',
     colorKey: 'blue',
     startAt,
   };
   const phasePayload = {
-    actorId: me.id,
-    actorName: me.name,
+    actorId: actor.id,
+    actorName: actor.name,
     token: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     finalize: 'advance',
     startAt,
     endAt: startAt + getCardOverlayMs(),
-    fromPosition: Number(me.position || 0),
+    fromPosition: Number(actor.position || 0),
     locked: true,
   };
 
   const roomUpdate = await supabase.from('rooms').update({ phase: 'resolving_auto', pending_payload: phasePayload }).eq('id', state.room.id);
   if (roomUpdate.error) throw roomUpdate.error;
-  const row = await addLog(state.room.id, `${me.name} kimarad ebből a körből.`, payload);
+  const row = await addLog(state.room.id, `${actor.name} kimarad ebből a körből.`, payload);
   if (row) queueEventFromLog(row);
   await refreshRoom();
 }
@@ -1070,21 +1097,13 @@ async function drawPendingCard() {
   state.isBusy = true;
   renderRoom();
   try {
-    const card = randomCard(payload.cardGroup || 'chance');
+    const card = randomCard(payload.cardGroup || 'chance') || fallbackCards()[0];
     if (!card) throw new Error('Nincs húzható kártya ebben a pakliban.');
     let money = Number(me.money || 0);
     let inventory = normalizeInventory(me.inventory);
     let skipTurns = Number(me.skip_turns || 0);
     let position = wrapPosition(Number(me.position || 0), state.boardTiles.length || 1);
     const result = applyCard(card, { money, inventory, skipTurns, position });
-
-    const updatePlayer = await supabase.from('room_players').update({
-      money: result.money,
-      inventory: result.inventory,
-      skip_turns: result.skipTurns,
-      position: result.position,
-    }).eq('id', me.id);
-    if (updatePlayer.error) throw updatePlayer.error;
 
     const winner = checkWin({ money: result.money, inventory: result.inventory });
     const startAt = Date.now() + getRollSyncDelayMs();
@@ -1111,6 +1130,14 @@ async function drawPendingCard() {
 
     const roomUpdate = await supabase.from('rooms').update({ status: winner ? 'finished' : 'playing', phase: 'resolving_auto', pending_payload: phasePayload }).eq('id', state.room.id);
     if (roomUpdate.error) throw roomUpdate.error;
+
+    const updatePlayer = await supabase.from('room_players').update({
+      money: result.money,
+      inventory: result.inventory,
+      skip_turns: result.skipTurns,
+      position: result.position,
+    }).eq('id', me.id);
+    if (updatePlayer.error) throw updatePlayer.error;
 
     const entry = `${me.name} húzott egy kártyát: ${card.title}. ${result.logText}`;
     const row = await addLog(state.room.id, entry, logPayload);
@@ -1206,9 +1233,6 @@ async function resolvePurchase(buy) {
       body = `${me.name} megvette: ${payload.itemName}.`;
     }
 
-    const updatePlayer = await supabase.from('room_players').update({ money, inventory }).eq('id', me.id);
-    if (updatePlayer.error) throw updatePlayer.error;
-
     const winner = checkWin({ money, inventory });
     const startAt = Date.now() + getRollSyncDelayMs();
     const roomUpdate = await supabase.from('rooms').update({ status: winner ? 'finished' : 'playing', phase: 'resolving_auto', pending_payload: {
@@ -1222,6 +1246,9 @@ async function resolvePurchase(buy) {
       locked: true,
     } }).eq('id', state.room.id);
     if (roomUpdate.error) throw roomUpdate.error;
+
+    const updatePlayer = await supabase.from('room_players').update({ money, inventory }).eq('id', me.id);
+    if (updatePlayer.error) throw updatePlayer.error;
 
     const row = await addLog(state.room.id, body, {
       type: 'purchase_result',
@@ -1257,7 +1284,8 @@ async function maybeHandlePhase() {
   if (state.phaseTokenHandled === payload.token) return;
 
   if (state.room.phase === 'resolving_auto') {
-    if (payload.actorId !== me?.id) return;
+    const canFinalize = payload.actorId === me?.id || state.room.host_player_id === me?.id;
+    if (!canFinalize) return;
     const wait = Number(payload.endAt || 0) - Date.now();
     if (wait > 80) return;
     state.phaseBusy = true;
@@ -1506,6 +1534,7 @@ function renderEmptyState() {
   state.isAnimating = false;
   state.lastSeenLogId = null;
   state.phaseTokenHandled = null;
+  state.autoSkipKey = null;
   els.roomLobbyPanel.classList.add('hidden');
   els.roomCodeTitle.textContent = '---';
   els.gameRoomTitle.textContent = 'Szoba: ---';
@@ -1647,14 +1676,19 @@ function randomCard(group) {
   const wanted = normalizeCardGroup(group || 'chance');
   let list = state.cards.filter((card) => normalizeCardGroup(card.card_group || 'chance') === wanted);
   if (!list.length && wanted) list = state.cards.filter((card) => normalizeCardGroup(card.card_group || 'chance').includes(wanted));
+  if (!list.length && wanted.includes(',')) {
+    const parts = wanted.split(',').map((part) => normalizeCardGroup(part)).filter(Boolean);
+    list = state.cards.filter((card) => parts.includes(normalizeCardGroup(card.card_group || 'chance')));
+  }
   if (!list.length) list = state.cards.filter((card) => normalizeCardGroup(card.card_group || 'chance') === 'chance');
   if (!list.length) list = [...state.cards];
+  if (!list.length) list = fallbackCards();
   if (!list.length) return null;
   return list[Math.floor(Math.random() * list.length)];
 }
 
 function normalizeCardGroup(value) {
-  return String(value || 'chance').trim().toLowerCase();
+  return String(value || 'chance').trim().toLowerCase().replaceAll('_', '-').replaceAll(' ', '-');
 }
 
 
@@ -1758,7 +1792,7 @@ function getCardOverlayMs() {
 }
 
 function getRollSyncDelayMs() {
-  return Math.max(600, Number(state.config.roll_sync_delay_ms || 1500));
+  return Math.max((POLL_MS_PLAYING * 4) + 250, Number(state.config.roll_sync_delay_ms || 1800));
 }
 
 function getDiceAnimationMs() {

@@ -119,12 +119,12 @@ function fallbackConfig() {
     lobby_note: 'Az egész poén, társasjátékos hangulattal.',
     event_overlay_ms: 3500,
     card_overlay_ms: 3500,
-    min_board_tiles: 48,
-    board_cols: 16,
-    board_rows: 10,
-    roll_sync_delay_ms: 1500,
-    dice_animation_ms: 1350,
-    pawn_step_ms: 260,
+    min_board_tiles: 72,
+    board_cols: 24,
+    board_rows: 14,
+    roll_sync_delay_ms: 1800,
+    dice_animation_ms: 1450,
+    pawn_step_ms: 220,
     enable_cards: true,
     enable_shops: true,
   };
@@ -169,10 +169,41 @@ function renderItemOptions() {
   );
   els.tileItemId.innerHTML = options.join('');
   els.cardItemId.innerHTML = options.join('');
+  const groups = collectCardGroups();
+  if (els.cardGroupOptions) els.cardGroupOptions.innerHTML = groups.map((group) => `<option value="${escapeAttr(group)}"></option>`).join('');
+  if (els.tileCardGroupOptions) els.tileCardGroupOptions.innerHTML = groups.map((group) => `<option value="${escapeAttr(group)}"></option>`).join('');
+}
+
+function buildVisibleTileRows() {
+  const base = [...state.tiles].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+  const wanted = Math.max(Number(state.config.min_board_tiles || 72), base.length || 0);
+  const out = [...base];
+  for (let i = out.length; i < wanted; i += 1) {
+    out.push({
+      id: `gen-${i}`,
+      sort_order: i,
+      name: `Generált mező ${i}`,
+      short_name: `M${i}`,
+      kind: 'neutral',
+      description: 'Ez még csak pályakitöltő hely. Kattints rá, ha valódi mezőként el akarod menteni.',
+      icon: '▫️',
+      item_id: null,
+      _generated: true,
+      effect: {},
+    });
+  }
+  return out;
+}
+
+function collectCardGroups() {
+  const groups = new Set(['chance']);
+  state.tiles.forEach((tile) => { if (tile.card_group) groups.add(normalizeDeckName(tile.card_group)); });
+  state.cards.forEach((card) => { if (card.card_group) groups.add(normalizeDeckName(card.card_group)); });
+  return [...groups].filter(Boolean).sort();
 }
 
 function renderSummary() {
-  const visibleTiles = Math.max(Number(state.config.min_board_tiles || 48), state.tiles.length || 0);
+  const visibleTiles = buildVisibleTileRows().length;
   if (els.summaryTileDb) els.summaryTileDb.textContent = String(state.tiles.length || 0);
   if (els.summaryTileVisible) els.summaryTileVisible.textContent = String(visibleTiles);
   if (els.summaryItems) els.summaryItems.textContent = String(state.items.length || 0);
@@ -183,9 +214,9 @@ function renderSummary() {
 function updateBoardConfigNote() {
   if (!els.boardConfigNote) return;
   const dbTiles = state.tiles.length || 0;
-  const minTiles = Number(els.cfgMinBoardTiles?.value || state.config.min_board_tiles || 48);
-  const cols = Number(els.cfgBoardCols?.value || state.config.board_cols || 16);
-  const rows = Number(els.cfgBoardRows?.value || state.config.board_rows || 10);
+  const minTiles = Number(els.cfgMinBoardTiles?.value || state.config.min_board_tiles || 72);
+  const cols = Number(els.cfgBoardCols?.value || state.config.board_cols || 24);
+  const rows = Number(els.cfgBoardRows?.value || state.config.board_rows || 14);
   const perimeter = 2 * (cols + rows) - 4;
   const visibleTiles = Math.max(dbTiles, minTiles);
   const enoughOuter = perimeter >= visibleTiles;
@@ -212,21 +243,28 @@ function renderItems() {
 
 function renderTiles() {
   const activeId = Number(els.tileId.value || 0);
-  const rows = state.tiles.filter((tile) => matchesFilter(tile, state.filters.tile, ['name', 'short_name', 'kind', 'description', 'icon']));
+  const rows = buildVisibleTileRows().filter((tile) => matchesFilter(tile, state.filters.tile, ['name', 'short_name', 'kind', 'description', 'icon']));
   els.tileCount.textContent = `${rows.length} db`;
   updateBoardConfigNote();
   els.tileList.innerHTML = rows.map((tile) => `
-    <button type="button" class="admin-item admin-clickable ${activeId === Number(tile.id) ? 'active' : ''}" data-id="${tile.id}" data-kind="tile">
+    <button type="button" class="admin-item admin-clickable ${!tile._generated && activeId === Number(tile.id) ? 'active' : ''}" data-id="${tile.id}" data-kind="tile">
       <div class="admin-item-head"><strong>#${Number(tile.sort_order ?? 0)} ${escapeHtml(tile.icon || '✨')} ${escapeHtml(tile.name || '')}</strong><small>${escapeHtml(tile.kind || '')}</small></div>
       <div class="item-badges top-gap">
         <span class="tag-chip">rövid: ${escapeHtml(tile.short_name || '-')}</span>
         <span class="tag-chip">tárgy: ${escapeHtml(itemNameFromId(tile.item_id) || '-')}</span>
+        ${tile._generated ? '<span class="tag-chip">generált hely</span>' : ''}
       </div>
       <div class="microcopy">${escapeHtml(tile.description || 'Nincs mezőleírás.')}</div>
     </button>
   `).join('') || '<div class="empty-state-box">Nincs találat a mezőknél.</div>';
-  els.tileSelectedLabel.textContent = activeId ? (state.tiles.find((row) => Number(row.id) === activeId)?.name || 'Kiválasztott mező') : 'Új mező';
-  els.tileList.querySelectorAll('[data-kind="tile"]').forEach((el) => el.addEventListener('click', () => fillTileForm(state.tiles.find((row) => Number(row.id) === Number(el.dataset.id)))));
+  const activeTile = state.tiles.find((row) => Number(row.id) === activeId);
+  els.tileSelectedLabel.textContent = activeTile?.name || (activeId ? 'Kiválasztott mező' : 'Új mező');
+  els.tileList.querySelectorAll('[data-kind="tile"]').forEach((el) => el.addEventListener('click', () => {
+    const rawId = String(el.dataset.id || '');
+    const existing = state.tiles.find((row) => String(row.id) === rawId || Number(row.id) === Number(rawId));
+    if (existing) fillTileForm(existing);
+    else fillTileForm(rows.find((row) => String(row.id) === rawId));
+  }));
 }
 
 function renderCards() {
@@ -286,7 +324,7 @@ function fillItemForm(item) {
 
 function clearTileForm() {
   els.tileId.value = '';
-  els.tileSort.value = state.tiles.length;
+  els.tileSort.value = buildVisibleTileRows().length;
   els.tileName.value = '';
   els.tileShortName.value = '';
   els.tileIcon.value = '✨';
@@ -310,7 +348,7 @@ function clearTileForm() {
 
 function fillTileForm(tile) {
   if (!tile) return;
-  els.tileId.value = tile.id;
+  els.tileId.value = tile._generated ? '' : tile.id;
   els.tileSort.value = tile.sort_order ?? 0;
   els.tileName.value = tile.name ?? '';
   els.tileShortName.value = tile.short_name ?? '';
@@ -319,7 +357,7 @@ function fillTileForm(tile) {
   els.tileColorKey.value = tile.color_key ?? '';
   els.tileAmount.value = tile.amount ?? 0;
   els.tilePrice.value = tile.price ?? 0;
-  els.tileCardGroup.value = tile.card_group ?? 'chance';
+  els.tileCardGroup.value = normalizeDeckName(tile.card_group ?? 'chance');
   els.tileItemId.value = tile.item_id ?? '';
   els.tileSkipTurns.value = tile.skip_turns ?? 0;
   els.tileMoveSteps.value = tile.move_steps ?? 0;
@@ -355,7 +393,7 @@ function clearCardForm() {
 function fillCardForm(card) {
   if (!card) return;
   els.cardId.value = card.id;
-  els.cardGroup.value = card.card_group ?? 'chance';
+  els.cardGroup.value = normalizeDeckName(card.card_group ?? 'chance');
   els.cardTitle.value = card.title ?? '';
   els.cardAmount.value = card.amount ?? 0;
   els.cardSkipTurns.value = card.skip_turns ?? 0;
@@ -480,7 +518,7 @@ async function saveTile() {
     color_key: els.tileColorKey.value.trim(),
     amount: Number(els.tileAmount.value || 0),
     price: Number(els.tilePrice.value || 0),
-    card_group: els.tileCardGroup.value.trim() || 'chance',
+    card_group: normalizeDeckName(els.tileCardGroup.value) || 'chance',
     item_id: nullableNumber(els.tileItemId.value),
     skip_turns: Number(els.tileSkipTurns.value || 0),
     move_steps: Number(els.tileMoveSteps.value || 0),
@@ -517,7 +555,7 @@ async function saveCard() {
     return;
   }
   const payload = {
-    card_group: els.cardGroup.value.trim() || 'chance',
+    card_group: normalizeDeckName(els.cardGroup.value) || 'chance',
     title: els.cardTitle.value.trim(),
     amount: Number(els.cardAmount.value || 0),
     skip_turns: Number(els.cardSkipTurns.value || 0),
@@ -552,6 +590,10 @@ function matchesFilter(row, query, keys) {
   if (!query) return true;
   const haystack = keys.map((key) => String(row?.[key] ?? '')).join(' ').toLowerCase();
   return haystack.includes(query);
+}
+
+function normalizeDeckName(value) {
+  return String(value || 'chance').trim().toLowerCase().replaceAll('_', '-').replaceAll(' ', '-');
 }
 
 function itemNameFromId(id) {
@@ -595,7 +637,7 @@ function readableError(error) {
   const message = typeof error === 'string' ? error : (error?.message || error?.details || JSON.stringify(error));
   if (/Could not find the '([^']+)' column of '([^']+)'/i.test(message || '')) {
     const [, column, table] = message.match(/Could not find the '([^']+)' column of '([^']+)'/i) || [];
-    return `Hiányzó adatbázis oszlop: ${table}.${column}. Futtasd le a zipben lévő sql/migrate_v5.sql fájlt a Supabase SQL Editorban.`;
+    return `Hiányzó adatbázis oszlop: ${table}.${column}. Futtasd le a zipben lévő sql/migrate_v6.sql fájlt a Supabase SQL Editorban.`;
   }
   return message || 'Ismeretlen hiba.';
 }
