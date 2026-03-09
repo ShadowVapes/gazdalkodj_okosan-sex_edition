@@ -99,13 +99,15 @@
                 <div class="center-heading">Dobás</div>
                 <div id="diceFace" class="dice-face clickable" aria-label="Dobókocka"></div>
                 <div id="diceLabel" class="dice-label">Kattints a kockára!</div>
-                <div id="deckArea" class="deck-area hidden">
+                <div id="deckArea" class="deck-area">
                   <button id="drawCardBtn" class="card-deck"><span class="deck-subtitle">Ha mező vagy hatás kéri, innen húzol lapot.</span></button>
                 </div>
                 <div id="decisionArea" class="decision-area hidden">
                   <div id="decisionTitle" class="decision-title">Vásárlás</div>
                   <div id="decisionText" class="decision-text">Döntsd el, megveszed-e.</div>
-                  <div class="row wrap center-row">
+                  <select id="decisionSelect" class="decision-select top-gap hidden"></select>
+                  <div id="decisionPreview" class="decision-preview top-gap"></div>
+                  <div class="row wrap center-row top-gap">
                     <button id="buyItemBtn" class="board-btn board-btn-success">Megveszem</button>
                     <button id="skipItemBtn" class="board-btn">Kihagyom</button>
                   </div>
