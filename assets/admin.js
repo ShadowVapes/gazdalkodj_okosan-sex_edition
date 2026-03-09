@@ -674,6 +674,11 @@ function nullableNumber(value) {
   const num = Number(trimmed);
   return Number.isFinite(num) ? num : null;
 }
+function shortName(value, max) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return text.length > max ? `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…` : text;
+}
 function setStatus(message) {
   els.adminStatus.textContent = message;
 }
@@ -706,7 +711,7 @@ function readableError(error) {
   const message = typeof error === 'string' ? error : (error?.message || error?.details || JSON.stringify(error));
   if (/Could not find the '([^']+)' column of '([^']+)'/i.test(message || '')) {
     const [, column, table] = message.match(/Could not find the '([^']+)' column of '([^']+)'/i) || [];
-    return `Hiányzó adatbázis oszlop: ${table}.${column}. Futtasd le a zipben lévő sql/migrate_v6.sql fájlt a Supabase SQL Editorban.`;
+    return `Hiányzó adatbázis oszlop: ${table}.${column}. Futtasd le a zipben lévő sql/migrate_v7.sql fájlt a Supabase SQL Editorban.`;
   }
   return message || 'Ismeretlen hiba.';
 }
