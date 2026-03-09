@@ -18,6 +18,7 @@ init();
 async function init() {
   bindEvents();
   updatePreviews();
+  renderTilePathPreview();
   if (!supabase) {
     setStatus('Nincs beállítva a Supabase.');
     return;
@@ -67,8 +68,17 @@ function bindEvents() {
   });
 
   ['cfgMinBoardTiles','cfgBoardCols','cfgBoardRows'].forEach((id) => {
-    els[id]?.addEventListener('input', updateBoardConfigNote);
+    els[id]?.addEventListener('input', () => {
+      updateBoardConfigNote();
+      renderTilePathPreview();
+    });
   });
+
+  ['tileBoardX', 'tileBoardY', 'tileNextSortOrder', 'tileAccentColor', 'tileTextColor', 'tileName', 'tileShortName', 'tileIcon'].forEach((id) => {
+    els[id]?.addEventListener('input', renderTilePathPreview);
+  });
+
+  els.tilePathPreview?.addEventListener('click', handleTilePreviewClick);
 }
 
 async function loadAll() {
@@ -103,9 +113,9 @@ async function loadAll() {
   if (!els.cardId.value) clearCardForm();
   else fillCardForm(state.cards.find((row) => Number(row.id) === Number(els.cardId.value)));
 
+  renderTilePathPreview();
   setStatus('Admin betöltve.');
 }
-
 
 function fallbackConfig() {
   return {
@@ -118,19 +128,18 @@ function fallbackConfig() {
     required_items: 4,
     center_text: 'Szedd össze a szükséges tárgyakat vagy gyűjts pénzt.',
     lobby_note: 'Az egész poén, társasjátékos hangulattal.',
-    event_overlay_ms: 3200,
-    card_overlay_ms: 3200,
+    event_overlay_ms: 3500,
+    card_overlay_ms: 3500,
     min_board_tiles: 72,
-    board_cols: 18,
-    board_rows: 11,
-    roll_sync_delay_ms: 1000,
-    dice_animation_ms: 1150,
-    pawn_step_ms: 180,
+    board_cols: 24,
+    board_rows: 14,
+    roll_sync_delay_ms: 1800,
+    dice_animation_ms: 1450,
+    pawn_step_ms: 220,
     enable_cards: true,
     enable_shops: true,
   };
 }
-
 
 function readConfig(rows) {
   const merged = fallbackConfig();
@@ -151,12 +160,12 @@ function renderConfig() {
   els.cfgCardOverlayMs.value = config.card_overlay_ms ?? 3500;
   els.cfgCenterText.value = config.center_text ?? '';
   els.cfgLobbyNote.value = config.lobby_note ?? '';
-  els.cfgMinBoardTiles.value = config.min_board_tiles ?? 72;
-  els.cfgBoardCols.value = config.board_cols ?? 18;
-  els.cfgBoardRows.value = config.board_rows ?? 11;
-  els.cfgRollSyncDelayMs.value = config.roll_sync_delay_ms ?? 1000;
-  els.cfgDiceAnimationMs.value = config.dice_animation_ms ?? 1150;
-  els.cfgPawnStepMs.value = config.pawn_step_ms ?? 180;
+  els.cfgMinBoardTiles.value = config.min_board_tiles ?? 48;
+  els.cfgBoardCols.value = config.board_cols ?? 16;
+  els.cfgBoardRows.value = config.board_rows ?? 10;
+  els.cfgRollSyncDelayMs.value = config.roll_sync_delay_ms ?? 1500;
+  els.cfgDiceAnimationMs.value = config.dice_animation_ms ?? 1350;
+  els.cfgPawnStepMs.value = config.pawn_step_ms ?? 260;
   els.cfgEnableCards.checked = config.enable_cards !== false;
   els.cfgEnableShops.checked = config.enable_shops !== false;
   const extra = { ...config };
@@ -174,14 +183,16 @@ function renderItemOptions() {
   const groups = collectCardGroups();
   if (els.cardGroupOptions) els.cardGroupOptions.innerHTML = groups.map((group) => `<option value="${escapeAttr(group)}"></option>`).join('');
   if (els.tileCardGroupOptions) els.tileCardGroupOptions.innerHTML = groups.map((group) => `<option value="${escapeAttr(group)}"></option>`).join('');
+  if (els.tileNextSortOptions) {
+    const allSorts = buildVisibleTileRows().map((tile) => Number(tile.sort_order || 0)).sort((a, b) => a - b);
+    els.tileNextSortOptions.innerHTML = allSorts.map((sort) => `<option value="${sort}"></option>`).join('');
+  }
 }
 
-
 function buildVisibleTileRows() {
-  const base = [...state.tiles].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
-  const prepared = appendAutoItemShopTiles(base, state.items || []);
-  const wanted = Math.max(Number(state.config.min_board_tiles || 72), prepared.length || 0);
-  const out = [...prepared];
+  const base = orderTilesForAdmin(state.tiles);
+  const wanted = Math.max(Number(state.config.min_board_tiles || 72), base.length || 0);
+  const out = [...base];
   for (let i = out.length; i < wanted; i += 1) {
     out.push({
       id: `gen-${i}`,
@@ -189,49 +200,15 @@ function buildVisibleTileRows() {
       name: `Generált mező ${i}`,
       short_name: `M${i}`,
       kind: 'neutral',
-      description: 'Ez még csak pályakitöltő hely. Kattints rá, ha valódi mezőként el akarod menteni.',
+      description: 'Ez még csak pályakitöltő hely. Kattints rá, majd mentsd el valódi mezőként.',
       icon: '▫️',
       item_id: null,
+      next_sort_order: i + 1 < wanted ? i + 1 : 0,
       _generated: true,
       effect: {},
     });
   }
-  return out;
-}
-
-function appendAutoItemShopTiles(baseTiles, items) {
-  const out = [...baseTiles];
-  const usedItemIds = new Set(out.filter((tile) => tile.kind === 'shop' && tile.item_id != null).map((tile) => Number(tile.item_id)));
-  let sortOrder = out.length ? Math.max(...out.map((tile) => Number(tile.sort_order || 0))) + 1 : 0;
-  for (const item of items || []) {
-    const itemId = Number(item.id || 0);
-    if (!itemId || usedItemIds.has(itemId)) continue;
-    out.push({
-      id: `auto-item-${itemId}`,
-      sort_order: sortOrder,
-      name: `${item.name || 'Tárgy'} bolt`,
-      short_name: shortName(item.name || 'Bolt', 10),
-      kind: 'shop',
-      color_key: 'gold',
-      icon: item.icon || '🛍️',
-      description: `${item.name || 'Tárgy'} automatikusan megjelenik a játékban is.`,
-      item_id: itemId,
-      price: Number(item.price || 0),
-      amount: 0,
-      card_group: null,
-      skip_turns: 0,
-      move_steps: 0,
-      image_url: item.image_url || '',
-      accent_color: item.accent_color || '',
-      text_color: item.text_color || '',
-      effect: {},
-      _generated: true,
-      _generatedKind: 'auto-item-shop',
-    });
-    usedItemIds.add(itemId);
-    sortOrder += 1;
-  }
-  return out.sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+  return applyDefaultTileLayout(out);
 }
 
 function collectCardGroups() {
@@ -250,46 +227,16 @@ function renderSummary() {
   updateBoardConfigNote();
 }
 
-
 function updateBoardConfigNote() {
   if (!els.boardConfigNote) return;
   const dbTiles = state.tiles.length || 0;
   const minTiles = Number(els.cfgMinBoardTiles?.value || state.config.min_board_tiles || 72);
-  const maxCols = Number(els.cfgBoardCols?.value || state.config.board_cols || 18);
-  const maxRows = Number(els.cfgBoardRows?.value || state.config.board_rows || 11);
-  const compact = getCompactBoardGeometry(Math.max(dbTiles, minTiles), maxCols, maxRows);
-  els.boardConfigNote.textContent = `DB mezők: ${dbTiles} • Megjelenő mezők: ${Math.max(dbTiles, minTiles)} • Játékbeli rács: ${compact.cols}×${compact.rows} • Hasznos kapacitás: ${compact.capacity}`;
-}
-
-
-
-function getCompactBoardGeometry(tileCount, preferredCols, preferredRows) {
-  let best = null;
-  for (let cols = 10; cols <= Math.max(10, preferredCols); cols += 1) {
-    for (let rows = 8; rows <= Math.max(8, preferredRows); rows += 1) {
-      const center = getCenterBlock(cols, rows);
-      const capacity = (cols * rows) - (center.width * center.height);
-      if (capacity < tileCount) continue;
-      const score = (cols * rows) * 1000 + Math.abs((cols / rows) - (preferredCols / preferredRows)) * 100 + Math.abs(cols - preferredCols) + Math.abs(rows - preferredRows);
-      if (!best || score < best.score) best = { cols, rows, capacity, score };
-    }
-  }
-  if (best) return best;
-  let cols = Math.max(10, preferredCols);
-  let rows = Math.max(8, preferredRows);
-  while (true) {
-    const center = getCenterBlock(cols, rows);
-    const capacity = (cols * rows) - (center.width * center.height);
-    if (capacity >= tileCount) return { cols, rows, capacity };
-    if (cols <= rows + 2) cols += 1;
-    else rows += 1;
-  }
-}
-
-function getCenterBlock(cols, rows) {
-  const width = Math.min(cols - 4, Math.max(4, Math.round(cols * 0.28)) + (Math.round(cols * 0.28) % 2));
-  const height = Math.min(rows - 4, Math.max(4, Math.round(rows * 0.26)) + (Math.round(rows * 0.26) % 2));
-  return { width, height };
+  const cols = Math.max(8, Number(els.cfgBoardCols?.value || state.config.board_cols || 24));
+  const rows = Math.max(8, Number(els.cfgBoardRows?.value || state.config.board_rows || 14));
+  const visibleTiles = Math.max(dbTiles, minTiles);
+  const slots = buildDefaultBoardCoords(cols, rows, visibleTiles).length;
+  const enough = slots >= visibleTiles;
+  els.boardConfigNote.textContent = `DB mezők: ${dbTiles} • Megjelenő mezők: ${visibleTiles} • Elhelyezhető alap slotok: ${slots}${enough ? '' : ' • Tipp: növeld az oszlop/sor értéket.'}`;
 }
 
 function renderItems() {
@@ -320,8 +267,9 @@ function renderTiles() {
       <div class="admin-item-head"><strong>#${Number(tile.sort_order ?? 0)} ${escapeHtml(tile.icon || '✨')} ${escapeHtml(tile.name || '')}</strong><small>${escapeHtml(tile.kind || '')}</small></div>
       <div class="item-badges top-gap">
         <span class="tag-chip">rövid: ${escapeHtml(tile.short_name || '-')}</span>
-        <span class="tag-chip">tárgy: ${escapeHtml(itemNameFromId(tile.item_id) || '-')}</span>
-        ${tile._generated ? `<span class="tag-chip">${tile._generatedKind === 'auto-item-shop' ? 'auto item bolt' : 'generált hely'}</span>` : ''}
+        <span class="tag-chip">hely: ${tile.board_x && tile.board_y ? `${tile.board_x}:${tile.board_y}` : '-'}</span>
+        <span class="tag-chip">köv: ${tile.next_sort_order != null && tile.next_sort_order !== '' ? escapeHtml(tile.next_sort_order) : '-'}</span>
+        ${tile._generated ? '<span class="tag-chip">generált hely</span>' : ''}
       </div>
       <div class="microcopy">${escapeHtml(tile.description || 'Nincs mezőleírás.')}</div>
     </button>
@@ -405,6 +353,9 @@ function clearTileForm() {
   els.tileItemId.value = '';
   els.tileSkipTurns.value = 0;
   els.tileMoveSteps.value = 0;
+  els.tileBoardX.value = '';
+  els.tileBoardY.value = '';
+  els.tileNextSortOrder.value = buildVisibleTileRows().length ? String(Math.max(0, buildVisibleTileRows().length - 1) === Number(els.tileSort.value || 0) ? 0 : Number(els.tileSort.value || 0) + 1) : '';
   els.tileAccentColor.value = '#f7e7b1';
   els.tileTextColor.value = '#311814';
   els.tileDescription.value = '';
@@ -412,6 +363,7 @@ function clearTileForm() {
   els.tileImageFile.value = '';
   els.tileEffect.value = '{}';
   renderTiles();
+  renderTilePathPreview();
   updatePreviews();
 }
 
@@ -430,6 +382,9 @@ function fillTileForm(tile) {
   els.tileItemId.value = tile.item_id ?? '';
   els.tileSkipTurns.value = tile.skip_turns ?? 0;
   els.tileMoveSteps.value = tile.move_steps ?? 0;
+  els.tileBoardX.value = tile.board_x ?? '';
+  els.tileBoardY.value = tile.board_y ?? '';
+  els.tileNextSortOrder.value = tile.next_sort_order ?? '';
   els.tileAccentColor.value = normalizeColor(tile.accent_color, '#f7e7b1');
   els.tileTextColor.value = normalizeColor(tile.text_color, '#311814');
   els.tileDescription.value = tile.description ?? '';
@@ -437,6 +392,7 @@ function fillTileForm(tile) {
   els.tileImageFile.value = '';
   els.tileEffect.value = prettyJson(tile.effect);
   renderTiles();
+  renderTilePathPreview();
   updatePreviews();
 }
 
@@ -509,11 +465,11 @@ async function saveConfig() {
     event_overlay_ms: Number(els.cfgEventOverlayMs.value || 3500),
     card_overlay_ms: Number(els.cfgCardOverlayMs.value || 3500),
     min_board_tiles: Number(els.cfgMinBoardTiles.value || 72),
-    board_cols: Number(els.cfgBoardCols.value || 18),
-    board_rows: Number(els.cfgBoardRows.value || 11),
-    roll_sync_delay_ms: Number(els.cfgRollSyncDelayMs.value || 1000),
-    dice_animation_ms: Number(els.cfgDiceAnimationMs.value || 1150),
-    pawn_step_ms: Number(els.cfgPawnStepMs.value || 180),
+    board_cols: Number(els.cfgBoardCols.value || 24),
+    board_rows: Number(els.cfgBoardRows.value || 14),
+    roll_sync_delay_ms: Number(els.cfgRollSyncDelayMs.value || 1500),
+    dice_animation_ms: Number(els.cfgDiceAnimationMs.value || 1350),
+    pawn_step_ms: Number(els.cfgPawnStepMs.value || 260),
     enable_cards: !!els.cfgEnableCards.checked,
     enable_shops: !!els.cfgEnableShops.checked,
     center_text: els.cfgCenterText.value.trim(),
@@ -554,10 +510,11 @@ async function saveItem() {
   };
   if (!payload.name) return alert('Adj nevet a tárgynak.');
   const id = Number(els.itemId.value || 0);
-  const res = await (id ? supabase.from('game_items').update(payload).eq('id', id) : supabase.from('game_items').insert(payload));
+  const res = await (id ? supabase.from('game_items').update(payload).eq('id', id).select('*').single() : supabase.from('game_items').insert(payload).select('*').single());
   if (res.error) return setStatus(readableError(res.error));
   setStatus('Tárgy elmentve.');
   await loadAll();
+  fillItemForm(state.items.find((row) => Number(row.id) === Number(res.data?.id)));
 }
 
 async function deleteItem() {
@@ -591,6 +548,9 @@ async function saveTile() {
     item_id: nullableNumber(els.tileItemId.value),
     skip_turns: Number(els.tileSkipTurns.value || 0),
     move_steps: Number(els.tileMoveSteps.value || 0),
+    board_x: nullableNumber(els.tileBoardX.value),
+    board_y: nullableNumber(els.tileBoardY.value),
+    next_sort_order: nullableNumber(els.tileNextSortOrder.value),
     description: els.tileDescription.value.trim(),
     image_url: els.tileImageUrl.value.trim(),
     accent_color: els.tileAccentColor.value,
@@ -599,10 +559,11 @@ async function saveTile() {
   };
   if (!payload.name) return alert('Adj nevet a mezőnek.');
   const id = Number(els.tileId.value || 0);
-  const res = await (id ? supabase.from('game_tiles').update(payload).eq('id', id) : supabase.from('game_tiles').insert(payload));
+  const res = await (id ? supabase.from('game_tiles').update(payload).eq('id', id).select('*').single() : supabase.from('game_tiles').insert(payload).select('*').single());
   if (res.error) return setStatus(readableError(res.error));
   setStatus('Mező elmentve.');
   await loadAll();
+  fillTileForm(state.tiles.find((row) => Number(row.id) === Number(res.data?.id)));
 }
 
 async function deleteTile() {
@@ -639,10 +600,11 @@ async function saveCard() {
   };
   if (!payload.title) return alert('Adj címet a kártyának.');
   const id = Number(els.cardId.value || 0);
-  const res = await (id ? supabase.from('game_cards').update(payload).eq('id', id) : supabase.from('game_cards').insert(payload));
+  const res = await (id ? supabase.from('game_cards').update(payload).eq('id', id).select('*').single() : supabase.from('game_cards').insert(payload).select('*').single());
   if (res.error) return setStatus(readableError(res.error));
   setStatus('Kártya elmentve.');
   await loadAll();
+  fillCardForm(state.cards.find((row) => Number(row.id) === Number(res.data?.id)));
 }
 
 async function deleteCard() {
@@ -665,6 +627,140 @@ function normalizeDeckName(value) {
   return String(value || 'chance').trim().toLowerCase().replaceAll('_', '-').replaceAll(' ', '-');
 }
 
+function orderTilesForAdmin(rows) {
+  const sorted = [...(rows || [])].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+  if (!sorted.length) return sorted;
+  const bySort = new Map(sorted.map((tile) => [Number(tile.sort_order || 0), tile]));
+  const start = sorted.find((tile) => tile.kind === 'start') || sorted[0];
+  const route = [];
+  const seen = new Set();
+  let current = start;
+  while (current && !seen.has(String(current.id ?? current.sort_order))) {
+    route.push(current);
+    seen.add(String(current.id ?? current.sort_order));
+    const nextSort = nullableNumber(current.next_sort_order);
+    current = nextSort == null ? null : bySort.get(Number(nextSort));
+  }
+  sorted.forEach((tile) => {
+    const key = String(tile.id ?? tile.sort_order);
+    if (!seen.has(key)) route.push(tile);
+  });
+  return route;
+}
+
+function buildDefaultBoardCoords(cols, rows, count) {
+  const coords = [];
+  let left = 1;
+  let right = cols;
+  let top = 1;
+  let bottom = rows;
+  while (left <= right && top <= bottom && coords.length < count) {
+    for (let col = right; col >= left && coords.length < count; col -= 1) coords.push({ col, row: bottom });
+    for (let row = bottom - 2; row >= top + 2 && coords.length < count; row -= 1) coords.push({ col: left, row });
+    for (let col = left; col <= right && coords.length < count; col += 1) coords.push({ col, row: top });
+    for (let row = top + 2; row <= bottom - 2 && coords.length < count; row += 1) coords.push({ col: right, row });
+    left += 2;
+    right -= 2;
+    top += 2;
+    bottom -= 2;
+  }
+  if (coords.length < count) {
+    for (let row = 1; row <= rows && coords.length < count; row += 1) {
+      for (let col = 1; col <= cols && coords.length < count; col += 1) {
+        if (!coords.some((entry) => entry.col === col && entry.row === row)) coords.push({ col, row });
+      }
+    }
+  }
+  return coords.slice(0, count);
+}
+
+function getEditorBoardGeometry(tileCount) {
+  let cols = Math.max(8, Number(els.cfgBoardCols?.value || state.config.board_cols || 24));
+  let rows = Math.max(8, Number(els.cfgBoardRows?.value || state.config.board_rows || 14));
+  while (buildDefaultBoardCoords(cols, rows, tileCount).length < tileCount) {
+    if (cols <= rows) cols += 2;
+    else rows += 2;
+  }
+  return { cols, rows };
+}
+
+function applyDefaultTileLayout(rows) {
+  const cloned = rows.map((tile) => ({ ...tile }));
+  const geometry = getEditorBoardGeometry(cloned.length || 1);
+  const defaults = buildDefaultBoardCoords(geometry.cols, geometry.rows, cloned.length);
+  const used = new Set();
+  cloned.forEach((tile) => {
+    const x = nullableNumber(tile.board_x);
+    const y = nullableNumber(tile.board_y);
+    if (x != null && y != null && x >= 1 && x <= geometry.cols && y >= 1 && y <= geometry.rows) used.add(`${x}:${y}`);
+  });
+  let ptr = 0;
+  for (const tile of cloned) {
+    const x = nullableNumber(tile.board_x);
+    const y = nullableNumber(tile.board_y);
+    if (x != null && y != null && x >= 1 && x <= geometry.cols && y >= 1 && y <= geometry.rows) continue;
+    while (ptr < defaults.length && used.has(`${defaults[ptr].col}:${defaults[ptr].row}`)) ptr += 1;
+    const fallback = defaults[ptr] || defaults[defaults.length - 1] || { col: 1, row: 1 };
+    tile.board_x = fallback.col;
+    tile.board_y = fallback.row;
+    used.add(`${tile.board_x}:${tile.board_y}`);
+    ptr += 1;
+  }
+  return cloned;
+}
+
+function renderTilePathPreview() {
+  if (!els.tilePathPreview) return;
+  const rows = buildVisibleTileRows();
+  const geometry = getEditorBoardGeometry(rows.length || 1);
+  els.tilePathPreview.style.setProperty('--preview-cols', String(geometry.cols));
+  els.tilePathPreview.style.setProperty('--preview-rows', String(geometry.rows));
+  const activeSort = Number(els.tileSort?.value || -1);
+  const map = new Map();
+  rows.forEach((tile) => {
+    if (tile.board_x && tile.board_y) map.set(`${tile.board_x}:${tile.board_y}`, tile);
+  });
+  const html = [];
+  for (let row = 1; row <= geometry.rows; row += 1) {
+    for (let col = 1; col <= geometry.cols; col += 1) {
+      const tile = map.get(`${col}:${row}`);
+      if (!tile) {
+        html.push(`<button type="button" class="board-preview-cell empty-slot" data-x="${col}" data-y="${row}" title="Pozíció: ${col}:${row}"></button>`);
+        continue;
+      }
+      const inline = `${tile.accent_color ? `--custom-accent:${tile.accent_color};` : ''}${tile.text_color ? `--custom-text:${tile.text_color};` : ''}`;
+      html.push(`
+        <button type="button" class="board-preview-cell tile-slot ${Number(tile.sort_order || 0) === activeSort ? 'selected' : ''}"
+          data-sort="${Number(tile.sort_order || 0)}" data-x="${col}" data-y="${row}" style="${inline}" title="#${Number(tile.sort_order || 0)} ${escapeAttr(tile.name || '')}">
+          <div class="mini-top"><span>#${Number(tile.sort_order || 0)}</span><span>${escapeHtml(tile.icon || '✨')}</span></div>
+          <div class="mini-title">${escapeHtml(tile.short_name || shortName(tile.name || '', 10) || 'Mező')}</div>
+          <div class="mini-next">→ ${tile.next_sort_order != null && tile.next_sort_order !== '' ? escapeHtml(tile.next_sort_order) : 'auto'}</div>
+        </button>
+      `);
+    }
+  }
+  els.tilePathPreview.innerHTML = html.join('');
+}
+
+function handleTilePreviewClick(event) {
+  const target = event.target.closest('[data-x][data-y]');
+  if (!target) return;
+  const sort = target.dataset.sort;
+  if (sort != null && sort !== '') {
+    const tile = buildVisibleTileRows().find((row) => Number(row.sort_order || 0) === Number(sort));
+    if (tile) fillTileForm(tile);
+    return;
+  }
+  if (els.tileBoardX) els.tileBoardX.value = target.dataset.x || '';
+  if (els.tileBoardY) els.tileBoardY.value = target.dataset.y || '';
+  renderTilePathPreview();
+}
+
+function shortName(value, max = 12) {
+  const text = String(value || '');
+  return text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text;
+}
+
 function itemNameFromId(id) {
   return state.items.find((row) => Number(row.id) === Number(id))?.name || '';
 }
@@ -673,11 +769,6 @@ function nullableNumber(value) {
   if (!trimmed) return null;
   const num = Number(trimmed);
   return Number.isFinite(num) ? num : null;
-}
-function shortName(value, max) {
-  const text = String(value || '').trim();
-  if (!text) return '';
-  return text.length > max ? `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…` : text;
 }
 function setStatus(message) {
   els.adminStatus.textContent = message;
@@ -711,7 +802,7 @@ function readableError(error) {
   const message = typeof error === 'string' ? error : (error?.message || error?.details || JSON.stringify(error));
   if (/Could not find the '([^']+)' column of '([^']+)'/i.test(message || '')) {
     const [, column, table] = message.match(/Could not find the '([^']+)' column of '([^']+)'/i) || [];
-    return `Hiányzó adatbázis oszlop: ${table}.${column}. Futtasd le a zipben lévő sql/migrate_v7.sql fájlt a Supabase SQL Editorban.`;
+    return `Hiányzó adatbázis oszlop: ${table}.${column}. Futtasd le a zipben lévő sql/migrate_v8.sql fájlt a Supabase SQL Editorban.`;
   }
   return message || 'Ismeretlen hiba.';
 }

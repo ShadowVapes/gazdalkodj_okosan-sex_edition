@@ -101,7 +101,7 @@ textarea { resize: vertical; min-height: 96px; }
 .board-panel { padding: 12px; }
 .board-topline { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) 190px; margin-bottom: 10px; }
 .board-stage {
-  position: relative; min-height: 680px; background: linear-gradient(180deg, #ead7ba, #e6d1b2); border: 3px solid var(--line); overflow: hidden;
+  position: relative; min-height: 780px; background: linear-gradient(180deg, #ead7ba, #e6d1b2); border: 3px solid var(--line); overflow: hidden;
 }
 .board-grid {
   --board-cols: 16; --board-rows: 10; --board-aspect: 16 / 10; display: grid; grid-template-columns: repeat(var(--board-cols), minmax(0, 1fr)); grid-template-rows: repeat(var(--board-rows), minmax(0, 1fr)); width: 100%; aspect-ratio: var(--board-aspect);
@@ -109,22 +109,22 @@ textarea { resize: vertical; min-height: 96px; }
 .board-cell { position: relative; min-width: 0; min-height: 0; border: 2px solid var(--line); background: #f6ead5; }
 .board-cell.empty { border: none; background: transparent; }
 .board-cell.path {
-  padding: 4px 4px 24px; display: flex; flex-direction: column; justify-content: flex-start; gap: 3px; overflow: hidden; transition: transform .22s ease, box-shadow .22s ease, filter .22s ease;
+  padding: 3px 3px 22px; display: flex; flex-direction: column; justify-content: flex-start; gap: 2px; overflow: hidden; transition: transform .22s ease, box-shadow .22s ease, filter .22s ease;
   color: var(--custom-text, var(--text));
 }
-.board-cell.path.highlighted { z-index: 4; box-shadow: inset 0 0 0 3px rgba(255,255,255,0.65), 0 0 0 4px #f5d35f; }
+.board-cell.path.highlighted { z-index: 4; box-shadow: inset 0 0 0 3px rgba(255,255,255,0.65), 0 0 0 4px #f5d35f; animation: tileFlashDouble 1.05s ease-in-out 1; }
 .board-cell.path.active-zoom { animation: tilePulse .35s ease forwards; }
 .tile-image {
   position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0.2; pointer-events:none;
 }
-.tile-topline { display: flex; justify-content: space-between; align-items: center; gap: 4px; font-size: clamp(8px, 0.58vw, 11px); font-weight: 800; position: relative; z-index:1; }
+.tile-topline { display: flex; justify-content: space-between; align-items: center; gap: 4px; font-size: clamp(7px, 0.48vw, 10px); font-weight: 800; position: relative; z-index:1; }
 .tile-index { opacity: 0.72; }
 .tile-icon { font-size: 14px; line-height: 1; }
 .tile-title {
-  position: relative; z-index:1; font-size: clamp(9px, 0.68vw, 13px); font-weight: 800; line-height: 1.05; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+  position: relative; z-index:1; font-size: clamp(8px, 0.48vw, 11px); font-weight: 800; line-height: 1.02; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 0 rgba(255,255,255,0.35);
 }
 .tile-desc {
-  position: relative; z-index:1; font-size: clamp(7px, 0.5vw, 10px); color: var(--muted); line-height: 1.08; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  position: relative; z-index:1; font-size: clamp(6px, 0.36vw, 9px); color: var(--muted); line-height: 1.02; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .pawn-list {
   position: absolute; left: 3px; right: 3px; bottom: 3px; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; z-index:2;
@@ -147,7 +147,7 @@ textarea { resize: vertical; min-height: 96px; }
 .tile-green { background: linear-gradient(180deg, var(--custom-accent, #dff2d2), #cde5ba); }
 .tile-neutral,.tile-custom { background: linear-gradient(180deg, var(--custom-accent, #f5ead7), #ecd9c2); }
 .center-control {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(22vw, 220px); min-width: 180px; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 10px 10px 10px;
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(26vw, 290px); min-width: 210px; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 12px;
   background: linear-gradient(180deg, rgba(255,247,250,0.98), rgba(246,230,236,0.98)); border: 3px solid var(--line); box-shadow: 0 8px 28px rgba(0,0,0,0.18);
 }
 .center-heading { font-family: Georgia, "Times New Roman", serif; font-size: 18px; font-weight: 800; }
@@ -162,20 +162,29 @@ textarea { resize: vertical; min-height: 96px; }
 .dice-pip.on { background: #7e1437; }
 .dice-label { min-height: 18px; font-size: 14px; font-weight: 800; }
 .deck-area, .decision-area {
-  width: min(100%, 230px); padding: 8px; border: 2px solid var(--line); background: #fff9ef;
+  width: min(100%, 250px); padding: 10px; border: 2px solid var(--line); background: #fff9ef;
 }
+.deck-area { background: transparent; border: none; padding: 0; }
 .card-deck {
-  position: relative; width: 100%; min-height: 64px; border: 3px solid var(--line); background: linear-gradient(180deg, #ffd8e8, #f0abc3); font-size: 16px; font-weight: 900; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,0.15); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  position: relative; width: 100%; min-height: 112px; border: 3px solid var(--line); border-radius: 18px;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(255,255,255,0.38), transparent 32%),
+    linear-gradient(145deg, #7f1238 0%, #c14775 48%, #7a123a 100%);
+  color: #fff6fb; font-size: 17px; font-weight: 900; letter-spacing: 1px; cursor: pointer; box-shadow: 0 10px 0 rgba(0,0,0,0.14);
+  overflow: hidden;
 }
-.card-deck::before,.card-deck::after {
-  content:''; position:absolute; inset:0; border:3px solid var(--line); border-radius:2px; background:linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0)); z-index:-1;
+.card-deck::before {
+  content: ''; position: absolute; inset: 12px; border: 2px solid rgba(255,255,255,0.38); border-radius: 12px; pointer-events:none;
 }
-.card-deck::before { transform: translate(6px, 6px); }
-.card-deck::after { transform: translate(3px, 3px); }
-.deck-title { display:block; font-size:15px; line-height:1.1; }
-.deck-subtitle { display:block; font-size:11px; font-weight:800; opacity:0.85; }
-.card-deck:disabled { opacity: 0.55; cursor: not-allowed; }
-.decision-title { font-size: 18px; font-weight: 900; }
+.card-deck::after {
+  content: 'PIKÁNS PAKLI'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-7deg); font-size: 18px; font-weight: 900; letter-spacing: 1.6px; white-space: nowrap;
+}
+.card-deck:disabled { opacity: 0.76; cursor: not-allowed; filter: grayscale(0.18); }
+.card-deck .deck-subtitle { position: relative; z-index: 1; display:block; padding-top: 74px; font-size: 12px; letter-spacing: 0; }
+.decision-area {
+  width: min(100%, 260px); background: linear-gradient(180deg, #fff9ef, #f8e8c8); box-shadow: 0 6px 0 rgba(0,0,0,0.12);
+}
+.decision-title { font-size: 20px; font-weight: 900; }
 .decision-text { margin-top: 6px; font-size: 14px; color: var(--muted); }
 .action-box { width: min(100%, 360px); justify-content: center; text-align: center; }
 .event-overlay {
@@ -214,7 +223,7 @@ textarea { resize: vertical; min-height: 96px; }
 
 @media (max-width: 1360px) {
   .game-grid,.lobby-grid,.room-grid,.editor-grid,.admin-layout { grid-template-columns: 1fr; }
-  .board-stage { min-height: 600px; }
+  .board-stage { min-height: 640px; }
 }
 @media (max-width: 1100px) {
   .center-control { width: min(30vw, 230px); min-width: 180px; }
@@ -223,7 +232,7 @@ textarea { resize: vertical; min-height: 96px; }
   .boardgame-body { padding: 8px; }
   .main-wrap { padding: 10px; }
   .topbar { padding: 14px; }
-  .board-stage { min-height: 460px; }
+  .board-stage { min-height: 500px; }
   .center-control { width: min(52vw, 220px); min-width: 170px; padding: 10px; }
   .dice-face { width: 76px; height: 76px; }
   .center-control { inset: auto; left: 50%; top: 50%; transform: translate(-50%, -50%); }
@@ -343,3 +352,27 @@ textarea { resize: vertical; min-height: 96px; }
 .summary-card strong { display:block; font-size:24px; }
 .helper-text { font-size:13px; color:var(--muted); }
 .form-grid.four-col { grid-template-columns: repeat(4, minmax(0,1fr)); }
+
+@keyframes tileFlashDouble {
+  0%,100% { filter: brightness(1); }
+  18%,54% { filter: brightness(1.32); }
+  36%,72% { filter: brightness(1); }
+}
+
+.admin-board-preview {
+  --preview-cols: 16; --preview-rows: 10; display: grid; grid-template-columns: repeat(var(--preview-cols), minmax(0, 1fr)); grid-template-rows: repeat(var(--preview-rows), minmax(0, 1fr)); gap: 4px;
+  width: 100%; aspect-ratio: calc(var(--preview-cols) / var(--preview-rows)); min-height: 260px; background: rgba(235, 219, 193, 0.7); border: 2px solid var(--line); padding: 8px;
+}
+.board-preview-cell {
+  border: 1px dashed rgba(104,49,33,0.25); background: rgba(255,255,255,0.35); min-width: 0; min-height: 0; display:flex; align-items:center; justify-content:center; text-align:center; position: relative; overflow:hidden;
+}
+.board-preview-cell.empty-slot { cursor: pointer; }
+.board-preview-cell.empty-slot:hover { background: rgba(255,255,255,0.65); }
+.board-preview-cell.tile-slot {
+  border: 2px solid rgba(104,49,33,0.45); background: linear-gradient(180deg, var(--custom-accent, #f5ead7), color-mix(in srgb, var(--custom-accent, #f5ead7) 74%, #ffffff 26%));
+  color: var(--custom-text, var(--text)); padding: 4px; flex-direction: column; gap: 4px; align-items:flex-start; justify-content:flex-start; cursor: pointer;
+}
+.board-preview-cell.tile-slot.selected { outline: 3px solid #7e1437; z-index: 2; }
+.board-preview-cell.tile-slot .mini-top { width: 100%; display:flex; justify-content:space-between; gap:4px; font-size: 10px; font-weight: 800; }
+.board-preview-cell.tile-slot .mini-title { font-size: 11px; font-weight: 900; line-height: 1.05; word-break: break-word; }
+.board-preview-cell.tile-slot .mini-next { margin-top: auto; font-size: 10px; color: var(--muted); }
