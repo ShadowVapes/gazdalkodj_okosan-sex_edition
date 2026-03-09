@@ -106,6 +106,7 @@ async function loadAll() {
   setStatus('Admin betöltve.');
 }
 
+
 function fallbackConfig() {
   return {
     game_title: 'Gazdálkodj Pajkosan',
@@ -117,18 +118,19 @@ function fallbackConfig() {
     required_items: 4,
     center_text: 'Szedd össze a szükséges tárgyakat vagy gyűjts pénzt.',
     lobby_note: 'Az egész poén, társasjátékos hangulattal.',
-    event_overlay_ms: 3500,
-    card_overlay_ms: 3500,
+    event_overlay_ms: 3200,
+    card_overlay_ms: 3200,
     min_board_tiles: 72,
-    board_cols: 24,
-    board_rows: 14,
-    roll_sync_delay_ms: 1800,
-    dice_animation_ms: 1450,
-    pawn_step_ms: 220,
+    board_cols: 18,
+    board_rows: 11,
+    roll_sync_delay_ms: 1000,
+    dice_animation_ms: 1150,
+    pawn_step_ms: 180,
     enable_cards: true,
     enable_shops: true,
   };
 }
+
 
 function readConfig(rows) {
   const merged = fallbackConfig();
@@ -149,12 +151,12 @@ function renderConfig() {
   els.cfgCardOverlayMs.value = config.card_overlay_ms ?? 3500;
   els.cfgCenterText.value = config.center_text ?? '';
   els.cfgLobbyNote.value = config.lobby_note ?? '';
-  els.cfgMinBoardTiles.value = config.min_board_tiles ?? 48;
-  els.cfgBoardCols.value = config.board_cols ?? 16;
-  els.cfgBoardRows.value = config.board_rows ?? 10;
-  els.cfgRollSyncDelayMs.value = config.roll_sync_delay_ms ?? 1500;
-  els.cfgDiceAnimationMs.value = config.dice_animation_ms ?? 1350;
-  els.cfgPawnStepMs.value = config.pawn_step_ms ?? 260;
+  els.cfgMinBoardTiles.value = config.min_board_tiles ?? 72;
+  els.cfgBoardCols.value = config.board_cols ?? 18;
+  els.cfgBoardRows.value = config.board_rows ?? 11;
+  els.cfgRollSyncDelayMs.value = config.roll_sync_delay_ms ?? 1000;
+  els.cfgDiceAnimationMs.value = config.dice_animation_ms ?? 1150;
+  els.cfgPawnStepMs.value = config.pawn_step_ms ?? 180;
   els.cfgEnableCards.checked = config.enable_cards !== false;
   els.cfgEnableShops.checked = config.enable_shops !== false;
   const extra = { ...config };
@@ -174,10 +176,12 @@ function renderItemOptions() {
   if (els.tileCardGroupOptions) els.tileCardGroupOptions.innerHTML = groups.map((group) => `<option value="${escapeAttr(group)}"></option>`).join('');
 }
 
+
 function buildVisibleTileRows() {
   const base = [...state.tiles].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
-  const wanted = Math.max(Number(state.config.min_board_tiles || 72), base.length || 0);
-  const out = [...base];
+  const prepared = appendAutoItemShopTiles(base, state.items || []);
+  const wanted = Math.max(Number(state.config.min_board_tiles || 72), prepared.length || 0);
+  const out = [...prepared];
   for (let i = out.length; i < wanted; i += 1) {
     out.push({
       id: `gen-${i}`,
@@ -193,6 +197,41 @@ function buildVisibleTileRows() {
     });
   }
   return out;
+}
+
+function appendAutoItemShopTiles(baseTiles, items) {
+  const out = [...baseTiles];
+  const usedItemIds = new Set(out.filter((tile) => tile.kind === 'shop' && tile.item_id != null).map((tile) => Number(tile.item_id)));
+  let sortOrder = out.length ? Math.max(...out.map((tile) => Number(tile.sort_order || 0))) + 1 : 0;
+  for (const item of items || []) {
+    const itemId = Number(item.id || 0);
+    if (!itemId || usedItemIds.has(itemId)) continue;
+    out.push({
+      id: `auto-item-${itemId}`,
+      sort_order: sortOrder,
+      name: `${item.name || 'Tárgy'} bolt`,
+      short_name: shortName(item.name || 'Bolt', 10),
+      kind: 'shop',
+      color_key: 'gold',
+      icon: item.icon || '🛍️',
+      description: `${item.name || 'Tárgy'} automatikusan megjelenik a játékban is.`,
+      item_id: itemId,
+      price: Number(item.price || 0),
+      amount: 0,
+      card_group: null,
+      skip_turns: 0,
+      move_steps: 0,
+      image_url: item.image_url || '',
+      accent_color: item.accent_color || '',
+      text_color: item.text_color || '',
+      effect: {},
+      _generated: true,
+      _generatedKind: 'auto-item-shop',
+    });
+    usedItemIds.add(itemId);
+    sortOrder += 1;
+  }
+  return out.sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
 }
 
 function collectCardGroups() {
@@ -211,16 +250,46 @@ function renderSummary() {
   updateBoardConfigNote();
 }
 
+
 function updateBoardConfigNote() {
   if (!els.boardConfigNote) return;
   const dbTiles = state.tiles.length || 0;
   const minTiles = Number(els.cfgMinBoardTiles?.value || state.config.min_board_tiles || 72);
-  const cols = Number(els.cfgBoardCols?.value || state.config.board_cols || 24);
-  const rows = Number(els.cfgBoardRows?.value || state.config.board_rows || 14);
-  const perimeter = 2 * (cols + rows) - 4;
-  const visibleTiles = Math.max(dbTiles, minTiles);
-  const enoughOuter = perimeter >= visibleTiles;
-  els.boardConfigNote.textContent = `DB mezők: ${dbTiles} • Megjelenő mezők: ${visibleTiles} • Külső kör kapacitás: ${perimeter}${enoughOuter ? '' : ' • Tipp: növeld az oszlop/sor értéket, hogy a középső rész üres maradjon.'}`;
+  const maxCols = Number(els.cfgBoardCols?.value || state.config.board_cols || 18);
+  const maxRows = Number(els.cfgBoardRows?.value || state.config.board_rows || 11);
+  const compact = getCompactBoardGeometry(Math.max(dbTiles, minTiles), maxCols, maxRows);
+  els.boardConfigNote.textContent = `DB mezők: ${dbTiles} • Megjelenő mezők: ${Math.max(dbTiles, minTiles)} • Játékbeli rács: ${compact.cols}×${compact.rows} • Hasznos kapacitás: ${compact.capacity}`;
+}
+
+
+
+function getCompactBoardGeometry(tileCount, preferredCols, preferredRows) {
+  let best = null;
+  for (let cols = 10; cols <= Math.max(10, preferredCols); cols += 1) {
+    for (let rows = 8; rows <= Math.max(8, preferredRows); rows += 1) {
+      const center = getCenterBlock(cols, rows);
+      const capacity = (cols * rows) - (center.width * center.height);
+      if (capacity < tileCount) continue;
+      const score = (cols * rows) * 1000 + Math.abs((cols / rows) - (preferredCols / preferredRows)) * 100 + Math.abs(cols - preferredCols) + Math.abs(rows - preferredRows);
+      if (!best || score < best.score) best = { cols, rows, capacity, score };
+    }
+  }
+  if (best) return best;
+  let cols = Math.max(10, preferredCols);
+  let rows = Math.max(8, preferredRows);
+  while (true) {
+    const center = getCenterBlock(cols, rows);
+    const capacity = (cols * rows) - (center.width * center.height);
+    if (capacity >= tileCount) return { cols, rows, capacity };
+    if (cols <= rows + 2) cols += 1;
+    else rows += 1;
+  }
+}
+
+function getCenterBlock(cols, rows) {
+  const width = Math.min(cols - 4, Math.max(4, Math.round(cols * 0.28)) + (Math.round(cols * 0.28) % 2));
+  const height = Math.min(rows - 4, Math.max(4, Math.round(rows * 0.26)) + (Math.round(rows * 0.26) % 2));
+  return { width, height };
 }
 
 function renderItems() {
@@ -252,7 +321,7 @@ function renderTiles() {
       <div class="item-badges top-gap">
         <span class="tag-chip">rövid: ${escapeHtml(tile.short_name || '-')}</span>
         <span class="tag-chip">tárgy: ${escapeHtml(itemNameFromId(tile.item_id) || '-')}</span>
-        ${tile._generated ? '<span class="tag-chip">generált hely</span>' : ''}
+        ${tile._generated ? `<span class="tag-chip">${tile._generatedKind === 'auto-item-shop' ? 'auto item bolt' : 'generált hely'}</span>` : ''}
       </div>
       <div class="microcopy">${escapeHtml(tile.description || 'Nincs mezőleírás.')}</div>
     </button>
@@ -439,12 +508,12 @@ async function saveConfig() {
     required_items: Number(els.cfgRequiredItems.value || 0),
     event_overlay_ms: Number(els.cfgEventOverlayMs.value || 3500),
     card_overlay_ms: Number(els.cfgCardOverlayMs.value || 3500),
-    min_board_tiles: Number(els.cfgMinBoardTiles.value || 48),
-    board_cols: Number(els.cfgBoardCols.value || 16),
-    board_rows: Number(els.cfgBoardRows.value || 10),
-    roll_sync_delay_ms: Number(els.cfgRollSyncDelayMs.value || 1500),
-    dice_animation_ms: Number(els.cfgDiceAnimationMs.value || 1350),
-    pawn_step_ms: Number(els.cfgPawnStepMs.value || 260),
+    min_board_tiles: Number(els.cfgMinBoardTiles.value || 72),
+    board_cols: Number(els.cfgBoardCols.value || 18),
+    board_rows: Number(els.cfgBoardRows.value || 11),
+    roll_sync_delay_ms: Number(els.cfgRollSyncDelayMs.value || 1000),
+    dice_animation_ms: Number(els.cfgDiceAnimationMs.value || 1150),
+    pawn_step_ms: Number(els.cfgPawnStepMs.value || 180),
     enable_cards: !!els.cfgEnableCards.checked,
     enable_shops: !!els.cfgEnableShops.checked,
     center_text: els.cfgCenterText.value.trim(),

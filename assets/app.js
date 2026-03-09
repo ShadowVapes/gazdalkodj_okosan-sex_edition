@@ -6,10 +6,10 @@ const supabase = !DEMO_MODE && window.supabase
   : null;
 
 const DEFAULT_MIN_BOARD_TILES = 72;
-const POLL_MS_PLAYING = 240;
-const POLL_MS_LOBBY = 1400;
-const DEFAULT_BOARD_COLS = 24;
-const DEFAULT_BOARD_ROWS = 14;
+const POLL_MS_PLAYING = 180;
+const POLL_MS_LOBBY = 1100;
+const DEFAULT_BOARD_COLS = 18;
+const DEFAULT_BOARD_ROWS = 11;
 
 const els = {
   connectionStatus: document.getElementById('connectionStatus'),
@@ -185,6 +185,7 @@ async function loadStaticData() {
   }
 }
 
+
 function fallbackConfig() {
   return {
     game_title: 'Gazdálkodj Pajkosan',
@@ -196,23 +197,25 @@ function fallbackConfig() {
     required_items: 4,
     center_text: 'Szedd össze a szükséges tárgyakat vagy gyűjts pénzt.',
     lobby_note: 'Az egész poén, könnyed társasos hangulattal.',
-    event_overlay_ms: 3500,
-    card_overlay_ms: 3500,
+    event_overlay_ms: 3200,
+    card_overlay_ms: 3200,
     min_board_tiles: 72,
-    board_cols: 24,
-    board_rows: 14,
-    roll_sync_delay_ms: 1800,
-    dice_animation_ms: 1450,
-    pawn_step_ms: 220,
+    board_cols: 18,
+    board_rows: 11,
+    roll_sync_delay_ms: 1000,
+    dice_animation_ms: 1150,
+    pawn_step_ms: 180,
     enable_cards: true,
     enable_shops: true,
   };
 }
 
+
 function applyThemeTexts() {
   els.titleMain.textContent = String(state.config.game_title || 'Gazdálkodj Pajkosan');
   els.subtitleMain.textContent = String(state.config.game_subtitle || 'Vicces társas paródia multiplayerben.');
 }
+
 
 function fallbackItems() {
   return [
@@ -222,8 +225,15 @@ function fallbackItems() {
     { id: 4, sort_order: 3, name: 'Rózsaszirmok', category: 'romantika', price: 550, icon: '🌹', required: true, blurb: 'Látványos bónusz.', image_url: '', accent_color: '#ffd8e8', text_color: '', effect: {} },
     { id: 5, sort_order: 4, name: 'Hangulatfény', category: 'hangulat', price: 780, icon: '🕯️', required: false, blurb: 'Nem kötelező, de stílusos.', image_url: '', accent_color: '#eadfff', text_color: '', effect: {} },
     { id: 6, sort_order: 5, name: 'Lepedőszett', category: 'szoba', price: 800, icon: '🧺', required: false, blurb: 'Jó ha van kéznél.', image_url: '', accent_color: '#e5f0ff', text_color: '', effect: {} },
+    { id: 7, sort_order: 6, name: 'Hangfal', category: 'party', price: 980, icon: '🔊', required: false, blurb: 'Kell a jó zene.', image_url: '', accent_color: '#dbe8ff', text_color: '', effect: {} },
+    { id: 8, sort_order: 7, name: 'Csokidoboz', category: 'ajándék', price: 520, icon: '🍫', required: false, blurb: 'Olcsó, de hatásos.', image_url: '', accent_color: '#f7e7b1', text_color: '', effect: {} },
+    { id: 9, sort_order: 8, name: 'Gyertyaszett', category: 'hangulat', price: 610, icon: '🕯️', required: false, blurb: 'Több fény, több hangulat.', image_url: '', accent_color: '#f4e2bb', text_color: '', effect: {} },
+    { id: 10, sort_order: 9, name: 'Pléd', category: 'kényelem', price: 430, icon: '🧸', required: false, blurb: 'Kuckózós bónusz.', image_url: '', accent_color: '#efe5ff', text_color: '', effect: {} },
+    { id: 11, sort_order: 10, name: 'Szelfibot', category: 'fun', price: 390, icon: '🤳', required: false, blurb: 'A dokumentáció fontos.', image_url: '', accent_color: '#ffd8e8', text_color: '', effect: {} },
+    { id: 12, sort_order: 11, name: 'Ajándékdoboz', category: 'meglepi', price: 740, icon: '🎁', required: false, blurb: 'Mindig jól jön.', image_url: '', accent_color: '#dff2d2', text_color: '', effect: {} },
   ];
 }
+
 
 function fallbackTiles() {
   return [
@@ -249,6 +259,7 @@ function fallbackTiles() {
   ];
 }
 
+
 function fallbackCards() {
   return [
     { id: 1, card_group: 'chance', title: 'Pezsgős koccintás', body: 'Kapsz egy kis plusz pénzt.', amount: 700, skip_turns: 0, move_steps: 0, item_id: null, icon: '🍾', image_url: '', accent_color: '', text_color: '', effect: {} },
@@ -256,8 +267,13 @@ function fallbackCards() {
     { id: 3, card_group: 'chance', title: 'Sikeres nyitás', body: 'Lépj előre 3 mezőt.', amount: 0, skip_turns: 0, move_steps: 3, item_id: null, icon: '💃', image_url: '', accent_color: '', text_color: '', effect: {} },
     { id: 4, card_group: 'chance', title: 'Megfázott romantika', body: '1 kör kimaradás.', amount: 0, skip_turns: 1, move_steps: 0, item_id: null, icon: '🥶', image_url: '', accent_color: '', text_color: '', effect: {} },
     { id: 5, card_group: 'chance', title: 'Ajándék rózsa', body: 'Kaptál egy tárgyat.', amount: 0, skip_turns: 0, move_steps: 0, item_id: 4, icon: '🌹', image_url: '', accent_color: '', text_color: '', effect: {} },
+    { id: 6, card_group: 'chance', title: 'Villámrandi', body: 'Lépj előre 2 mezőt.', amount: 0, skip_turns: 0, move_steps: 2, item_id: null, icon: '⚡', image_url: '', accent_color: '', text_color: '', effect: {} },
+    { id: 7, card_group: 'chance', title: 'Elhagyott blokk', body: 'Visszakapsz némi pénzt.', amount: 450, skip_turns: 0, move_steps: 0, item_id: null, icon: '🧾', image_url: '', accent_color: '', text_color: '', effect: {} },
+    { id: 8, card_group: 'chance', title: 'Pletyka', body: '1 kör kimaradás.', amount: 0, skip_turns: 1, move_steps: 0, item_id: null, icon: '🫢', image_url: '', accent_color: '', text_color: '', effect: {} },
+    { id: 9, card_group: 'chance', title: 'Kis meglepi', body: 'Kaptál egy ajándékot.', amount: 0, skip_turns: 0, move_steps: 0, item_id: 12, icon: '🎁', image_url: '', accent_color: '', text_color: '', effect: {} },
   ];
 }
+
 
 function readConfig(rows) {
   const merged = fallbackConfig();
@@ -268,17 +284,62 @@ function readConfig(rows) {
   return merged;
 }
 
+
 function buildPlayableTiles() {
-  const base = [...(state.tiles || [])].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
-  const wanted = Math.max(Number(state.config.min_board_tiles || DEFAULT_MIN_BOARD_TILES), base.length || 0, 1);
-  if (base.length >= wanted) return base;
+  const prepared = prepareBaseTiles(state.tiles || [], state.items || []);
+  const wanted = Math.max(Number(state.config.min_board_tiles || DEFAULT_MIN_BOARD_TILES), prepared.length || 0, 1);
+  if (prepared.length >= wanted) return prepared;
   const templates = [...fallbackTiles(), ...expandedTemplateTiles()];
-  const out = [...base];
+  const out = [...prepared];
   for (let i = out.length; i < wanted; i += 1) {
     const tpl = templates[i % templates.length] || fallbackTiles()[i % fallbackTiles().length];
     out.push({ ...tpl, sort_order: i, _generated: true, id: tpl.id || `gen-${i}` });
   }
   return out;
+}
+
+function prepareBaseTiles(tiles, items) {
+  const base = [...(tiles || [])].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+  return appendAutoItemShopTiles(base, items || []);
+}
+
+function appendAutoItemShopTiles(baseTiles, items) {
+  const out = [...baseTiles];
+  const usedItemIds = new Set(
+    out
+      .filter((tile) => tile.kind === 'shop' && tile.item_id != null)
+      .map((tile) => Number(tile.item_id)),
+  );
+  let sortOrder = out.length ? Math.max(...out.map((tile) => Number(tile.sort_order || 0))) + 1 : 0;
+  for (const item of items || []) {
+    const itemId = Number(item.id || 0);
+    if (!itemId || usedItemIds.has(itemId)) continue;
+    out.push({
+      id: `auto-item-${itemId}`,
+      sort_order: sortOrder,
+      name: `${item.name || 'Tárgy'} bolt`,
+      short_name: shortName(item.name || 'Bolt', 10),
+      kind: 'shop',
+      amount: 0,
+      price: Number(item.price || 0),
+      card_group: null,
+      icon: item.icon || '🛍️',
+      color_key: 'gold',
+      description: `${item.name || 'Tárgy'} megvásárolható itt is.`,
+      item_id: itemId,
+      skip_turns: 0,
+      move_steps: 0,
+      image_url: item.image_url || '',
+      accent_color: item.accent_color || '',
+      text_color: item.text_color || '',
+      effect: {},
+      _generated: true,
+      _generatedKind: 'auto-item-shop',
+    });
+    usedItemIds.add(itemId);
+    sortOrder += 1;
+  }
+  return out.sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
 }
 
 function expandedTemplateTiles() {
@@ -527,28 +588,30 @@ function unsubscribeRoom() {
 
 function debouncedRefresh() {
   clearTimeout(state.refreshDebounce);
-  state.refreshDebounce = setTimeout(() => refreshRoom().catch(console.error), 45);
+  state.refreshDebounce = setTimeout(() => refreshRoom().catch(console.error), 20);
 }
+
 
 function getFrozenVisuals(oldLastSeen, firstSync) {
   const out = new Map();
   const payload = parseObject(state.room?.pending_payload);
-  if (payload.actorId && payload.fromPosition != null && state.room?.phase !== 'roll') {
-    out.set(payload.actorId, wrapPosition(Number(payload.fromPosition), state.boardTiles.length || 1));
-  } else if (!firstSync && payload.actorId && payload.fromPosition != null && payload.roll != null && Date.now() < (Number(payload.startAt || 0) + 120)) {
+  const pendingFreezeUntil = Number(payload.availableAt || payload.endAt || payload.revealAt || payload.startAt || 0);
+  if (payload.actorId && payload.fromPosition != null && (state.room?.phase !== 'roll' || Date.now() < (pendingFreezeUntil + 160))) {
     out.set(payload.actorId, wrapPosition(Number(payload.fromPosition), state.boardTiles.length || 1));
   }
   if (firstSync) return out;
   const fresh = state.logs.filter((row) => Number(row.id || 0) > Number(oldLastSeen || 0));
   for (const row of fresh) {
     const rowPayload = parseObject(row.payload);
-    if (rowPayload.actorId && ['turn_action', 'card_draw', 'purchase_result', 'skip_notice'].includes(rowPayload.type) && rowPayload.fromPosition != null) {
-      out.set(rowPayload.actorId, wrapPosition(Number(rowPayload.fromPosition), state.boardTiles.length || 1));
+    const freezeUntil = Number(rowPayload.revealAt || rowPayload.availableAt || rowPayload.endAt || rowPayload.startAt || 0);
+    if (rowPayload.actorId && rowPayload.fromPosition != null && ['turn_action', 'card_draw', 'purchase_result', 'skip_notice'].includes(rowPayload.type)) {
+      if (!freezeUntil || Date.now() < (freezeUntil + 160)) {
+        out.set(rowPayload.actorId, wrapPosition(Number(rowPayload.fromPosition), state.boardTiles.length || 1));
+      }
     }
   }
   return out;
 }
-
 
 function syncVisualPositions(frozen = new Map()) {
   if (state.isAnimating) return;
@@ -624,14 +687,24 @@ function renderRoom() {
   else showScreen('lobby');
 }
 
+
 function phaseHint(active, me) {
   if (state.room?.status !== 'playing') return 'Készen áll';
   if (!active) return 'Várakozás';
-  if (state.room.phase === 'awaiting_card_draw') return active.id === me?.id ? 'Húzz egy kártyát a pakliból!' : `${active.name} kártyát húz...`;
-  if (state.room.phase === 'awaiting_purchase') return active.id === me?.id ? 'Döntsd el, megveszed-e!' : `${active.name} vásárlásról dönt...`;
+  const payload = parseObject(state.room?.pending_payload);
+  const waitLeft = Math.max(0, Number(payload.availableAt || 0) - Date.now());
+  if (state.room.phase === 'awaiting_card_draw') {
+    if (waitLeft > 50) return 'A mezőhatás még fut...';
+    return active.id === me?.id ? 'Kattints a paklira!' : `${active.name} kártyát húz...`;
+  }
+  if (state.room.phase === 'awaiting_purchase') {
+    if (waitLeft > 50) return 'A mezőhatás még fut...';
+    return active.id === me?.id ? 'Döntsd el, megveszed-e!' : `${active.name} vásárlásról dönt...`;
+  }
   if (state.room.phase !== 'roll') return 'Fut az animáció...';
   return active.id === me?.id ? 'Kattints a kockára!' : `${active.name} dobására várunk...`;
 }
+
 
 function getLatestActionText(currency) {
   const latestRow = [...state.logs].reverse().find((row) => row.entry);
@@ -692,6 +765,7 @@ function renderLogs() {
   }).join('') || '<div class="meta-box">Még nincs napló.</div>';
 }
 
+
 function renderDecisionPanels() {
   const me = getMe();
   const active = getActivePlayer();
@@ -705,11 +779,15 @@ function renderDecisionPanels() {
   if (state.room?.status !== 'playing') return;
 
   if (state.room.phase === 'awaiting_card_draw') {
+    if (waitLeft > 50) return;
+    const deckName = prettifyDeckName(payload.cardGroup || 'chance');
     els.deckArea.classList.remove('hidden');
-    const canDraw = isActor && !state.isBusy && !state.isAnimating && waitLeft <= 50;
+    const canDraw = isActor && !state.isBusy && !state.isAnimating;
     els.drawCardBtn.disabled = !canDraw;
-    if (waitLeft > 50) els.drawCardBtn.textContent = 'A mezőhatás még fut...';
-    else els.drawCardBtn.textContent = isActor ? 'Kattints a húzáshoz' : `${payload.actorName || active?.name || 'Valaki'} húz...`;
+    els.drawCardBtn.innerHTML = `
+      <span class="deck-title">💌 ${escapeHtml(deckName)} pakli</span>
+      <span class="deck-subtitle">${escapeHtml(isActor ? 'Kattints a húzáshoz' : `${payload.actorName || active?.name || 'Valaki'} húz...`)}</span>
+    `;
   }
 
   if (state.room.phase === 'awaiting_purchase') {
@@ -725,6 +803,7 @@ function renderDecisionPanels() {
     els.skipItemBtn.textContent = 'Kihagyom';
   }
 }
+
 
 function renderBoard() {
   const tiles = state.boardTiles.length ? state.boardTiles : buildPlayableTiles();
@@ -878,6 +957,8 @@ async function rollDice() {
       banner: bannerParts.join(' • ') || `${me.name} dobott: ${roll}`,
       tile: summarizeTileForOverlay(tile, landingPosition, resolution.tileBanner),
       winnerName: winner ? me.name : '',
+      revealAt: autoEndAt,
+      endAt: autoEndAt,
     };
 
     const phasePayload = {
@@ -1572,45 +1653,100 @@ function hideLoadError() {
   els.loadErrorBox.classList.add('hidden');
 }
 
+
 function shouldMaskRollInfo(payload) {
   if (!payload || payload.type !== 'turn_action' || payload.roll == null) return false;
+  const revealAt = Number(payload.revealAt || payload.availableAt || payload.endAt || 0);
+  if (revealAt > 0) return Date.now() < revealAt;
   return Date.now() < (Number(payload.startAt || 0) + getDiceAnimationMs());
 }
+
+
 
 function getDiceInfoText() {
   if (!state.room) return '-';
   const payload = parseObject(state.room.pending_payload);
   if (state.room.status === 'playing' && state.room.phase !== 'roll' && payload.roll != null) {
-    const revealAt = Number(payload.startAt || 0) + getDiceAnimationMs();
-    if (Date.now() < revealAt) return 'Dobás folyamatban...';
+    const revealAt = Number(payload.revealAt || payload.availableAt || payload.endAt || 0);
+    if (revealAt > 0 && Date.now() < revealAt) return 'Dobás folyamatban...';
+    const revealDiceAt = Number(payload.startAt || 0) + getDiceAnimationMs();
+    if (Date.now() < revealDiceAt) return 'Dobás folyamatban...';
     return `Utolsó dobás: ${payload.roll}`;
   }
   return state.room.last_roll ? `Utolsó dobás: ${state.room.last_roll}` : '-';
 }
 
+
+
 function getBoardGeometry(tileCount) {
-  let cols = Math.max(10, Number(state.config.board_cols || DEFAULT_BOARD_COLS));
-  let rows = Math.max(8, Number(state.config.board_rows || DEFAULT_BOARD_ROWS));
-  while ((2 * (cols + rows) - 4) < tileCount) {
-    if (cols <= rows + 4) cols += 2;
-    else rows += 2;
+  const preferredCols = Math.max(10, Number(state.config.board_cols || DEFAULT_BOARD_COLS));
+  const preferredRows = Math.max(8, Number(state.config.board_rows || DEFAULT_BOARD_ROWS));
+  let best = null;
+
+  for (let cols = 10; cols <= preferredCols; cols += 1) {
+    for (let rows = 8; rows <= preferredRows; rows += 1) {
+      const center = getCenterBlock(cols, rows);
+      const capacity = (cols * rows) - (center.width * center.height);
+      if (capacity < tileCount) continue;
+      const score = (cols * rows) * 1000 + Math.abs((cols / rows) - (preferredCols / preferredRows)) * 100 + Math.abs(cols - preferredCols) + Math.abs(rows - preferredRows);
+      if (!best || score < best.score) best = { cols, rows, capacity, score };
+    }
   }
-  return { cols, rows };
+
+  if (!best) {
+    let cols = preferredCols;
+    let rows = preferredRows;
+    while (true) {
+      const center = getCenterBlock(cols, rows);
+      const capacity = (cols * rows) - (center.width * center.height);
+      if (capacity >= tileCount) return { cols, rows, capacity, center };
+      if (cols <= rows + 2) cols += 1;
+      else rows += 1;
+    }
+  }
+
+  return { cols: best.cols, rows: best.rows, capacity: best.capacity, center: getCenterBlock(best.cols, best.rows) };
+}
+
+function getCenterBlock(cols, rows) {
+  const width = Math.min(cols - 4, Math.max(4, Math.round(cols * 0.28)) + (Math.round(cols * 0.28) % 2));
+  const height = Math.min(rows - 4, Math.max(4, Math.round(rows * 0.26)) + (Math.round(rows * 0.26) % 2));
+  const left = Math.floor((cols - width) / 2) + 1;
+  const top = Math.floor((rows - height) / 2) + 1;
+  return {
+    left,
+    right: left + width - 1,
+    top,
+    bottom: top + height - 1,
+    width,
+    height,
+  };
 }
 
 function buildBoardPath(cols, rows, count) {
+  const center = getCenterBlock(cols, rows);
   const coords = [];
-  const left = 1;
-  const top = 1;
-  const right = cols;
-  const bottom = rows;
-  for (let col = right; col >= left; col -= 1) coords.push({ row: bottom, col });
-  for (let row = bottom - 1; row >= top; row -= 1) coords.push({ row, col: left });
-  for (let col = left + 1; col <= right; col += 1) coords.push({ row: top, col });
-  for (let row = top + 1; row <= bottom - 1; row += 1) coords.push({ row, col: right });
+  for (let row = rows; row >= 1; row -= 1) {
+    const fromRight = ((rows - row) % 2) === 0;
+    if (fromRight) {
+      for (let col = cols; col >= 1; col -= 1) {
+        if (col >= center.left && col <= center.right && row >= center.top && row <= center.bottom) continue;
+        coords.push({ row, col });
+      }
+    } else {
+      for (let col = 1; col <= cols; col += 1) {
+        if (col >= center.left && col <= center.right && row >= center.top && row <= center.bottom) continue;
+        coords.push({ row, col });
+      }
+    }
+  }
   return coords.slice(0, count);
 }
 
+function prettifyDeckName(value) {
+  const raw = String(value || 'chance').trim().replaceAll('_', ' ').replaceAll('-', ' ');
+  return raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : 'Chance';
+}
 
 function summarizeTileForOverlay(tile, index, banner) {
   if (!tile) return null;
@@ -1791,9 +1927,13 @@ function getCardOverlayMs() {
   return Math.max(1200, Number(state.config.card_overlay_ms || state.config.event_overlay_ms || 3500));
 }
 
+
 function getRollSyncDelayMs() {
-  return Math.max((POLL_MS_PLAYING * 4) + 250, Number(state.config.roll_sync_delay_ms || 1800));
+  const minSync = (POLL_MS_PLAYING * 2) + 120;
+  const preferred = Number(state.config.roll_sync_delay_ms || 1000);
+  return Math.max(minSync, Math.min(preferred, 1300));
 }
+
 
 function getDiceAnimationMs() {
   return Math.max(800, Number(state.config.dice_animation_ms || 1350));
