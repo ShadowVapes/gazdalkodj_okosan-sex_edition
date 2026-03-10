@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gazdálkodj okosan</title>
+  <link rel="stylesheet" href="./assets/styles.css">
+</head>
+<body class="theme-dark">
+  <div id="app" class="shell">
+    <div id="topbar" class="topbar">
+      <div>
+        <h1>Gazdálkodj okosan</h1>
+        <p class="muted">Realtime szobás verzió GitHub Pages + Supabase alapon</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="leaveRoomBtn" class="ghost-btn hidden">Kilépés a szobából</button>
+        <a href="./admin.html" class="ghost-btn">Admin oldal</a>
+      </div>
+    </div>
+
+    <section id="statusBanner" class="status-banner warning hidden"></section>
+
+    <section id="lobbyScreen" class="card lobby-screen">
+      <div class="grid two-cols lobby-grid">
+        <div class="stack gap-lg">
+          <div>
+            <h2>Belépés</h2>
+            <p class="muted">Adj meg egy nevet, hozz létre szobát vagy csatlakozz egy kóddal.</p>
+          </div>
+
+          <label class="input-group">
+            <span>Felhasználónév</span>
+            <input id="usernameInput" type="text" maxlength="24" placeholder="Pl. Tesó01">
+          </label>
+
+          <div class="stack gap-sm">
+            <button id="createRoomBtn" class="primary-btn">Új szoba létrehozása</button>
+
+            <div class="join-row">
+              <input id="roomCodeInput" type="text" maxlength="8" placeholder="Szobakód">
+              <button id="joinRoomBtn" class="secondary-btn">Csatlakozás</button>
+            </div>
+          </div>
+
+          <div class="muted small">
+            A szoba létrehozása és a játék indítása után minden dobás, lépés és overlay szinkronban látszik.
+          </div>
+        </div>
+
+        <div class="stack gap-md">
+          <div class="card room-card">
+            <h3>Aktuális szoba</h3>
+            <div class="room-code-box">
+              <span id="roomCodeLabel">—</span>
+              <button id="copyCodeBtn" class="ghost-btn" disabled>Kód másolása</button>
+            </div>
+            <div class="room-meta">
+              <div><span class="muted">Állapot:</span> <strong id="roomStatusLabel">Nincs szoba</strong></div>
+              <div><span class="muted">Host:</span> <strong id="hostLabel">—</strong></div>
+            </div>
+            <div class="stack gap-sm">
+              <button id="startGameBtn" class="primary-btn hidden">Játék indítása</button>
+              <div class="small muted">A host tudja elindítani a játékot.</div>
+            </div>
+          </div>
+
+          <div class="card room-card">
+            <h3>Játékosok a szobában</h3>
+            <div id="lobbyPlayers" class="player-list compact"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="gameScreen" class="game-layout hidden">
+      <div class="board-panel card">
+        <div class="board-stage">
+          <div id="board" class="board"></div>
+
+          <div id="centerArea" class="center-area">
+            <div id="turnInfo" class="turn-info">Várakozás...</div>
+
+            <button id="diceButton" class="dice-button" disabled>
+              <span id="diceFace" class="dice-face">🎲</span>
+              <span class="dice-label">Dobás</span>
+            </button>
+
+            <button id="deckButton" class="deck-button" disabled>
+              <span class="deck-icon">🃏</span>
+              <span>Szerencsekártya pakli</span>
+            </button>
+          </div>
+
+          <div id="overlay" class="overlay hidden"></div>
+        </div>
+      </div>
+
+      <aside class="sidebar">
+        <div class="card sidebar-card">
+          <div class="sidebar-title-row">
+            <h3>Játékosok</h3>
+            <span id="phaseBadge" class="phase-badge">—</span>
+          </div>
+          <div id="playersPanel" class="player-list"></div>
+        </div>
+
+        <div class="card sidebar-card">
+          <h3>Játéknapló</h3>
+          <div id="logPanel" class="log-panel"></div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./assets/config.js"></script>
+  <script src="./assets/app.js"></script>
+</body>
+</html>

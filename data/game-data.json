@@ -1,0 +1,2062 @@
+{
+  "meta": {
+    "name": "Gazdálkodj Okosan - ChatGPT Edition",
+    "version": 1,
+    "updatedAt": "2026-03-10"
+  },
+  "settings": {
+    "currency": "Ft",
+    "startingMoney": 1800,
+    "passStartMoney": 260,
+    "landStartMoney": 360,
+    "fieldRevealMs": 4000,
+    "cardRevealMs": 4000,
+    "diceRollMs": 2000,
+    "stepMoveMs": 280,
+    "autoNextDelayMs": 1000,
+    "minPlayersToStart": 1,
+    "winCondition": "collect_all_items",
+    "boardTileSizeDesktop": 54,
+    "boardTileSizeMobile": 32
+  },
+  "items": [
+    {
+      "id": 1,
+      "key": "huto",
+      "name": "Hűtőszekrény",
+      "price": 900,
+      "description": "Energiatakarékos, nagy családi hűtő."
+    },
+    {
+      "id": 2,
+      "key": "mosogep",
+      "name": "Mosógép",
+      "price": 1100,
+      "description": "Csendes, 8 kilós mosógép."
+    },
+    {
+      "id": 3,
+      "key": "tuzhely",
+      "name": "Tűzhely",
+      "price": 1200,
+      "description": "Modern indukciós tűzhely."
+    },
+    {
+      "id": 4,
+      "key": "etkezo",
+      "name": "Étkezőasztal",
+      "price": 700,
+      "description": "Négyszemélyes, masszív étkezőasztal."
+    },
+    {
+      "id": 5,
+      "key": "kanape",
+      "name": "Kanapé",
+      "price": 950,
+      "description": "Kényelmes, kihúzható kanapé."
+    },
+    {
+      "id": 6,
+      "key": "agy",
+      "name": "Ágy",
+      "price": 1300,
+      "description": "Dupla ágy matraccal."
+    },
+    {
+      "id": 7,
+      "key": "szekreny",
+      "name": "Szekrény",
+      "price": 850,
+      "description": "Nagy gardróbszekrény."
+    },
+    {
+      "id": 8,
+      "key": "teve",
+      "name": "Televízió",
+      "price": 1400,
+      "description": "55 colos okostévé."
+    },
+    {
+      "id": 9,
+      "key": "porszivo",
+      "name": "Porszívó",
+      "price": 500,
+      "description": "Erős, vezeték nélküli porszívó."
+    },
+    {
+      "id": 10,
+      "key": "laptop",
+      "name": "Laptop",
+      "price": 1600,
+      "description": "Munkára és tanulásra való laptop."
+    },
+    {
+      "id": 11,
+      "key": "kerekpar",
+      "name": "Kerékpár",
+      "price": 750,
+      "description": "Városi közlekedésre ideális bicikli."
+    },
+    {
+      "id": 12,
+      "key": "auto",
+      "name": "Autó",
+      "price": 2500,
+      "description": "A nagy cél: saját autó."
+    }
+  ],
+  "cards": [
+    {
+      "id": 1,
+      "title": "Fizetésemelés",
+      "description": "+350 Ft érkezik a kasszádba.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 350
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Elromlott a csap",
+      "description": "A szerelő elvisz 180 Ft-ot.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -180
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Kuponnap",
+      "description": "Választhatsz vásárlási lehetőséget egy még meg nem vett olcsó tárgyra.",
+      "effects": [
+        {
+          "kind": "card_shop",
+          "tier": "cheap"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Prémium műszaki akció",
+      "description": "Választhatsz vásárlási lehetőséget egy még meg nem vett drágább tárgyra.",
+      "effects": [
+        {
+          "kind": "card_shop",
+          "tier": "expensive"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Bónusz a munkában",
+      "description": "+280 Ft jár.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 280
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Autószerviz",
+      "description": "Fizess 260 Ft-ot.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -260
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Talált pénz",
+      "description": "A kabátzsebben volt 140 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 140
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Parkolási bírság",
+      "description": "Fizess 120 Ft-ot.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -120
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Gyors hét",
+      "description": "Lépj előre 4 mezőt.",
+      "effects": [
+        {
+          "kind": "move",
+          "steps": 4
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Forgalmi dugó",
+      "description": "Menj vissza 3 mezőt.",
+      "effects": [
+        {
+          "kind": "move",
+          "steps": -3
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Adminisztráció",
+      "description": "Maradj ki 1 körből.",
+      "effects": [
+        {
+          "kind": "skip",
+          "turns": 1
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Dupla csúszás",
+      "description": "Maradj ki 2 körből.",
+      "effects": [
+        {
+          "kind": "skip",
+          "turns": 2
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Családi segítség",
+      "description": "+220 Ft támogatás érkezik.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 220
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "Előfizetés megújulás",
+      "description": "Vonjunk le 160 Ft-ot.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -160
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Piaci alku",
+      "description": "+190 Ft marad nálad az ügyes vásár miatt.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 190
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "Karbantartás",
+      "description": "Fizess 210 Ft-ot.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -210
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "title": "Mellékes munka",
+      "description": "+300 Ft extra bevétel.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 300
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "title": "Költözési cipekedés",
+      "description": "+110 Ft hálapénz.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 110
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Lassú hétvége",
+      "description": "Menj vissza 2 mezőt.",
+      "effects": [
+        {
+          "kind": "move",
+          "steps": -2
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Jó kapcsolat",
+      "description": "Lépj előre 3 mezőt.",
+      "effects": [
+        {
+          "kind": "move",
+          "steps": 3
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "Háztartási akció",
+      "description": "Választhatsz vásárlási lehetőséget bármely még szabad tárgyra.",
+      "effects": [
+        {
+          "kind": "card_shop",
+          "tier": "any"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "Váratlan javítás",
+      "description": "Fizess 300 Ft-ot.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -300
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "Év végi jutalom",
+      "description": "+420 Ft jár.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 420
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "title": "Kisebb csúszás",
+      "description": "A következő körödet automatikusan kihagyod.",
+      "effects": [
+        {
+          "kind": "skip",
+          "turns": 1
+        }
+      ]
+    }
+  ],
+  "fields": [
+    {
+      "id": 0,
+      "type": "start",
+      "title": "Startmező",
+      "description": "Itt indul mindenki. Áthaladáskor és érkezéskor is járhat pénz a szabályok szerint.",
+      "effects": [
+        {
+          "kind": "start"
+        }
+      ],
+      "position": {
+        "id": 0,
+        "left": 88.8,
+        "top": 80.0
+      }
+    },
+    {
+      "id": 1,
+      "type": "penalty",
+      "title": "Bírság",
+      "description": "Váratlan kiadás ért: -109 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -109
+        }
+      ],
+      "position": {
+        "id": 1,
+        "left": 79.6,
+        "top": 80.0
+      }
+    },
+    {
+      "id": 2,
+      "type": "tax",
+      "title": "Befizetés",
+      "description": "Fizetned kell: -128 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -128
+        }
+      ],
+      "position": {
+        "id": 2,
+        "left": 70.4,
+        "top": 80.0
+      }
+    },
+    {
+      "id": 3,
+      "type": "bonus",
+      "title": "Bónusz",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +171 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 171
+        }
+      ],
+      "position": {
+        "id": 3,
+        "left": 61.2,
+        "top": 80.0
+      }
+    },
+    {
+      "id": 4,
+      "type": "salary",
+      "title": "Fizetésnap",
+      "description": "Pénz áll a házhoz: +188 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 188
+        }
+      ],
+      "position": {
+        "id": 4,
+        "left": 52.0,
+        "top": 80.0
+      }
+    },
+    {
+      "id": 5,
+      "type": "shop",
+      "title": "Hűtőszekrény bolt",
+      "description": "Ha még szabad, megveheted ezt: Hűtőszekrény.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 1
+        }
+      ],
+      "position": {
+        "id": 5,
+        "left": 42.8,
+        "top": 80.0
+      }
+    },
+    {
+      "id": 6,
+      "type": "tax",
+      "title": "Rezsi",
+      "description": "Fizetned kell: -204 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -204
+        }
+      ],
+      "position": {
+        "id": 6,
+        "left": 33.6,
+        "top": 80.0
+      }
+    },
+    {
+      "id": 7,
+      "type": "bonus",
+      "title": "Jutalom",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +239 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 239
+        }
+      ],
+      "position": {
+        "id": 7,
+        "left": 24.4,
+        "top": 80.0
+      }
+    },
+    {
+      "id": 8,
+      "type": "chance",
+      "title": "Fortuna mező",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 8,
+        "left": 15.2,
+        "top": 80.0
+      }
+    },
+    {
+      "id": 9,
+      "type": "penalty",
+      "title": "Váratlan kiadás",
+      "description": "Váratlan kiadás ért: -261 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -261
+        }
+      ],
+      "position": {
+        "id": 9,
+        "left": 6.0,
+        "top": 80.0
+      }
+    },
+    {
+      "id": 10,
+      "type": "tax",
+      "title": "Befizetés",
+      "description": "Fizetned kell: -280 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -280
+        }
+      ],
+      "position": {
+        "id": 10,
+        "left": 6.0,
+        "top": 72.0
+      }
+    },
+    {
+      "id": 11,
+      "type": "skip",
+      "title": "Akadály",
+      "description": "Egy ügyintézés vagy csúszás miatt 1 körből kimaradsz.",
+      "effects": [
+        {
+          "kind": "skip",
+          "turns": 1
+        }
+      ],
+      "position": {
+        "id": 11,
+        "left": 6.0,
+        "top": 64.0
+      }
+    },
+    {
+      "id": 12,
+      "type": "shop",
+      "title": "Mosógép bolt",
+      "description": "Ha még szabad, megveheted ezt: Mosógép.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 2
+        }
+      ],
+      "position": {
+        "id": 12,
+        "left": 6.0,
+        "top": 56.0
+      }
+    },
+    {
+      "id": 13,
+      "type": "penalty",
+      "title": "Váratlan kiadás",
+      "description": "Váratlan kiadás ért: -337 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -337
+        }
+      ],
+      "position": {
+        "id": 13,
+        "left": 6.0,
+        "top": 48.0
+      }
+    },
+    {
+      "id": 14,
+      "type": "move",
+      "title": "Rövidítés",
+      "description": "Találtál egy gyorsabb utat, lépj előre 2 mezőt.",
+      "effects": [
+        {
+          "kind": "move",
+          "steps": 2
+        }
+      ],
+      "position": {
+        "id": 14,
+        "left": 6.0,
+        "top": 40.0
+      }
+    },
+    {
+      "id": 15,
+      "type": "bonus",
+      "title": "Bónusz",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +145 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 145
+        }
+      ],
+      "position": {
+        "id": 15,
+        "left": 6.0,
+        "top": 32.0
+      }
+    },
+    {
+      "id": 16,
+      "type": "chance",
+      "title": "Szerencsekártya",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 16,
+        "left": 6.0,
+        "top": 24.0
+      }
+    },
+    {
+      "id": 17,
+      "type": "penalty",
+      "title": "Javítás",
+      "description": "Váratlan kiadás ért: -153 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -153
+        }
+      ],
+      "position": {
+        "id": 17,
+        "left": 6.0,
+        "top": 16.0
+      }
+    },
+    {
+      "id": 18,
+      "type": "tax",
+      "title": "Rezsi",
+      "description": "Fizetned kell: -172 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -172
+        }
+      ],
+      "position": {
+        "id": 18,
+        "left": 6.0,
+        "top": 8.0
+      }
+    },
+    {
+      "id": 19,
+      "type": "shop",
+      "title": "Tűzhely bolt",
+      "description": "Ha még szabad, megveheted ezt: Tűzhely.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 3
+        }
+      ],
+      "position": {
+        "id": 19,
+        "left": 15.2,
+        "top": 8.0
+      }
+    },
+    {
+      "id": 20,
+      "type": "salary",
+      "title": "Sikeres hónap",
+      "description": "Pénz áll a házhoz: +230 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 230
+        }
+      ],
+      "position": {
+        "id": 20,
+        "left": 24.4,
+        "top": 8.0
+      }
+    },
+    {
+      "id": 21,
+      "type": "penalty",
+      "title": "Váratlan kiadás",
+      "description": "Váratlan kiadás ért: -229 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -229
+        }
+      ],
+      "position": {
+        "id": 21,
+        "left": 33.6,
+        "top": 8.0
+      }
+    },
+    {
+      "id": 22,
+      "type": "tax",
+      "title": "Rezsi",
+      "description": "Fizetned kell: -248 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -248
+        }
+      ],
+      "position": {
+        "id": 22,
+        "left": 42.8,
+        "top": 8.0
+      }
+    },
+    {
+      "id": 23,
+      "type": "bonus",
+      "title": "Kedvezmény",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +281 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 281
+        }
+      ],
+      "position": {
+        "id": 23,
+        "left": 52.0,
+        "top": 8.0
+      }
+    },
+    {
+      "id": 24,
+      "type": "chance",
+      "title": "Szerencsekártya",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 24,
+        "left": 61.2,
+        "top": 8.0
+      }
+    },
+    {
+      "id": 25,
+      "type": "penalty",
+      "title": "Karbantartás",
+      "description": "Váratlan kiadás ért: -305 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -305
+        }
+      ],
+      "position": {
+        "id": 25,
+        "left": 70.4,
+        "top": 8.0
+      }
+    },
+    {
+      "id": 26,
+      "type": "shop",
+      "title": "Étkezőasztal bolt",
+      "description": "Ha még szabad, megveheted ezt: Étkezőasztal.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 4
+        }
+      ],
+      "position": {
+        "id": 26,
+        "left": 79.6,
+        "top": 8.0
+      }
+    },
+    {
+      "id": 27,
+      "type": "bonus",
+      "title": "Jutalom",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +349 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 349
+        }
+      ],
+      "position": {
+        "id": 27,
+        "left": 88.8,
+        "top": 8.0
+      }
+    },
+    {
+      "id": 28,
+      "type": "salary",
+      "title": "Mellékes",
+      "description": "Pénz áll a házhoz: +136 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 136
+        }
+      ],
+      "position": {
+        "id": 28,
+        "left": 88.8,
+        "top": 16.0
+      }
+    },
+    {
+      "id": 29,
+      "type": "skip",
+      "title": "Akadály",
+      "description": "Egy ügyintézés vagy csúszás miatt 1 körből kimaradsz.",
+      "effects": [
+        {
+          "kind": "skip",
+          "turns": 1
+        }
+      ],
+      "position": {
+        "id": 29,
+        "left": 79.6,
+        "top": 16.0
+      }
+    },
+    {
+      "id": 30,
+      "type": "tax",
+      "title": "Befizetés",
+      "description": "Fizetned kell: -140 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -140
+        }
+      ],
+      "position": {
+        "id": 30,
+        "left": 70.4,
+        "top": 16.0
+      }
+    },
+    {
+      "id": 31,
+      "type": "chance",
+      "title": "Fortuna mező",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 31,
+        "left": 61.2,
+        "top": 16.0
+      }
+    },
+    {
+      "id": 32,
+      "type": "salary",
+      "title": "Sikeres hónap",
+      "description": "Pénz áll a házhoz: +204 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 204
+        }
+      ],
+      "position": {
+        "id": 32,
+        "left": 52.0,
+        "top": 16.0
+      }
+    },
+    {
+      "id": 33,
+      "type": "shop",
+      "title": "Kanapé bolt",
+      "description": "Ha még szabad, megveheted ezt: Kanapé.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 5
+        }
+      ],
+      "position": {
+        "id": 33,
+        "left": 42.8,
+        "top": 16.0
+      }
+    },
+    {
+      "id": 34,
+      "type": "tax",
+      "title": "Befizetés",
+      "description": "Fizetned kell: -216 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -216
+        }
+      ],
+      "position": {
+        "id": 34,
+        "left": 33.6,
+        "top": 16.0
+      }
+    },
+    {
+      "id": 35,
+      "type": "bonus",
+      "title": "Jutalom",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +255 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 255
+        }
+      ],
+      "position": {
+        "id": 35,
+        "left": 24.4,
+        "top": 16.0
+      }
+    },
+    {
+      "id": 36,
+      "type": "move",
+      "title": "Rövidítés",
+      "description": "Találtál egy gyorsabb utat, lépj előre 3 mezőt.",
+      "effects": [
+        {
+          "kind": "move",
+          "steps": 3
+        }
+      ],
+      "position": {
+        "id": 36,
+        "left": 15.2,
+        "top": 16.0
+      }
+    },
+    {
+      "id": 37,
+      "type": "penalty",
+      "title": "Bírság",
+      "description": "Váratlan kiadás ért: -273 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -273
+        }
+      ],
+      "position": {
+        "id": 37,
+        "left": 15.2,
+        "top": 24.0
+      }
+    },
+    {
+      "id": 38,
+      "type": "tax",
+      "title": "Befizetés",
+      "description": "Fizetned kell: -292 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -292
+        }
+      ],
+      "position": {
+        "id": 38,
+        "left": 24.4,
+        "top": 24.0
+      }
+    },
+    {
+      "id": 39,
+      "type": "chance",
+      "title": "Szerencsekártya",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 39,
+        "left": 33.6,
+        "top": 24.0
+      }
+    },
+    {
+      "id": 40,
+      "type": "shop",
+      "title": "Ágy bolt",
+      "description": "Ha még szabad, megveheted ezt: Ágy.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 6
+        }
+      ],
+      "position": {
+        "id": 40,
+        "left": 42.8,
+        "top": 24.0
+      }
+    },
+    {
+      "id": 41,
+      "type": "penalty",
+      "title": "Javítás",
+      "description": "Váratlan kiadás ért: -349 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -349
+        }
+      ],
+      "position": {
+        "id": 41,
+        "left": 52.0,
+        "top": 24.0
+      }
+    },
+    {
+      "id": 42,
+      "type": "tax",
+      "title": "Számlák",
+      "description": "Fizetned kell: -108 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -108
+        }
+      ],
+      "position": {
+        "id": 42,
+        "left": 61.2,
+        "top": 24.0
+      }
+    },
+    {
+      "id": 43,
+      "type": "bonus",
+      "title": "Jutalom",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +161 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 161
+        }
+      ],
+      "position": {
+        "id": 43,
+        "left": 70.4,
+        "top": 24.0
+      }
+    },
+    {
+      "id": 44,
+      "type": "salary",
+      "title": "Fizetésnap",
+      "description": "Pénz áll a házhoz: +178 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 178
+        }
+      ],
+      "position": {
+        "id": 44,
+        "left": 79.6,
+        "top": 24.0
+      }
+    },
+    {
+      "id": 45,
+      "type": "penalty",
+      "title": "Váratlan kiadás",
+      "description": "Váratlan kiadás ért: -165 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -165
+        }
+      ],
+      "position": {
+        "id": 45,
+        "left": 88.8,
+        "top": 24.0
+      }
+    },
+    {
+      "id": 46,
+      "type": "chance",
+      "title": "Meglepetés",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 46,
+        "left": 88.8,
+        "top": 32.0
+      }
+    },
+    {
+      "id": 47,
+      "type": "shop",
+      "title": "Szekrény bolt",
+      "description": "Ha még szabad, megveheted ezt: Szekrény.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 7
+        }
+      ],
+      "position": {
+        "id": 47,
+        "left": 79.6,
+        "top": 32.0
+      }
+    },
+    {
+      "id": 48,
+      "type": "salary",
+      "title": "Sikeres hónap",
+      "description": "Pénz áll a házhoz: +246 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 246
+        }
+      ],
+      "position": {
+        "id": 48,
+        "left": 70.4,
+        "top": 32.0
+      }
+    },
+    {
+      "id": 49,
+      "type": "penalty",
+      "title": "Karbantartás",
+      "description": "Váratlan kiadás ért: -241 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -241
+        }
+      ],
+      "position": {
+        "id": 49,
+        "left": 61.2,
+        "top": 32.0
+      }
+    },
+    {
+      "id": 50,
+      "type": "tax",
+      "title": "Számlák",
+      "description": "Fizetned kell: -260 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -260
+        }
+      ],
+      "position": {
+        "id": 50,
+        "left": 52.0,
+        "top": 32.0
+      }
+    },
+    {
+      "id": 51,
+      "type": "bonus",
+      "title": "Bónusz",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +297 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 297
+        }
+      ],
+      "position": {
+        "id": 51,
+        "left": 42.8,
+        "top": 32.0
+      }
+    },
+    {
+      "id": 52,
+      "type": "skip",
+      "title": "Bürokrácia",
+      "description": "Egy ügyintézés vagy csúszás miatt 2 körből kimaradsz.",
+      "effects": [
+        {
+          "kind": "skip",
+          "turns": 2
+        }
+      ],
+      "position": {
+        "id": 52,
+        "left": 33.6,
+        "top": 32.0
+      }
+    },
+    {
+      "id": 53,
+      "type": "chance",
+      "title": "Fortuna mező",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 53,
+        "left": 24.4,
+        "top": 32.0
+      }
+    },
+    {
+      "id": 54,
+      "type": "shop",
+      "title": "Televízió bolt",
+      "description": "Ha még szabad, megveheted ezt: Televízió.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 8
+        }
+      ],
+      "position": {
+        "id": 54,
+        "left": 15.2,
+        "top": 32.0
+      }
+    },
+    {
+      "id": 55,
+      "type": "bonus",
+      "title": "Nyugdíjprémium",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +135 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 135
+        }
+      ],
+      "position": {
+        "id": 55,
+        "left": 15.2,
+        "top": 40.0
+      }
+    },
+    {
+      "id": 56,
+      "type": "salary",
+      "title": "Mellékes",
+      "description": "Pénz áll a házhoz: +152 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 152
+        }
+      ],
+      "position": {
+        "id": 56,
+        "left": 24.4,
+        "top": 40.0
+      }
+    },
+    {
+      "id": 57,
+      "type": "penalty",
+      "title": "Javítás",
+      "description": "Váratlan kiadás ért: -133 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -133
+        }
+      ],
+      "position": {
+        "id": 57,
+        "left": 33.6,
+        "top": 40.0
+      }
+    },
+    {
+      "id": 58,
+      "type": "move",
+      "title": "Rövidítés",
+      "description": "Találtál egy gyorsabb utat, lépj előre 4 mezőt.",
+      "effects": [
+        {
+          "kind": "move",
+          "steps": 4
+        }
+      ],
+      "position": {
+        "id": 58,
+        "left": 42.8,
+        "top": 40.0
+      }
+    },
+    {
+      "id": 59,
+      "type": "bonus",
+      "title": "Kedvezmény",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +203 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 203
+        }
+      ],
+      "position": {
+        "id": 59,
+        "left": 52.0,
+        "top": 40.0
+      }
+    },
+    {
+      "id": 60,
+      "type": "chance",
+      "title": "Szerencsekártya",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 60,
+        "left": 61.2,
+        "top": 40.0
+      }
+    },
+    {
+      "id": 61,
+      "type": "shop",
+      "title": "Porszívó bolt",
+      "description": "Ha még szabad, megveheted ezt: Porszívó.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 9
+        }
+      ],
+      "position": {
+        "id": 61,
+        "left": 70.4,
+        "top": 40.0
+      }
+    },
+    {
+      "id": 62,
+      "type": "tax",
+      "title": "Számlák",
+      "description": "Fizetned kell: -228 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -228
+        }
+      ],
+      "position": {
+        "id": 62,
+        "left": 79.6,
+        "top": 40.0
+      }
+    },
+    {
+      "id": 63,
+      "type": "bonus",
+      "title": "Bónusz",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +271 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 271
+        }
+      ],
+      "position": {
+        "id": 63,
+        "left": 88.8,
+        "top": 40.0
+      }
+    },
+    {
+      "id": 64,
+      "type": "salary",
+      "title": "Pluszbevétel",
+      "description": "Pénz áll a házhoz: +288 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 288
+        }
+      ],
+      "position": {
+        "id": 64,
+        "left": 88.8,
+        "top": 48.0
+      }
+    },
+    {
+      "id": 65,
+      "type": "penalty",
+      "title": "Karbantartás",
+      "description": "Váratlan kiadás ért: -285 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -285
+        }
+      ],
+      "position": {
+        "id": 65,
+        "left": 79.6,
+        "top": 48.0
+      }
+    },
+    {
+      "id": 66,
+      "type": "tax",
+      "title": "Számlák",
+      "description": "Fizetned kell: -304 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -304
+        }
+      ],
+      "position": {
+        "id": 66,
+        "left": 70.4,
+        "top": 48.0
+      }
+    },
+    {
+      "id": 67,
+      "type": "chance",
+      "title": "Szerencsekártya",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 67,
+        "left": 61.2,
+        "top": 48.0
+      }
+    },
+    {
+      "id": 68,
+      "type": "shop",
+      "title": "Laptop bolt",
+      "description": "Ha még szabad, megveheted ezt: Laptop.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 10
+        }
+      ],
+      "position": {
+        "id": 68,
+        "left": 52.0,
+        "top": 48.0
+      }
+    },
+    {
+      "id": 69,
+      "type": "penalty",
+      "title": "Váratlan kiadás",
+      "description": "Váratlan kiadás ért: -101 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -101
+        }
+      ],
+      "position": {
+        "id": 69,
+        "left": 42.8,
+        "top": 48.0
+      }
+    },
+    {
+      "id": 70,
+      "type": "tax",
+      "title": "Kiadás",
+      "description": "Fizetned kell: -120 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -120
+        }
+      ],
+      "position": {
+        "id": 70,
+        "left": 33.6,
+        "top": 48.0
+      }
+    },
+    {
+      "id": 71,
+      "type": "bonus",
+      "title": "Kedvezmény",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +177 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 177
+        }
+      ],
+      "position": {
+        "id": 71,
+        "left": 24.4,
+        "top": 48.0
+      }
+    },
+    {
+      "id": 72,
+      "type": "salary",
+      "title": "Pluszbevétel",
+      "description": "Pénz áll a házhoz: +194 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 194
+        }
+      ],
+      "position": {
+        "id": 72,
+        "left": 15.2,
+        "top": 48.0
+      }
+    },
+    {
+      "id": 73,
+      "type": "penalty",
+      "title": "Javítás",
+      "description": "Váratlan kiadás ért: -177 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -177
+        }
+      ],
+      "position": {
+        "id": 73,
+        "left": 15.2,
+        "top": 56.0
+      }
+    },
+    {
+      "id": 74,
+      "type": "chance",
+      "title": "Váratlan fordulat",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 74,
+        "left": 24.4,
+        "top": 56.0
+      }
+    },
+    {
+      "id": 75,
+      "type": "shop",
+      "title": "Kerékpár bolt",
+      "description": "Ha még szabad, megveheted ezt: Kerékpár.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 11
+        }
+      ],
+      "position": {
+        "id": 75,
+        "left": 33.6,
+        "top": 56.0
+      }
+    },
+    {
+      "id": 76,
+      "type": "salary",
+      "title": "Sikeres hónap",
+      "description": "Pénz áll a házhoz: +262 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 262
+        }
+      ],
+      "position": {
+        "id": 76,
+        "left": 42.8,
+        "top": 56.0
+      }
+    },
+    {
+      "id": 77,
+      "type": "skip",
+      "title": "Akadály",
+      "description": "Egy ügyintézés vagy csúszás miatt 1 körből kimaradsz.",
+      "effects": [
+        {
+          "kind": "skip",
+          "turns": 1
+        }
+      ],
+      "position": {
+        "id": 77,
+        "left": 52.0,
+        "top": 56.0
+      }
+    },
+    {
+      "id": 78,
+      "type": "tax",
+      "title": "Rezsi",
+      "description": "Fizetned kell: -272 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -272
+        }
+      ],
+      "position": {
+        "id": 78,
+        "left": 61.2,
+        "top": 56.0
+      }
+    },
+    {
+      "id": 79,
+      "type": "bonus",
+      "title": "Nyugdíjprémium",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +313 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 313
+        }
+      ],
+      "position": {
+        "id": 79,
+        "left": 70.4,
+        "top": 56.0
+      }
+    },
+    {
+      "id": 80,
+      "type": "salary",
+      "title": "Pluszbevétel",
+      "description": "Pénz áll a házhoz: +330 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 330
+        }
+      ],
+      "position": {
+        "id": 80,
+        "left": 79.6,
+        "top": 56.0
+      }
+    },
+    {
+      "id": 81,
+      "type": "chance",
+      "title": "Fortuna mező",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 81,
+        "left": 88.8,
+        "top": 56.0
+      }
+    },
+    {
+      "id": 82,
+      "type": "shop",
+      "title": "Autó bolt",
+      "description": "Ha még szabad, megveheted ezt: Autó.",
+      "effects": [
+        {
+          "kind": "shop",
+          "itemId": 12
+        }
+      ],
+      "position": {
+        "id": 82,
+        "left": 88.8,
+        "top": 64.0
+      }
+    },
+    {
+      "id": 83,
+      "type": "bonus",
+      "title": "Bónusz",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +151 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 151
+        }
+      ],
+      "position": {
+        "id": 83,
+        "left": 79.6,
+        "top": 64.0
+      }
+    },
+    {
+      "id": 84,
+      "type": "move",
+      "title": "Rövidítés",
+      "description": "Találtál egy gyorsabb utat, lépj előre 3 mezőt.",
+      "effects": [
+        {
+          "kind": "move",
+          "steps": 3
+        }
+      ],
+      "position": {
+        "id": 84,
+        "left": 70.4,
+        "top": 64.0
+      }
+    },
+    {
+      "id": 85,
+      "type": "penalty",
+      "title": "Karbantartás",
+      "description": "Váratlan kiadás ért: -145 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -145
+        }
+      ],
+      "position": {
+        "id": 85,
+        "left": 61.2,
+        "top": 64.0
+      }
+    },
+    {
+      "id": 86,
+      "type": "tax",
+      "title": "Rezsi",
+      "description": "Fizetned kell: -164 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -164
+        }
+      ],
+      "position": {
+        "id": 86,
+        "left": 52.0,
+        "top": 64.0
+      }
+    },
+    {
+      "id": 87,
+      "type": "bonus",
+      "title": "Jutalom",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +219 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 219
+        }
+      ],
+      "position": {
+        "id": 87,
+        "left": 42.8,
+        "top": 64.0
+      }
+    },
+    {
+      "id": 88,
+      "type": "chance",
+      "title": "Fortuna mező",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 88,
+        "left": 33.6,
+        "top": 64.0
+      }
+    },
+    {
+      "id": 89,
+      "type": "penalty",
+      "title": "Karbantartás",
+      "description": "Váratlan kiadás ért: -221 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -221
+        }
+      ],
+      "position": {
+        "id": 89,
+        "left": 24.4,
+        "top": 64.0
+      }
+    },
+    {
+      "id": 90,
+      "type": "tax",
+      "title": "Rezsi",
+      "description": "Fizetned kell: -240 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -240
+        }
+      ],
+      "position": {
+        "id": 90,
+        "left": 15.2,
+        "top": 64.0
+      }
+    },
+    {
+      "id": 91,
+      "type": "bonus",
+      "title": "Jutalom",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +287 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 287
+        }
+      ],
+      "position": {
+        "id": 91,
+        "left": 15.2,
+        "top": 72.0
+      }
+    },
+    {
+      "id": 92,
+      "type": "skip",
+      "title": "Ügyintézés",
+      "description": "Egy ügyintézés vagy csúszás miatt 2 körből kimaradsz.",
+      "effects": [
+        {
+          "kind": "skip",
+          "turns": 2
+        }
+      ],
+      "position": {
+        "id": 92,
+        "left": 24.4,
+        "top": 72.0
+      }
+    },
+    {
+      "id": 93,
+      "type": "penalty",
+      "title": "Karbantartás",
+      "description": "Váratlan kiadás ért: -297 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -297
+        }
+      ],
+      "position": {
+        "id": 93,
+        "left": 33.6,
+        "top": 72.0
+      }
+    },
+    {
+      "id": 94,
+      "type": "tax",
+      "title": "Számlák",
+      "description": "Fizetned kell: -316 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -316
+        }
+      ],
+      "position": {
+        "id": 94,
+        "left": 42.8,
+        "top": 72.0
+      }
+    },
+    {
+      "id": 95,
+      "type": "chance",
+      "title": "Váratlan fordulat",
+      "description": "Erről a mezőről a pakliból húzhatsz egy szerencsekártyát.",
+      "effects": [
+        {
+          "kind": "draw_card"
+        }
+      ],
+      "position": {
+        "id": 95,
+        "left": 52.0,
+        "top": 72.0
+      }
+    },
+    {
+      "id": 96,
+      "type": "salary",
+      "title": "Pluszbevétel",
+      "description": "Pénz áll a házhoz: +142 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 142
+        }
+      ],
+      "position": {
+        "id": 96,
+        "left": 61.2,
+        "top": 72.0
+      }
+    },
+    {
+      "id": 97,
+      "type": "penalty",
+      "title": "Váratlan kiadás",
+      "description": "Váratlan kiadás ért: -113 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -113
+        }
+      ],
+      "position": {
+        "id": 97,
+        "left": 70.4,
+        "top": 72.0
+      }
+    },
+    {
+      "id": 98,
+      "type": "tax",
+      "title": "Kiadás",
+      "description": "Fizetned kell: -132 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": -132
+        }
+      ],
+      "position": {
+        "id": 98,
+        "left": 79.6,
+        "top": 72.0
+      }
+    },
+    {
+      "id": 99,
+      "type": "bonus",
+      "title": "Nyugdíjprémium",
+      "description": "Jól jött egy kedvezmény vagy jutalom: +193 Ft.",
+      "effects": [
+        {
+          "kind": "money",
+          "amount": 193
+        }
+      ],
+      "position": {
+        "id": 99,
+        "left": 88.8,
+        "top": 72.0
+      }
+    }
+  ]
+}

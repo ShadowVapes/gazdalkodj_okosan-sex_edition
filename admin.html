@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gazdálkodj okosan – Admin</title>
+  <link rel="stylesheet" href="./assets/styles.css">
+</head>
+<body class="theme-dark">
+  <div class="shell">
+    <div class="topbar">
+      <div>
+        <h1>Gazdálkodj okosan – Admin</h1>
+        <p class="muted">Mezők, kártyák, tárgyak, szabályok és pályaelrendezés szerkesztése.</p>
+      </div>
+      <div class="topbar-actions">
+        <a href="./index.html" class="ghost-btn">Vissza a játékhoz</a>
+      </div>
+    </div>
+
+    <section id="adminBanner" class="status-banner hidden"></section>
+
+    <section class="admin-layout">
+      <aside class="card admin-sidebar">
+        <div class="stack gap-md">
+          <div>
+            <h3 style="margin:0 0 8px 0;">GitHub mentés</h3>
+            <p class="muted small" style="margin:0;">Add meg a repo adatokat, és közvetlenül felül tudod írni a <code class="inline">data/game-data.json</code> fájlt.</p>
+          </div>
+
+          <div class="input-group">
+            <span>GitHub owner</span>
+            <input id="ghOwner" type="text" placeholder="pl. te">
+          </div>
+          <div class="input-group">
+            <span>Repo név</span>
+            <input id="ghRepo" type="text" placeholder="pl. gazdalkodj-okosan">
+          </div>
+          <div class="inline-two">
+            <label class="input-group">
+              <span>Branch</span>
+              <input id="ghBranch" type="text" value="main">
+            </label>
+            <label class="input-group">
+              <span>Fájl elérés</span>
+              <input id="ghPath" type="text" value="data/game-data.json">
+            </label>
+          </div>
+          <div class="input-group">
+            <span>GitHub token</span>
+            <input id="ghToken" type="password" placeholder="Personal Access Token">
+          </div>
+
+          <div class="stack gap-sm">
+            <button id="loadLocalBtn" class="secondary-btn">Helyi adat újratöltése</button>
+            <button id="loadGithubBtn" class="ghost-btn">Betöltés GitHubról</button>
+            <button id="saveGithubBtn" class="primary-btn">Mentés GitHubra</button>
+            <button id="exportBtn" class="ghost-btn">JSON export</button>
+            <button id="importBtn" class="ghost-btn">JSON import</button>
+            <input id="importInput" type="file" accept="application/json" class="hidden">
+          </div>
+
+          <div class="card room-card">
+            <h3>Összegzés</h3>
+            <div id="statsBox" class="stack gap-sm small"></div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="admin-main">
+        <section class="card panel-card">
+          <div class="tab-row" id="tabRow">
+            <button class="tab-btn active" data-tab="settings">Globális beállítások</button>
+            <button class="tab-btn" data-tab="items">Tárgyak</button>
+            <button class="tab-btn" data-tab="cards">Kártyák</button>
+            <button class="tab-btn" data-tab="fields">Mezők</button>
+            <button class="tab-btn" data-tab="board">Pályaeditor</button>
+            <button class="tab-btn" data-tab="json">Nyers JSON</button>
+          </div>
+        </section>
+
+        <section id="adminContent" class="card panel-card"></section>
+
+        <div class="footer-note">
+          Tipp: ha nagyon extrém dolgot akarsz átírni, a <strong>Nyers JSON</strong> fülön mindent egyszerre át tudsz szabni.
+        </div>
+      </main>
+    </section>
+  </div>
+
+  <script src="./assets/config.js"></script>
+  <script src="./assets/github.js"></script>
+  <script src="./assets/admin.js"></script>
+</body>
+</html>
