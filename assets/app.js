@@ -607,7 +607,7 @@
     const tilesHtml = fields.map((field) => `
       <div class="board-tile ${field.type}" data-field-id="${field.id}"
            title="${escapeHtml(field.title)} — ${escapeHtml(field.description || '')}"
-           style="left:${field.position.left}%; top:${field.position.top}%;;">
+           style="left:${field.position.left}%; top:${field.position.top}%;">
         <div class="tile-accent"></div>
         <div class="tile-icon">${escapeHtml(getTileIcon(field.type))}</div>
         <div class="tile-title">${escapeHtml(field.title)}</div>
@@ -628,53 +628,44 @@
 
   
   function fitBoardTiles() {
-      if (!refs.board || !state.gameData?.fields?.length) return;
-      const boardRect = refs.board.getBoundingClientRect();
-      if (!boardRect.width || !boardRect.height) return;
+    if (!refs.board || !state.gameData?.fields?.length) return;
+    const boardRect = refs.board.getBoundingClientRect();
+    if (!boardRect.width || !boardRect.height) return;
 
-      const fields = state.gameData.fields
-        .map((field) => ({
-          left: Number(field.position?.left),
-          top: Number(field.position?.top)
-        }))
-        .filter((pos) => Number.isFinite(pos.left) && Number.isFinite(pos.top));
+    const coords = state.gameData.fields
+      .map((field) => ({ left: Number(field.position?.left), top: Number(field.position?.top) }))
+      .filter((pos) => Number.isFinite(pos.left) && Number.isFinite(pos.top));
 
-      let minDistancePx = Infinity;
-      for (let i = 0; i < fields.length; i += 1) {
-        for (let j = i + 1; j < fields.length; j += 1) {
-          const dx = ((fields[i].left - fields[j].left) / 100) * boardRect.width;
-          const dy = ((fields[i].top - fields[j].top) / 100) * boardRect.height;
-          const distance = Math.hypot(dx, dy);
-          if (distance > 1) minDistancePx = Math.min(minDistancePx, distance);
-        }
+    const uniqueSorted = (values) => [...new Set(values.map((value) => Number(value.toFixed(2))))].sort((a, b) => a - b);
+    const xs = uniqueSorted(coords.map((pos) => pos.left));
+    const ys = uniqueSorted(coords.map((pos) => pos.top));
+
+    const minGap = (values, totalPx) => {
+      let min = Infinity;
+      for (let i = 1; i < values.length; i += 1) {
+        const diff = ((values[i] - values[i - 1]) / 100) * totalPx;
+        if (diff > 1) min = Math.min(min, diff);
       }
+      return Number.isFinite(min) ? min : Infinity;
+    };
 
-      const fallback = window.innerWidth <= 700
-        ? Number(state.gameData.settings?.boardTileSizeMobile || 64)
-        : Number(state.gameData.settings?.boardTileSizeDesktop || 92);
+    const spacingPx = Math.min(minGap(xs, boardRect.width), minGap(ys, boardRect.height));
+    const fallback = window.innerWidth <= 860
+      ? Number(state.gameData.settings?.boardTileSizeMobile || 64)
+      : Number(state.gameData.settings?.boardTileSizeDesktop || 90);
 
-      const safeDistance = Number.isFinite(minDistancePx) ? minDistancePx : fallback * 1.25;
-      const tileSize = Math.max(56, Math.min(fallback, Math.floor(safeDistance * 0.72)));
-      const pieceSize = Math.max(20, Math.min(34, Math.floor(tileSize * 0.34)));
+    const tileSize = Math.max(
+      window.innerWidth <= 860 ? 56 : 74,
+      Math.min(
+        window.innerWidth <= 860 ? 84 : 108,
+        Math.floor((Number.isFinite(spacingPx) ? spacingPx : fallback) * 0.86),
+        fallback
+      )
+    );
+    const pieceSize = Math.max(22, Math.min(36, Math.floor(tileSize * 0.30)));
 
-      refs.board.style.setProperty('--tile-size-dyn', `${tileSize}px`);
-      refs.board.style.setProperty('--piece-size-dyn', `${pieceSize}px`);
-    }
-
-  function buildBoardPathSvg(fields) {
-    if (!fields?.length) return "";
-    const sorted = [...fields].sort((a, b) => a.id - b.id);
-    const points = sorted.map((field) => `${field.position.left},${field.position.top}`).join(" ");
-    const nodes = sorted
-      .map((field) => `<circle class="path-node" cx="${field.position.left}" cy="${field.position.top}" r="0.62"></circle>`)
-      .join("");
-    return `
-      <svg class="board-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <polyline class="path-shadow" points="${points}"></polyline>
-        <polyline class="path-main" points="${points}"></polyline>
-        ${nodes}
-      </svg>
-    `;
+    refs.board.style.setProperty('--tile-size-dyn', `${tileSize}px`);
+    refs.board.style.setProperty('--piece-size-dyn', `${pieceSize}px`);
   }
 
   function getTileTypeLabel(type) {
@@ -1161,6 +1152,7 @@
     updateMovingPieces();
     renderTurnInfo();
     updateActionButtons();
+    renderOverlay();
   }
 
   function animateDiceFace() {

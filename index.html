@@ -73,49 +73,59 @@
       </div>
     </section>
 
-    <section id="gameScreen" class="game-layout board-first hidden">
-      <div class="hud-strip card">
-        <div class="hud-strip-header">
+    <section id="gameScreen" class="game-view hidden">
+      <div class="sticky-player-bar card">
+        <div class="sticky-player-bar-head">
           <h3>Játékosok</h3>
           <span id="phaseBadge" class="phase-badge">—</span>
         </div>
         <div id="playersHud" class="players-hud"></div>
       </div>
 
-      <div class="board-panel card">
-        <div class="board-stage">
-          <div id="board" class="board"></div>
-          <div id="overlay" class="overlay hidden"></div>
-        </div>
+      <div class="board-wrapper">
+        <div class="board-panel board-panel--v15 card">
+          <div class="board-header-v15">
+            <div>
+              <h3>Játéktábla</h3>
+              <p class="muted small">100 mezős, spirálos társasjáték pálya. A tábla a fő fókusz, a részletes adatok lejjebb vannak.</p>
+            </div>
+            <div id="turnInfo" class="turn-info turn-info--top">Várakozás...</div>
+          </div>
 
-        <div id="centerArea" class="controls-dock">
-          <div id="turnInfo" class="turn-info">Várakozás...</div>
-
-          <button id="diceButton" class="dice-button" disabled>
-            <span id="diceFace" class="dice-face">🎲</span>
-            <span class="dice-label">Dobás</span>
-          </button>
-
-          <button id="deckButton" class="deck-button" disabled>
-            <span class="deck-icon">🃏</span>
-            <span>Szerencsekártya pakli</span>
-          </button>
+          <div class="board-scroll">
+            <div class="board-stage board-stage--v15">
+              <div id="board" class="board board--v15"></div>
+              <div id="overlay" class="overlay hidden"></div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <aside class="sidebar">
-        <div class="card sidebar-card">
+      <div id="centerArea" class="controls-row card">
+        <button id="diceButton" class="dice-button" disabled>
+          <span id="diceFace" class="dice-face">🎲</span>
+          <span class="dice-label">Dobás</span>
+        </button>
+
+        <button id="deckButton" class="deck-button" disabled>
+          <span class="deck-icon">🃏</span>
+          <span>Szerencsekártya pakli</span>
+        </button>
+      </div>
+
+      <div class="board-bottom-panels">
+        <section class="card sidebar-card">
           <div class="sidebar-title-row">
-            <h3>Játékosok</h3>
+            <h3>Játékosok részletesen</h3>
           </div>
           <div id="playersPanel" class="player-list"></div>
-        </div>
+        </section>
 
-        <div class="card sidebar-card">
+        <section class="card sidebar-card">
           <h3>Játéknapló</h3>
           <div id="logPanel" class="log-panel"></div>
-        </div>
-      </aside>
+        </section>
+      </div>
     </section>
   </div>
 
