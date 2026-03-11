@@ -14,7 +14,8 @@
     playersChannel: null,
     diceSpinInterval: null,
     boardBuilt: false,
-    boardFitTimer: null
+    boardFitTimer: null,
+    localOverlay: null
   };
 
   const refs = {};
@@ -588,6 +589,7 @@
     refs.leaveRoomBtn.classList.add("hidden");
     refs.overlay.classList.add("hidden");
     refs.overlay.innerHTML = "";
+    state.localOverlay = null;
   }
 
   function getHostPlayerId() {
@@ -624,29 +626,40 @@
     state.boardFitTimer = setTimeout(fitBoardTiles, 80);
   }
 
+  
   function fitBoardTiles() {
-    if (!refs.board || !state.gameData?.fields?.length) return;
-    const boardRect = refs.board.getBoundingClientRect();
-    if (!boardRect.width || !boardRect.height) return;
+      if (!refs.board || !state.gameData?.fields?.length) return;
+      const boardRect = refs.board.getBoundingClientRect();
+      if (!boardRect.width || !boardRect.height) return;
 
-    const lefts = [...new Set(state.gameData.fields.map((field) => Number(field.position.left)).filter((value) => Number.isFinite(value)).sort((a, b) => a - b))];
-    const tops = [...new Set(state.gameData.fields.map((field) => Number(field.position.top)).filter((value) => Number.isFinite(value)).sort((a, b) => a - b))];
+      const fields = state.gameData.fields
+        .map((field) => ({
+          left: Number(field.position?.left),
+          top: Number(field.position?.top)
+        }))
+        .filter((pos) => Number.isFinite(pos.left) && Number.isFinite(pos.top));
 
-    const minLeftGapPct = lefts.slice(1).reduce((min, value, index) => Math.min(min, value - lefts[index]), Infinity);
-    const minTopGapPct = tops.slice(1).reduce((min, value, index) => Math.min(min, value - tops[index]), Infinity);
+      let minDistancePx = Infinity;
+      for (let i = 0; i < fields.length; i += 1) {
+        for (let j = i + 1; j < fields.length; j += 1) {
+          const dx = ((fields[i].left - fields[j].left) / 100) * boardRect.width;
+          const dy = ((fields[i].top - fields[j].top) / 100) * boardRect.height;
+          const distance = Math.hypot(dx, dy);
+          if (distance > 1) minDistancePx = Math.min(minDistancePx, distance);
+        }
+      }
 
-    const minLeftGapPx = Number.isFinite(minLeftGapPct) ? (boardRect.width * minLeftGapPct / 100) : 96;
-    const minTopGapPx = Number.isFinite(minTopGapPct) ? (boardRect.height * minTopGapPct / 100) : 96;
-    const minGap = Math.max(52, Math.min(minLeftGapPx, minTopGapPx));
-    const fallback = window.innerWidth <= 700
-      ? Number(state.gameData.settings?.boardTileSizeMobile || 58)
-      : Number(state.gameData.settings?.boardTileSizeDesktop || 82);
-    const tileSize = Math.floor(Math.max(52, Math.min(fallback, minGap * 0.74)));
-    const pieceSize = Math.max(18, Math.min(30, Math.floor(tileSize * 0.32)));
+      const fallback = window.innerWidth <= 700
+        ? Number(state.gameData.settings?.boardTileSizeMobile || 64)
+        : Number(state.gameData.settings?.boardTileSizeDesktop || 92);
 
-    refs.board.style.setProperty('--tile-size-dyn', `${tileSize}px`);
-    refs.board.style.setProperty('--piece-size-dyn', `${pieceSize}px`);
-  }
+      const safeDistance = Number.isFinite(minDistancePx) ? minDistancePx : fallback * 1.25;
+      const tileSize = Math.max(56, Math.min(fallback, Math.floor(safeDistance * 0.72)));
+      const pieceSize = Math.max(20, Math.min(34, Math.floor(tileSize * 0.34)));
+
+      refs.board.style.setProperty('--tile-size-dyn', `${tileSize}px`);
+      refs.board.style.setProperty('--piece-size-dyn', `${pieceSize}px`);
+    }
 
   function buildBoardPathSvg(fields) {
     if (!fields?.length) return "";
@@ -935,85 +948,117 @@
     refs.deckButton.classList.toggle("is-active", canDraw);
   }
 
+  
   function renderOverlay() {
-    const game = state.room?.state;
-    if (!game) {
+      const game = state.room?.state;
+      const now = Date.now();
+      const overlayData = game?.overlay || null;
+
+      const revealSignature = (game?.phase === "field_reveal" && overlayData?.fieldId != null)
+        ? `field:${overlayData.fieldId}:${overlayData.endsAt || ""}`
+        : (game?.phase === "card_reveal" && overlayData?.cardId != null)
+          ? `card:${overlayData.cardId}:${overlayData.endsAt || ""}`
+          : null;
+
+      if (revealSignature) {
+        const minHoldUntil = now + 4000;
+        if (!state.localOverlay || state.localOverlay.signature !== revealSignature) {
+          state.localOverlay = {
+            signature: revealSignature,
+            holdUntil: Math.max(Number(overlayData?.endsAt || 0), minHoldUntil),
+            html: ""
+          };
+        } else {
+          state.localOverlay.holdUntil = Math.max(state.localOverlay.holdUntil, Number(overlayData?.endsAt || 0), minHoldUntil);
+        }
+      }
+
+      if (game?.phase === "field_reveal" && overlayData?.fieldId != null) {
+        const field = getFieldById(overlayData.fieldId);
+        const html = `
+          <div class="overlay-card">
+            <div class="overlay-meta">
+              <span class="meta-pill">Mező #${field.id}</span>
+              <span class="meta-pill">${labelForType(field.type)}</span>
+            </div>
+            <h2>${escapeHtml(field.title)}</h2>
+            <p>${escapeHtml(field.description)}</p>
+          </div>
+        `;
+        if (state.localOverlay) state.localOverlay.html = html;
+        refs.overlay.innerHTML = html;
+        refs.overlay.classList.remove("hidden");
+        return;
+      }
+
+      if (game?.phase === "card_reveal" && overlayData?.cardId != null) {
+        const card = getCardById(overlayData.cardId);
+        const html = `
+          <div class="overlay-card">
+            <div class="overlay-meta"><span class="meta-pill">Szerencsekártya</span></div>
+            <h2>${escapeHtml(card.title)}</h2>
+            <p>${escapeHtml(card.description)}</p>
+          </div>
+        `;
+        if (state.localOverlay) state.localOverlay.html = html;
+        refs.overlay.innerHTML = html;
+        refs.overlay.classList.remove("hidden");
+        return;
+      }
+
+      if (state.localOverlay?.html && now < Number(state.localOverlay.holdUntil || 0)) {
+        refs.overlay.innerHTML = state.localOverlay.html;
+        refs.overlay.classList.remove("hidden");
+        return;
+      }
+
+      state.localOverlay = null;
+
+      if (!game) {
+        refs.overlay.classList.add("hidden");
+        refs.overlay.innerHTML = "";
+        return;
+      }
+
+      if (game.phase === "purchase_decision") {
+        renderPurchaseOverlay();
+        return;
+      }
+
+      if (game.phase === "skip_notice") {
+        const player = game.players?.[game.pendingAction?.playerId];
+        refs.overlay.innerHTML = `
+          <div class="overlay-card">
+            <div class="overlay-meta"><span class="meta-pill">Kimaradás</span></div>
+            <h2>${escapeHtml(player?.username || "Játékos")}</h2>
+            <p>${escapeHtml(game.pendingAction?.reason || "Ez a játékos most kimarad.")}</p>
+          </div>
+        `;
+        refs.overlay.classList.remove("hidden");
+        return;
+      }
+
+      if (game.phase === "game_over") {
+        const winner = game.players?.[game.winnerId];
+        refs.overlay.innerHTML = `
+          <div class="overlay-card">
+            <div class="overlay-meta"><span class="meta-pill">Játék vége</span></div>
+            <h2>${escapeHtml(winner?.username || "Győztes")}</h2>
+            <p>Ő vásárolta meg leghamarabb az összes tárgyat.</p>
+            <div class="overlay-actions">
+              <button class="ghost-btn" id="closeOverlayBtn">Maradok nézni</button>
+            </div>
+          </div>
+        `;
+        refs.overlay.classList.remove("hidden");
+        const btn = document.getElementById("closeOverlayBtn");
+        if (btn) btn.onclick = () => refs.overlay.classList.add("hidden");
+        return;
+      }
+
       refs.overlay.classList.add("hidden");
       refs.overlay.innerHTML = "";
-      return;
     }
-
-    const phase = game.phase;
-    const overlayData = game.overlay || null;
-
-    if (phase === "field_reveal" && overlayData?.fieldId != null) {
-      const field = getFieldById(overlayData.fieldId);
-      refs.overlay.innerHTML = `
-        <div class="overlay-card">
-          <div class="overlay-meta">
-            <span class="meta-pill">Mező #${field.id}</span>
-            <span class="meta-pill">${labelForType(field.type)}</span>
-          </div>
-          <h2>${escapeHtml(field.title)}</h2>
-          <p>${escapeHtml(field.description)}</p>
-        </div>
-      `;
-      refs.overlay.classList.remove("hidden");
-      return;
-    }
-
-    if (phase === "card_reveal" && overlayData?.cardId != null) {
-      const card = getCardById(overlayData.cardId);
-      refs.overlay.innerHTML = `
-        <div class="overlay-card">
-          <div class="overlay-meta"><span class="meta-pill">Szerencsekártya</span></div>
-          <h2>${escapeHtml(card.title)}</h2>
-          <p>${escapeHtml(card.description)}</p>
-        </div>
-      `;
-      refs.overlay.classList.remove("hidden");
-      return;
-    }
-
-    if (phase === "purchase_decision") {
-      renderPurchaseOverlay();
-      return;
-    }
-
-    if (phase === "skip_notice") {
-      const player = game.players?.[game.pendingAction?.playerId];
-      refs.overlay.innerHTML = `
-        <div class="overlay-card">
-          <div class="overlay-meta"><span class="meta-pill">Kimaradás</span></div>
-          <h2>${escapeHtml(player?.username || "Játékos")}</h2>
-          <p>${escapeHtml(game.pendingAction?.reason || "Ez a játékos most kimarad.")}</p>
-        </div>
-      `;
-      refs.overlay.classList.remove("hidden");
-      return;
-    }
-
-    if (phase === "game_over") {
-      const winner = game.players?.[game.winnerId];
-      refs.overlay.innerHTML = `
-        <div class="overlay-card">
-          <div class="overlay-meta"><span class="meta-pill">Játék vége</span></div>
-          <h2>${escapeHtml(winner?.username || "Győztes")}</h2>
-          <p>Ő vásárolta meg leghamarabb az összes tárgyat.</p>
-          <div class="overlay-actions">
-            <button class="ghost-btn" id="closeOverlayBtn">Maradok nézni</button>
-          </div>
-        </div>
-      `;
-      refs.overlay.classList.remove("hidden");
-      const btn = document.getElementById("closeOverlayBtn");
-      if (btn) btn.onclick = () => refs.overlay.classList.add("hidden");
-      return;
-    }
-
-    refs.overlay.classList.add("hidden");
-    refs.overlay.innerHTML = "";
-  }
 
   function renderPurchaseOverlay() {
     const game = state.room?.state;

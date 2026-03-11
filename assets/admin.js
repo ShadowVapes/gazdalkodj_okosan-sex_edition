@@ -132,38 +132,53 @@
     }
   }
 
+  
   async function saveToGitHub() {
-    if (!state.data) return;
-    const cfg = getGitHubConfig();
-    if (!cfg.owner || !cfg.repo || !cfg.token) {
-      showBanner("Add meg a GitHub owner, repo és token mezőket.", "warning");
-      return;
-    }
-
-    try {
-      if (!state.githubSha) {
-        try {
-          const remote = await window.GitHubRepoApi.getFile(cfg);
-          state.githubSha = remote.sha;
-        } catch (error) {
-          state.githubSha = null;
-        }
+      if (!state.data) return;
+      const cfg = getGitHubConfig();
+      if (!cfg.owner || !cfg.repo || !cfg.token) {
+        showBanner("Add meg a GitHub owner, repo és token mezőket.", "warning");
+        return;
       }
 
       const payload = JSON.stringify(state.data, null, 2);
-      const result = await window.GitHubRepoApi.upsertFile({
+      const attemptSave = async (sha) => window.GitHubRepoApi.upsertFile({
         ...cfg,
-        sha: state.githubSha,
+        sha,
         message: `Admin mentés: ${new Date().toLocaleString("hu-HU")}`,
         content: payload
       });
-      state.githubSha = result?.content?.sha || result?.commit?.sha || state.githubSha;
-      persistDraftSoon();
-      showBanner("Mentés GitHubra kész.", "ok");
-    } catch (error) {
-      showBanner(`GitHub mentési hiba: ${error.message}`, "warning");
+
+      try {
+        if (!state.githubSha) {
+          try {
+            const remote = await window.GitHubRepoApi.getFile(cfg);
+            state.githubSha = remote.sha;
+          } catch (error) {
+            state.githubSha = null;
+          }
+        }
+
+        let result;
+        try {
+          result = await attemptSave(state.githubSha);
+        } catch (error) {
+          const message = String(error?.message || "");
+          if (!/does not match|sha|fast forward|409/i.test(message)) {
+            throw error;
+          }
+          const remote = await window.GitHubRepoApi.getFile(cfg);
+          state.githubSha = remote.sha;
+          result = await attemptSave(state.githubSha);
+        }
+
+        state.githubSha = result?.content?.sha || state.githubSha;
+        persistDraftSoon();
+        showBanner("Mentés GitHubra kész.", "ok");
+      } catch (error) {
+        showBanner(`GitHub mentési hiba: ${error.message}`, "warning");
+      }
     }
-  }
 
   function exportJson() {
     if (!state.data) return;

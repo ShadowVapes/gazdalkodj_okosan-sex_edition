@@ -74,26 +74,32 @@
     </section>
 
     <section id="gameScreen" class="game-layout board-first hidden">
+      <div class="hud-strip card">
+        <div class="hud-strip-header">
+          <h3>Játékosok</h3>
+          <span id="phaseBadge" class="phase-badge">—</span>
+        </div>
+        <div id="playersHud" class="players-hud"></div>
+      </div>
+
       <div class="board-panel card">
         <div class="board-stage">
           <div id="board" class="board"></div>
-          <div id="playersHud" class="players-hud"></div>
-
-          <div id="centerArea" class="controls-dock">
-            <div id="turnInfo" class="turn-info">Várakozás...</div>
-
-            <button id="diceButton" class="dice-button" disabled>
-              <span id="diceFace" class="dice-face">🎲</span>
-              <span class="dice-label">Dobás</span>
-            </button>
-
-            <button id="deckButton" class="deck-button" disabled>
-              <span class="deck-icon">🃏</span>
-              <span>Szerencsekártya pakli</span>
-            </button>
-          </div>
-
           <div id="overlay" class="overlay hidden"></div>
+        </div>
+
+        <div id="centerArea" class="controls-dock">
+          <div id="turnInfo" class="turn-info">Várakozás...</div>
+
+          <button id="diceButton" class="dice-button" disabled>
+            <span id="diceFace" class="dice-face">🎲</span>
+            <span class="dice-label">Dobás</span>
+          </button>
+
+          <button id="deckButton" class="deck-button" disabled>
+            <span class="deck-icon">🃏</span>
+            <span>Szerencsekártya pakli</span>
+          </button>
         </div>
       </div>
 
@@ -101,7 +107,6 @@
         <div class="card sidebar-card">
           <div class="sidebar-title-row">
             <h3>Játékosok</h3>
-            <span id="phaseBadge" class="phase-badge">—</span>
           </div>
           <div id="playersPanel" class="player-list"></div>
         </div>

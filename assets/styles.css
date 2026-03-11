@@ -660,3 +660,249 @@ body{overflow-x:hidden;}
   .board-tile .tile-icon{font-size:.9rem;}
   .overlay-card{width:min(95vw,660px);padding:18px;}
 }
+
+
+/* ===== v13 board cleanup ===== */
+
+:root{
+  --tile-size: clamp(72px, 5.8vw, 98px);
+  --piece-size: 28px;
+}
+
+.game-layout{
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.hud-strip{
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, rgba(16,23,35,.96), rgba(10,15,24,.98));
+}
+
+.hud-strip-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+
+.hud-strip-header h3{
+  margin:0;
+  font-size:1rem;
+}
+
+.players-hud{
+  position: static;
+  display:flex;
+  gap:10px;
+  overflow:auto;
+  padding-bottom: 2px;
+}
+
+.hud-player{
+  min-width: 180px;
+  max-width: 220px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(17,24,39,.92);
+  border:1px solid rgba(148,163,184,.18);
+  box-shadow: none;
+}
+
+.board-panel{
+  padding: 14px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(15,23,35,.98), rgba(10,15,23,.98));
+  border:1px solid rgba(148,163,184,.16);
+  box-shadow: 0 20px 36px rgba(2,6,23,.32);
+}
+
+.board-stage{
+  min-height: min(86vh, 1080px);
+  height: min(86vh, 1080px);
+  border-radius: 24px;
+  background: linear-gradient(180deg, #132033, #0e1726);
+  border:1px solid rgba(148,163,184,.12);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+}
+
+.board-stage::before{
+  inset: 16px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(59,130,246,.07), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(59,130,246,.05), transparent 24%),
+    linear-gradient(180deg, #101a2a, #0a1320);
+}
+
+.board{
+  inset: 18px;
+}
+
+.board-path .path-shadow{
+  stroke: rgba(15,23,42,.5);
+  stroke-width: 2.2;
+}
+.board-path .path-main{
+  stroke: rgba(148,163,184,.13);
+  stroke-width: 1.15;
+}
+.board-path .path-node{
+  fill: rgba(148,163,184,.18);
+}
+
+.board-tile{
+  width: var(--tile-size-dyn, var(--tile-size));
+  height: var(--tile-size-dyn, var(--tile-size));
+  border-radius: 18px;
+  padding: 8px 8px 7px;
+  gap: 5px;
+  background: linear-gradient(180deg, #1f2a3b, #131d2b);
+  border: 1px solid rgba(148,163,184,.18);
+  box-shadow: 0 10px 18px rgba(2,6,23,.24);
+}
+
+.board-tile .tile-icon{
+  font-size: 1.05rem;
+}
+.board-tile .tile-title{
+  font-size: .72rem;
+  line-height: 1.08;
+}
+.board-tile .tile-type{
+  font-size: .54rem;
+}
+.board-tile .tile-id{
+  font-size: .56rem;
+}
+
+.controls-dock{
+  position: static;
+  transform: none;
+  width: 100%;
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 160px 190px;
+  gap: 12px;
+  z-index: 1;
+}
+
+.turn-info{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width: 100%;
+  min-height: 84px;
+  padding: 1rem 1.1rem;
+  border-radius: 18px;
+  background: rgba(10,15,24,.92);
+  border:1px solid rgba(148,163,184,.14);
+  text-align:center;
+}
+
+.dice-button,
+.deck-button{
+  width: 100%;
+  min-width: 0;
+  background: rgba(10,15,24,.92);
+  border:1px solid rgba(148,163,184,.14);
+  box-shadow:none;
+}
+
+.dice-button{
+  height: 132px;
+}
+.deck-button{
+  min-height: 132px;
+}
+
+.overlay{
+  padding: 20px;
+}
+.overlay-card{
+  width: min(92vw, 680px);
+  max-height: min(84vh, 780px);
+  overflow: auto;
+}
+
+.overlay-item-list{
+  max-height: min(44vh, 380px);
+  overflow: auto;
+}
+
+.sidebar{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.log-panel{
+  max-height: 260px;
+}
+
+@media (max-width: 1180px){
+  .board-stage{
+    min-height: 880px;
+    height: 880px;
+  }
+  .controls-dock{
+    grid-template-columns: 1fr 150px 170px;
+  }
+}
+
+@media (max-width: 820px){
+  .hud-strip{
+    position: static;
+  }
+  .board-stage{
+    min-height: 780px;
+    height: 780px;
+  }
+  .controls-dock{
+    grid-template-columns: 1fr 1fr;
+  }
+  .turn-info{
+    grid-column: 1 / -1;
+    min-height: 72px;
+  }
+  .sidebar{
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px){
+  :root{
+    --tile-size: clamp(58px, 12vw, 72px);
+  }
+  .board-panel{
+    padding: 10px;
+  }
+  .board-stage{
+    min-height: 700px;
+    height: 700px;
+  }
+  .board{
+    inset: 12px;
+  }
+  .controls-dock{
+    gap: 10px;
+  }
+  .dice-button,
+  .deck-button{
+    min-height: 106px;
+    height: 106px;
+  }
+  .hud-player{
+    min-width: 160px;
+  }
+  .board-tile .tile-title{
+    font-size: .62rem;
+  }
+  .board-tile .tile-type{
+    font-size: .48rem;
+  }
+}
