@@ -146,6 +146,47 @@
     return code;
   }
 
+
+  async function insertRoomRecord(roomCode, baseState) {
+    const basePayload = {
+      code: roomCode,
+      status: "lobby",
+      state: baseState
+    };
+
+    const firstAttempt = await state.supabase
+      .from("rooms")
+      .insert({ ...basePayload, host_player_id: state.myPlayerId })
+      .select()
+      .single();
+
+    if (!firstAttempt.error) return firstAttempt;
+
+    const firstMessage = String(firstAttempt.error.message || "").toLowerCase();
+    const missingHostColumn = firstMessage.includes("host_player_id") && (firstMessage.includes("schema cache") || firstMessage.includes("could not find"));
+
+    if (!missingHostColumn) {
+      return firstAttempt;
+    }
+
+    const secondAttempt = await state.supabase
+      .from("rooms")
+      .insert(basePayload)
+      .select()
+      .single();
+
+    if (!secondAttempt.error) return secondAttempt;
+
+    const secondMessage = String(secondAttempt.error.message || "").toLowerCase();
+    const hostColumnRequired = secondMessage.includes("host_player_id") && (secondMessage.includes("null value") || secondMessage.includes("not-null") || secondMessage.includes("violates not-null constraint"));
+
+    if (hostColumnRequired) {
+      throw new Error("A Supabase rooms táblád régi állapotban van. Futtasd le újra a friss supabase/schema.sql fájlt, majd frissíts rá az oldalra.");
+    }
+
+    return secondAttempt;
+  }
+
   async function createRoom() {
     if (!requireSupabase() || !requireUsername()) return;
     persistUsername();
@@ -157,16 +198,7 @@
       for (let attempt = 0; attempt < 8; attempt += 1) {
         roomCode = randomRoomCode();
         const baseState = createBaseRoomState(roomCode);
-        const { data, error } = await state.supabase
-          .from("rooms")
-          .insert({
-            code: roomCode,
-            host_player_id: state.myPlayerId,
-            status: "lobby",
-            state: baseState
-          })
-          .select()
-          .single();
+        const { data, error } = await insertRoomRecord(roomCode, baseState);
 
         if (!error) {
           created = data;
@@ -254,6 +286,7 @@
       deckOrder: [],
       drawIndex: 0,
       availableItemIds: (state.gameData?.items || []).map((item) => item.id),
+      hostPlayerId: state.myPlayerId,
       overlay: null,
       movement: null,
       rollValue: null,
@@ -375,8 +408,12 @@
     refs.overlay.innerHTML = "";
   }
 
+  function getHostPlayerId() {
+    return state.room?.state?.hostPlayerId || state.room?.host_player_id || state.playerRows?.[0]?.player_id || null;
+  }
+
   function isHost() {
-    return Boolean(state.room && state.room.host_player_id === state.myPlayerId);
+    return Boolean(state.room && getHostPlayerId() === state.myPlayerId);
   }
 
   function buildBoard() {
@@ -414,7 +451,7 @@
     refs.roomStatusLabel.textContent = state.room ? roomStatusLabel(state.room.status) : "Nincs szoba";
     refs.copyCodeBtn.disabled = !state.roomCode;
 
-    const hostPlayer = state.playerRows.find((row) => row.player_id === state.room?.host_player_id);
+    const hostPlayer = state.playerRows.find((row) => row.player_id === getHostPlayerId());
     refs.hostLabel.textContent = hostPlayer?.username || "—";
 
     renderLobbyPlayers();
@@ -450,7 +487,7 @@
             <span class="player-badge" style="background:${palette[index % palette.length]}">${initials(row.username)}</span>
             <strong>${escapeHtml(row.username)}</strong>
           </div>
-          <div class="small muted">${row.player_id === state.room?.host_player_id ? "Host" : "Játékos"}</div>
+          <div class="small muted">${row.player_id === getHostPlayerId() ? "Host" : "Játékos"}</div>
         </div>
       </div>
     `).join("");
@@ -488,6 +525,7 @@
       deckOrder,
       drawIndex: 0,
       availableItemIds: (state.gameData.items || []).map((item) => item.id),
+      hostPlayerId: getHostPlayerId(),
       overlay: null,
       movement: null,
       rollValue: null,
