@@ -280,19 +280,89 @@
   }
 
   async function upsertRoomPlayer(roomCode, username) {
-    const payload = {
-      room_code: roomCode,
-      player_id: state.myPlayerId,
-      username,
-      last_seen: new Date().toISOString(),
-      meta: {}
-    };
+    const payloadVariants = [
+      {
+        room_code: roomCode,
+        player_id: state.myPlayerId,
+        username,
+        last_seen: new Date().toISOString(),
+        meta: {}
+      },
+      {
+        room_code: roomCode,
+        player_id: state.myPlayerId,
+        username,
+        last_seen: new Date().toISOString()
+      },
+      {
+        room_code: roomCode,
+        player_id: state.myPlayerId,
+        username
+      }
+    ];
 
-    const { error } = await state.supabase
+    let lastError = null;
+
+    for (const payload of payloadVariants) {
+      const { error } = await state.supabase
+        .from("room_players")
+        .upsert(payload, { onConflict: "room_code,player_id" });
+
+      if (!error) return;
+      lastError = error;
+
+      const fullMessage = `${String(error.message || "").toLowerCase()} ${String(error.details || "").toLowerCase()} ${String(error.hint || "").toLowerCase()}`;
+      const schemaColumnProblem =
+        (fullMessage.includes("schema cache") || fullMessage.includes("could not find") || fullMessage.includes("column")) &&
+        (fullMessage.includes("meta") || fullMessage.includes("last_seen") || fullMessage.includes("joined_at"));
+      const onConflictProblem = fullMessage.includes("no unique") || fullMessage.includes("on conflict");
+
+      if (schemaColumnProblem || onConflictProblem) {
+        continue;
+      }
+
+      throw error;
+    }
+
+    const manualVariants = payloadVariants.map((payload) => ({ ...payload }));
+    const { data: existingRow, error: existingError } = await state.supabase
       .from("room_players")
-      .upsert(payload, { onConflict: "room_code,player_id" });
+      .select("id")
+      .eq("room_code", roomCode)
+      .eq("player_id", state.myPlayerId)
+      .maybeSingle();
 
-    if (error) throw error;
+    if (existingError) throw existingError;
+
+    for (const payload of manualVariants) {
+      let result;
+      if (existingRow?.id) {
+        const updatePayload = { ...payload };
+        delete updatePayload.room_code;
+        delete updatePayload.player_id;
+        result = await state.supabase
+          .from("room_players")
+          .update(updatePayload)
+          .eq("id", existingRow.id);
+      } else {
+        result = await state.supabase
+          .from("room_players")
+          .insert(payload);
+      }
+
+      if (!result.error) return;
+      lastError = result.error;
+
+      const fullMessage = `${String(result.error.message || "").toLowerCase()} ${String(result.error.details || "").toLowerCase()} ${String(result.error.hint || "").toLowerCase()}`;
+      const schemaColumnProblem =
+        (fullMessage.includes("schema cache") || fullMessage.includes("could not find") || fullMessage.includes("column")) &&
+        (fullMessage.includes("meta") || fullMessage.includes("last_seen") || fullMessage.includes("joined_at"));
+
+      if (schemaColumnProblem) continue;
+      throw result.error;
+    }
+
+    throw new Error(lastError?.message || "A játékosadat mentése nem sikerült. Futtasd újra a schema.sql fájlt.");
   }
 
   function createBaseRoomState(roomCode) {

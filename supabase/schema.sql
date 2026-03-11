@@ -46,6 +46,22 @@ create table if not exists public.room_players (
   unique(room_code, player_id)
 );
 
+
+alter table public.room_players
+  add column if not exists joined_at timestamptz not null default now();
+
+alter table public.room_players
+  add column if not exists last_seen timestamptz not null default now();
+
+alter table public.room_players
+  add column if not exists meta jsonb not null default '{}'::jsonb;
+
+create unique index if not exists idx_room_players_room_code_player_id_unique
+  on public.room_players(room_code, player_id);
+
+create unique index if not exists idx_rooms_code_unique
+  on public.rooms(code);
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
