@@ -1,5 +1,5 @@
--- Gazdálkodj okosan - Supabase schema (újrafuttatható verzió)
--- Demó / hobby célra lazább policy-kkel.
+-- Gazdálkodj okosan - Supabase schema (újrafuttatható, migrációbarát)
+-- Úgy lett összerakva, hogy régebbi room / room_players táblákon is a lehető legkisebb fájdalommal fusson végig.
 
 create extension if not exists pgcrypto;
 
@@ -12,11 +12,8 @@ create table if not exists public.rooms (
   updated_at timestamptz not null default now()
 );
 
-alter table public.rooms
-  add column if not exists host_player_id text;
-
-alter table public.rooms
-  add column if not exists host_client_id text;
+alter table public.rooms add column if not exists host_player_id text;
+alter table public.rooms add column if not exists host_client_id text;
 
 do $$
 begin
@@ -37,30 +34,102 @@ end $$;
 
 create table if not exists public.room_players (
   id uuid primary key default gen_random_uuid(),
-  room_code text not null references public.rooms(code) on delete cascade,
-  player_id text not null,
-  username text not null,
+  room_code text,
+  room_id uuid,
+  player_id text,
+  client_id text,
+  username text not null default 'Játékos',
   joined_at timestamptz not null default now(),
   last_seen timestamptz not null default now(),
-  meta jsonb not null default '{}'::jsonb,
-  unique(room_code, player_id)
+  meta jsonb not null default '{}'::jsonb
 );
 
+alter table public.room_players add column if not exists room_code text;
+alter table public.room_players add column if not exists room_id uuid;
+alter table public.room_players add column if not exists player_id text;
+alter table public.room_players add column if not exists client_id text;
+alter table public.room_players add column if not exists username text;
+alter table public.room_players add column if not exists joined_at timestamptz;
+alter table public.room_players add column if not exists last_seen timestamptz;
+alter table public.room_players add column if not exists meta jsonb;
 
-alter table public.room_players
-  add column if not exists joined_at timestamptz not null default now();
+alter table public.room_players alter column username set default 'Játékos';
+alter table public.room_players alter column joined_at set default now();
+alter table public.room_players alter column last_seen set default now();
+alter table public.room_players alter column meta set default '{}'::jsonb;
 
-alter table public.room_players
-  add column if not exists last_seen timestamptz not null default now();
+update public.room_players
+set username = 'Játékos'
+where username is null or btrim(username) = '';
 
-alter table public.room_players
-  add column if not exists meta jsonb not null default '{}'::jsonb;
+update public.room_players
+set joined_at = now()
+where joined_at is null;
 
-create unique index if not exists idx_room_players_room_code_player_id_unique
-  on public.room_players(room_code, player_id);
+update public.room_players
+set last_seen = now()
+where last_seen is null;
+
+update public.room_players
+set meta = '{}'::jsonb
+where meta is null;
+
+update public.room_players
+set player_id = client_id
+where player_id is null and client_id is not null;
+
+update public.room_players
+set client_id = player_id
+where client_id is null and player_id is not null;
+
+update public.room_players rp
+set room_code = r.code
+from public.rooms r
+where rp.room_code is null
+  and rp.room_id is not null
+  and r.id = rp.room_id;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'room_players_room_id_fkey'
+      and conrelid = 'public.room_players'::regclass
+  ) then
+    begin
+      alter table public.room_players
+        add constraint room_players_room_id_fkey
+        foreign key (room_id) references public.rooms(id) on delete cascade;
+    exception when others then
+      null;
+    end;
+  end if;
+end $$;
 
 create unique index if not exists idx_rooms_code_unique
   on public.rooms(code);
+
+create unique index if not exists idx_room_players_room_code_player_id_unique
+  on public.room_players(room_code, player_id)
+  where room_code is not null and player_id is not null;
+
+create unique index if not exists idx_room_players_room_id_player_id_unique
+  on public.room_players(room_id, player_id)
+  where room_id is not null and player_id is not null;
+
+create unique index if not exists idx_room_players_room_code_client_id_unique
+  on public.room_players(room_code, client_id)
+  where room_code is not null and client_id is not null;
+
+create unique index if not exists idx_room_players_room_id_client_id_unique
+  on public.room_players(room_id, client_id)
+  where room_id is not null and client_id is not null;
+
+create index if not exists idx_room_players_room_code
+  on public.room_players(room_code);
+
+create index if not exists idx_room_players_room_id
+  on public.room_players(room_id);
 
 create or replace function public.set_updated_at()
 returns trigger

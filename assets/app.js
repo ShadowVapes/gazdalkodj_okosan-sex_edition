@@ -128,6 +128,61 @@
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
   }
 
+  function getRowPlayerId(row) {
+    return row?.player_id || row?.client_id || row?.user_id || row?.id || null;
+  }
+
+  function rowBelongsToRoom(row, roomRecord, roomCode = state.roomCode) {
+    if (!row) return false;
+    if (roomCode && row.room_code != null) {
+      return String(row.room_code).toUpperCase() === String(roomCode).toUpperCase();
+    }
+    if (roomRecord?.id && row.room_id != null) {
+      return String(row.room_id) === String(roomRecord.id);
+    }
+    if (roomCode && row.room != null) {
+      return String(row.room).toUpperCase() === String(roomCode).toUpperCase();
+    }
+    return false;
+  }
+
+  function errorText(error) {
+    return `${String(error?.message || "").toLowerCase()} ${String(error?.details || "").toLowerCase()} ${String(error?.hint || "").toLowerCase()}`;
+  }
+
+  function isRoomPlayersSchemaProblem(error) {
+    const fullMessage = errorText(error);
+    const schemaWords = fullMessage.includes("schema cache") || fullMessage.includes("could not find") || fullMessage.includes("column") || fullMessage.includes("no unique") || fullMessage.includes("on conflict") || fullMessage.includes("violates not-null") || fullMessage.includes("null value");
+    const roomPlayerWords = ["room_code", "room_id", "player_id", "client_id", "meta", "last_seen", "joined_at"].some((word) => fullMessage.includes(word));
+    return schemaWords && roomPlayerWords;
+  }
+
+  async function fetchRoomPlayersRaw() {
+    let result = await state.supabase
+      .from("room_players")
+      .select("*")
+      .order("joined_at", { ascending: true });
+
+    if (result.error && isRoomPlayersSchemaProblem(result.error)) {
+      result = await state.supabase
+        .from("room_players")
+        .select("*");
+    }
+
+    if (result.error) throw result.error;
+    return result.data || [];
+  }
+
+  async function getPlayersForRoom(roomRecord, roomCode = state.roomCode) {
+    const rows = await fetchRoomPlayersRaw();
+    return rows.filter((row) => rowBelongsToRoom(row, roomRecord, roomCode));
+  }
+
+  async function findExistingRoomPlayerRow(roomRecord, playerId = state.myPlayerId, roomCode = state.roomCode) {
+    const rows = await getPlayersForRoom(roomRecord, roomCode);
+    return rows.find((row) => getRowPlayerId(row) === playerId) || null;
+  }
+
   function getUsername() {
     const value = refs.usernameInput.value.trim().slice(0, 24);
     return value || "";
@@ -231,7 +286,7 @@
 
       if (!created) throw new Error("Nem sikerült egyedi szobakódot generálni.");
 
-      await upsertRoomPlayer(roomCode, getUsername());
+      await upsertRoomPlayer(roomCode, getUsername(), created);
       await subscribeToRoom(roomCode);
       showBanner(`Szoba létrehozva: ${roomCode}`, "ok");
     } catch (error) {
@@ -260,18 +315,13 @@
       if (error || !room) throw new Error("Ilyen szoba nem található.");
 
       const started = room.status === "in_game" || room.status === "finished";
-      const { data: existingPlayer } = await state.supabase
-        .from("room_players")
-        .select("*")
-        .eq("room_code", roomCode)
-        .eq("player_id", state.myPlayerId)
-        .maybeSingle();
+      const existingPlayer = await findExistingRoomPlayerRow(room, state.myPlayerId, roomCode);
 
       if (started && !existingPlayer) {
         throw new Error("A játék már elindult, új játékos most nem csatlakozhat.");
       }
 
-      await upsertRoomPlayer(roomCode, getUsername());
+      await upsertRoomPlayer(roomCode, getUsername(), room);
       await subscribeToRoom(roomCode);
       showBanner(`Csatlakoztál a(z) ${roomCode} szobához.`, "ok");
     } catch (error) {
@@ -279,67 +329,78 @@
     }
   }
 
-  async function upsertRoomPlayer(roomCode, username) {
-    const payloadVariants = [
-      {
-        room_code: roomCode,
-        player_id: state.myPlayerId,
-        username,
-        last_seen: new Date().toISOString(),
-        meta: {}
-      },
-      {
-        room_code: roomCode,
-        player_id: state.myPlayerId,
-        username,
-        last_seen: new Date().toISOString()
-      },
-      {
-        room_code: roomCode,
-        player_id: state.myPlayerId,
-        username
+  async function upsertRoomPlayer(roomCode, username, roomRecord = state.room) {
+    const roomId = roomRecord?.id || null;
+    const nowIso = new Date().toISOString();
+
+    const roomRefs = [];
+    if (roomCode && roomId) roomRefs.push({ room_code: roomCode, room_id: roomId });
+    if (roomCode) roomRefs.push({ room_code: roomCode });
+    if (roomId) roomRefs.push({ room_id: roomId });
+
+    const playerRefs = [
+      { player_id: state.myPlayerId, client_id: state.myPlayerId },
+      { player_id: state.myPlayerId },
+      { client_id: state.myPlayerId }
+    ];
+
+    const optionalRefs = [
+      { username, joined_at: nowIso, last_seen: nowIso, meta: {} },
+      { username, last_seen: nowIso, meta: {} },
+      { username, last_seen: nowIso },
+      { username }
+    ];
+
+    const payloadVariants = [];
+    const seen = new Set();
+    for (const roomRef of roomRefs) {
+      for (const playerRef of playerRefs) {
+        for (const optionalRef of optionalRefs) {
+          const payload = { ...roomRef, ...playerRef, ...optionalRef };
+          const key = JSON.stringify(payload);
+          if (!seen.has(key)) {
+            seen.add(key);
+            payloadVariants.push(payload);
+          }
+        }
       }
+    }
+
+    const conflictVariants = [
+      "room_code,player_id",
+      "room_id,player_id",
+      "room_code,client_id",
+      "room_id,client_id"
     ];
 
     let lastError = null;
 
     for (const payload of payloadVariants) {
-      const { error } = await state.supabase
-        .from("room_players")
-        .upsert(payload, { onConflict: "room_code,player_id" });
+      for (const onConflict of conflictVariants) {
+        const needed = onConflict.split(",");
+        if (!needed.every((key) => payload[key] != null)) continue;
 
-      if (!error) return;
-      lastError = error;
+        const { error } = await state.supabase
+          .from("room_players")
+          .upsert(payload, { onConflict });
 
-      const fullMessage = `${String(error.message || "").toLowerCase()} ${String(error.details || "").toLowerCase()} ${String(error.hint || "").toLowerCase()}`;
-      const schemaColumnProblem =
-        (fullMessage.includes("schema cache") || fullMessage.includes("could not find") || fullMessage.includes("column")) &&
-        (fullMessage.includes("meta") || fullMessage.includes("last_seen") || fullMessage.includes("joined_at"));
-      const onConflictProblem = fullMessage.includes("no unique") || fullMessage.includes("on conflict");
-
-      if (schemaColumnProblem || onConflictProblem) {
-        continue;
+        if (!error) return;
+        lastError = error;
+        if (isRoomPlayersSchemaProblem(error)) continue;
+        throw error;
       }
-
-      throw error;
     }
 
-    const manualVariants = payloadVariants.map((payload) => ({ ...payload }));
-    const { data: existingRow, error: existingError } = await state.supabase
-      .from("room_players")
-      .select("id")
-      .eq("room_code", roomCode)
-      .eq("player_id", state.myPlayerId)
-      .maybeSingle();
+    const existingRow = await findExistingRoomPlayerRow(roomRecord, state.myPlayerId, roomCode);
 
-    if (existingError) throw existingError;
-
-    for (const payload of manualVariants) {
+    for (const payload of payloadVariants) {
       let result;
       if (existingRow?.id) {
         const updatePayload = { ...payload };
         delete updatePayload.room_code;
+        delete updatePayload.room_id;
         delete updatePayload.player_id;
+        delete updatePayload.client_id;
         result = await state.supabase
           .from("room_players")
           .update(updatePayload)
@@ -352,13 +413,7 @@
 
       if (!result.error) return;
       lastError = result.error;
-
-      const fullMessage = `${String(result.error.message || "").toLowerCase()} ${String(result.error.details || "").toLowerCase()} ${String(result.error.hint || "").toLowerCase()}`;
-      const schemaColumnProblem =
-        (fullMessage.includes("schema cache") || fullMessage.includes("could not find") || fullMessage.includes("column")) &&
-        (fullMessage.includes("meta") || fullMessage.includes("last_seen") || fullMessage.includes("joined_at"));
-
-      if (schemaColumnProblem) continue;
+      if (isRoomPlayersSchemaProblem(result.error)) continue;
       throw result.error;
     }
 
@@ -409,8 +464,7 @@
       .on("postgres_changes", {
         event: "*",
         schema: "public",
-        table: "room_players",
-        filter: `room_code=eq.${roomCode}`
+        table: "room_players"
       }, loadRoomSnapshot)
       .subscribe();
 
@@ -437,16 +491,15 @@
       return;
     }
 
-    const { data: players, error: playersError } = await state.supabase
-      .from("room_players")
-      .select("*")
-      .eq("room_code", state.roomCode)
-      .order("joined_at", { ascending: true });
-
-    if (playersError) {
+    let players;
+    try {
+      players = await getPlayersForRoom(room, state.roomCode);
+    } catch (playersError) {
       showBanner(`Játékoslista hiba: ${playersError.message}`, "warning");
       return;
     }
+
+    players.sort((a, b) => new Date(a.joined_at || 0) - new Date(b.joined_at || 0));
 
     state.room = room;
     state.playerRows = players || [];
@@ -469,11 +522,13 @@
     }
 
     try {
-      await state.supabase
-        .from("room_players")
-        .delete()
-        .eq("room_code", state.roomCode)
-        .eq("player_id", state.myPlayerId);
+      const existingRow = await findExistingRoomPlayerRow(state.room, state.myPlayerId, state.roomCode);
+      if (existingRow?.id) {
+        await state.supabase
+          .from("room_players")
+          .delete()
+          .eq("id", existingRow.id);
+      }
     } catch (error) {
       console.warn(error);
     }
@@ -499,7 +554,7 @@
   }
 
   function getHostPlayerId() {
-    return state.room?.state?.hostPlayerId || state.room?.host_player_id || state.room?.host_client_id || state.playerRows?.[0]?.player_id || null;
+    return state.room?.state?.hostPlayerId || state.room?.host_player_id || state.room?.host_client_id || getRowPlayerId(state.playerRows?.[0]) || null;
   }
 
   function isHost() {
@@ -541,7 +596,7 @@
     refs.roomStatusLabel.textContent = state.room ? roomStatusLabel(state.room.status) : "Nincs szoba";
     refs.copyCodeBtn.disabled = !state.roomCode;
 
-    const hostPlayer = state.playerRows.find((row) => row.player_id === getHostPlayerId());
+    const hostPlayer = state.playerRows.find((row) => getRowPlayerId(row) === getHostPlayerId());
     refs.hostLabel.textContent = hostPlayer?.username || "—";
 
     renderLobbyPlayers();
@@ -571,13 +626,13 @@
       return;
     }
     refs.lobbyPlayers.innerHTML = state.playerRows.map((row, index) => `
-      <div class="player-card ${row.player_id === state.myPlayerId ? "me" : ""}">
+      <div class="player-card ${getRowPlayerId(row) === state.myPlayerId ? "me" : ""}">
         <div class="player-top">
           <div class="player-name-line">
             <span class="player-badge" style="background:${palette[index % palette.length]}">${initials(row.username)}</span>
             <strong>${escapeHtml(row.username)}</strong>
           </div>
-          <div class="small muted">${row.player_id === getHostPlayerId() ? "Host" : "Játékos"}</div>
+          <div class="small muted">${getRowPlayerId(row) === getHostPlayerId() ? "Host" : "Játékos"}</div>
         </div>
       </div>
     `).join("");
@@ -593,8 +648,9 @@
 
     const playersState = {};
     roomPlayers.forEach((row, index) => {
-      playersState[row.player_id] = {
-        id: row.player_id,
+      const rowPlayerId = getRowPlayerId(row);
+      playersState[rowPlayerId] = {
+        id: rowPlayerId,
         username: row.username,
         money: state.gameData.settings.startingMoney,
         position: 0,
@@ -608,7 +664,7 @@
     const newState = {
       roomCode: state.roomCode,
       phase: "turn_ready",
-      currentPlayerId: roomPlayers[0].player_id,
+      currentPlayerId: getRowPlayerId(roomPlayers[0]),
       turnIndex: 0,
       players: playersState,
       log: [`A játék elindult. ${roomPlayers[0].username} következik.`],
@@ -1116,7 +1172,7 @@
   }
 
   function getOrderedPlayerIds() {
-    const rowsOrder = state.playerRows.map((row) => row.player_id);
+    const rowsOrder = state.playerRows.map((row) => getRowPlayerId(row)).filter(Boolean);
     const statePlayerIds = Object.keys(state.room?.state?.players || {});
     return rowsOrder.filter((id) => statePlayerIds.includes(id));
   }
