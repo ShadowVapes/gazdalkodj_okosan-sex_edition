@@ -13,7 +13,8 @@
     roomChannel: null,
     playersChannel: null,
     diceSpinInterval: null,
-    boardBuilt: false
+    boardBuilt: false,
+    boardFitTimer: null
   };
 
   const refs = {};
@@ -36,6 +37,7 @@
   ];
 
   document.addEventListener("DOMContentLoaded", init);
+  window.addEventListener("resize", debounceFitBoard);
 
   async function init() {
     cacheRefs();
@@ -604,17 +606,55 @@
       <div class="board-tile ${field.type}" data-field-id="${field.id}"
            title="${escapeHtml(field.title)} — ${escapeHtml(field.description || '')}"
            style="left:${field.position.left}%; top:${field.position.top}%;">
-        <div class="tile-head">
-          <span class="tile-type">${escapeHtml(getTileTypeLabel(field.type))}</span>
-          <span class="tile-icon">${getTileIcon(field.type)}</span>
+        <div class="tile-accent"></div>
+        <div class="tile-main">
+          <div class="tile-title">${escapeHtml(field.title)}</div>
+          <div class="tile-meta-row">
+            <span class="tile-type">${escapeHtml(getTileTypeLabel(field.type))}</span>
+            <span class="tile-id">#${field.id}</span>
+          </div>
         </div>
-        <div class="tile-title">${escapeHtml(field.title)}</div>
-        <div class="tile-id">#${field.id}</div>
       </div>
     `).join("");
     refs.board.innerHTML = `${pathSvg}${tilesHtml}<div id="piecesLayer"></div>`;
     state.boardBuilt = true;
+    fitBoardTiles();
     renderPieces();
+  }
+
+  function debounceFitBoard() {
+    clearTimeout(state.boardFitTimer);
+    state.boardFitTimer = setTimeout(fitBoardTiles, 80);
+  }
+
+  function fitBoardTiles() {
+    if (!refs.board || !state.gameData?.fields?.length) return;
+    const boardRect = refs.board.getBoundingClientRect();
+    if (!boardRect.width || !boardRect.height) return;
+
+    const fields = [...state.gameData.fields].sort((a, b) => a.id - b.id);
+    let minDxPct = Infinity;
+    let minDyPct = Infinity;
+
+    for (let i = 0; i < fields.length; i += 1) {
+      for (let j = i + 1; j < fields.length; j += 1) {
+        const dx = Math.abs(Number(fields[i].position.left) - Number(fields[j].position.left));
+        const dy = Math.abs(Number(fields[i].position.top) - Number(fields[j].position.top));
+        if (dx > 0 && dx < minDxPct) minDxPct = dx;
+        if (dy > 0 && dy < minDyPct) minDyPct = dy;
+      }
+    }
+
+    const minDxPx = isFinite(minDxPct) ? (boardRect.width * minDxPct / 100) : 110;
+    const minDyPx = isFinite(minDyPct) ? (boardRect.height * minDyPct / 100) : 68;
+
+    const tileWidth = Math.max(84, Math.min(126, Math.floor(minDxPx * 0.78)));
+    const tileHeight = Math.max(40, Math.min(56, Math.floor(minDyPx * 0.7)));
+    const pieceSize = Math.max(20, Math.min(28, Math.floor(tileHeight * 0.52)));
+
+    refs.board.style.setProperty('--tile-width-dyn', `${tileWidth}px`);
+    refs.board.style.setProperty('--tile-height-dyn', `${tileHeight}px`);
+    refs.board.style.setProperty('--piece-size-dyn', `${pieceSize}px`);
   }
 
   function buildBoardPathSvg(fields) {
@@ -685,6 +725,7 @@
       renderLog();
       renderTurnInfo();
       renderOverlay();
+      fitBoardTiles();
       renderPieces();
       updateActionButtons();
     }
@@ -1162,7 +1203,6 @@
     nextState.overlay = null;
     nextState.pendingAction = null;
     nextState.chainDepth = 0;
-    appendLog(nextState, `${nextState.players[state.myPlayerId].username} dobott: ${rollValue}.`);
     await updateRoom({ state: nextState });
   }
 
@@ -1309,7 +1349,9 @@
     if (!game || game.phase !== "rolling") return;
     const player = game.players?.[game.currentPlayerId];
     if (!player) return;
-    await startMovement(game, player.id, Number(game.rollValue) || 0, 0);
+    const nextState = cloneState(game);
+    appendLog(nextState, `${player.username} dobott: ${nextState.rollValue}.`);
+    await startMovement(nextState, player.id, Number(nextState.rollValue) || 0, 0);
   }
 
   async function startMovement(currentState, playerId, steps, chainDepth = 0) {
