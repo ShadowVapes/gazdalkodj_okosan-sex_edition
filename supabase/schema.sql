@@ -46,21 +46,46 @@ create table if not exists public.room_players (
 
 alter table public.room_players add column if not exists room_code text;
 alter table public.room_players add column if not exists room_id uuid;
+alter table public.room_players add column if not exists room text;
 alter table public.room_players add column if not exists player_id text;
 alter table public.room_players add column if not exists client_id text;
+alter table public.room_players add column if not exists user_id text;
 alter table public.room_players add column if not exists username text;
+alter table public.room_players add column if not exists name text;
 alter table public.room_players add column if not exists joined_at timestamptz;
 alter table public.room_players add column if not exists last_seen timestamptz;
 alter table public.room_players add column if not exists meta jsonb;
 
 alter table public.room_players alter column username set default 'Játékos';
+alter table public.room_players alter column name set default 'Játékos';
 alter table public.room_players alter column joined_at set default now();
 alter table public.room_players alter column last_seen set default now();
 alter table public.room_players alter column meta set default '{}'::jsonb;
 
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'room_players' and column_name = 'username' and is_nullable = 'NO'
+  ) then
+    alter table public.room_players alter column username drop not null;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'room_players' and column_name = 'name' and is_nullable = 'NO'
+  ) then
+    alter table public.room_players alter column name drop not null;
+  end if;
+end $$;
+
 update public.room_players
-set username = 'Játékos'
+set username = coalesce(nullif(btrim(name), ''), 'Játékos')
 where username is null or btrim(username) = '';
+
+update public.room_players
+set name = coalesce(nullif(btrim(username), ''), 'Játékos')
+where name is null or btrim(name) = '';
 
 update public.room_players
 set joined_at = now()
@@ -75,15 +100,28 @@ set meta = '{}'::jsonb
 where meta is null;
 
 update public.room_players
-set player_id = client_id
-where player_id is null and client_id is not null;
+set player_id = coalesce(client_id, user_id)
+where player_id is null and coalesce(client_id, user_id) is not null;
 
 update public.room_players
-set client_id = player_id
-where client_id is null and player_id is not null;
+set client_id = coalesce(player_id, user_id)
+where client_id is null and coalesce(player_id, user_id) is not null;
+
+update public.room_players
+set user_id = coalesce(player_id, client_id)
+where user_id is null and coalesce(player_id, client_id) is not null;
+
+update public.room_players
+set room = room_code
+where room is null and room_code is not null;
+
+update public.room_players
+set room_code = room
+where room_code is null and room is not null;
 
 update public.room_players rp
-set room_code = r.code
+set room_code = r.code,
+    room = coalesce(rp.room, r.code)
 from public.rooms r
 where rp.room_code is null
   and rp.room_id is not null
@@ -128,8 +166,14 @@ create unique index if not exists idx_room_players_room_id_client_id_unique
 create index if not exists idx_room_players_room_code
   on public.room_players(room_code);
 
+create index if not exists idx_room_players_room
+  on public.room_players(room);
+
 create index if not exists idx_room_players_room_id
   on public.room_players(room_id);
+
+create index if not exists idx_room_players_user_id
+  on public.room_players(user_id);
 
 create or replace function public.set_updated_at()
 returns trigger

@@ -8,7 +8,6 @@
     selectedCardId: null,
     selectedFieldId: null,
     dragFieldId: null,
-    showAdvancedJson: false
   };
 
   const fieldTypeOptions = [
@@ -221,14 +220,6 @@
       case "board":
         renderBoardTab();
         break;
-      case "json":
-        if (state.showAdvancedJson) {
-          renderJsonTab();
-        } else {
-          state.tab = "settings";
-          renderSettingsTab();
-        }
-        break;
       default:
         renderSettingsTab();
         break;
@@ -288,7 +279,6 @@
             </div>
             <div class="inline-actions">
               <button id="addMetaBtn" class="ghost-btn">Egyéni meta mező</button>
-              <button id="toggleAdvancedJsonBtn" class="ghost-btn">${state.showAdvancedJson ? "Haladó JSON elrejtése" : "Haladó JSON megnyitása"}</button>
             </div>
           </div>
           <div class="settings-grid">
@@ -321,13 +311,6 @@
 
     document.getElementById("addMetaBtn").onclick = () => addConfigKey("meta");
     document.getElementById("addSettingBtn").onclick = () => addConfigKey("settings");
-    document.getElementById("toggleAdvancedJsonBtn").onclick = () => {
-      state.showAdvancedJson = !state.showAdvancedJson;
-      if (state.showAdvancedJson) {
-        state.tab = "json";
-      }
-      render();
-    };
   }
 
   function renderItemsTab() {

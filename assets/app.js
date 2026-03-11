@@ -132,6 +132,21 @@
     return row?.player_id || row?.client_id || row?.user_id || row?.id || null;
   }
 
+  function getRowUsername(row) {
+    return String(row?.username || row?.name || row?.display_name || row?.player_name || "Játékos").trim() || "Játékos";
+  }
+
+  function normalizeRoomPlayerRow(row) {
+    const normalized = { ...(row || {}) };
+    normalized.player_id = normalized.player_id || normalized.client_id || normalized.user_id || normalized.id || null;
+    normalized.client_id = normalized.client_id || normalized.player_id || normalized.user_id || normalized.id || null;
+    normalized.user_id = normalized.user_id || normalized.player_id || normalized.client_id || normalized.id || null;
+    normalized.username = getRowUsername(row);
+    normalized.name = normalized.name || normalized.username;
+    normalized.joined_at = normalized.joined_at || normalized.created_at || new Date(0).toISOString();
+    return normalized;
+  }
+
   function rowBelongsToRoom(row, roomRecord, roomCode = state.roomCode) {
     if (!row) return false;
     if (roomCode && row.room_code != null) {
@@ -153,7 +168,7 @@
   function isRoomPlayersSchemaProblem(error) {
     const fullMessage = errorText(error);
     const schemaWords = fullMessage.includes("schema cache") || fullMessage.includes("could not find") || fullMessage.includes("column") || fullMessage.includes("no unique") || fullMessage.includes("on conflict") || fullMessage.includes("violates not-null") || fullMessage.includes("null value");
-    const roomPlayerWords = ["room_code", "room_id", "player_id", "client_id", "meta", "last_seen", "joined_at"].some((word) => fullMessage.includes(word));
+    const roomPlayerWords = ["room_code", "room_id", "room", "player_id", "client_id", "user_id", "username", "name", "meta", "last_seen", "joined_at"].some((word) => fullMessage.includes(word));
     return schemaWords && roomPlayerWords;
   }
 
@@ -175,7 +190,9 @@
 
   async function getPlayersForRoom(roomRecord, roomCode = state.roomCode) {
     const rows = await fetchRoomPlayersRaw();
-    return rows.filter((row) => rowBelongsToRoom(row, roomRecord, roomCode));
+    return rows
+      .filter((row) => rowBelongsToRoom(row, roomRecord, roomCode))
+      .map((row) => normalizeRoomPlayerRow(row));
   }
 
   async function findExistingRoomPlayerRow(roomRecord, playerId = state.myPlayerId, roomCode = state.roomCode) {
@@ -337,91 +354,102 @@
   async function upsertRoomPlayer(roomCode, username, roomRecord = state.room) {
     const roomId = roomRecord?.id || null;
     const nowIso = new Date().toISOString();
+    const cleanUsername = String(username || "").trim() || "Játékos";
 
-    const roomRefs = [];
-    if (roomCode && roomId) roomRefs.push({ room_code: roomCode, room_id: roomId });
-    if (roomCode) roomRefs.push({ room_code: roomCode });
-    if (roomId) roomRefs.push({ room_id: roomId });
+    const basePayload = {
+      room_code: roomCode || null,
+      room_id: roomId || null,
+      room: roomCode || null,
+      player_id: state.myPlayerId,
+      client_id: state.myPlayerId,
+      user_id: state.myPlayerId,
+      username: cleanUsername,
+      name: cleanUsername,
+      joined_at: nowIso,
+      last_seen: nowIso,
+      meta: {}
+    };
 
-    const playerRefs = [
-      { player_id: state.myPlayerId, client_id: state.myPlayerId },
-      { player_id: state.myPlayerId },
-      { client_id: state.myPlayerId }
-    ];
-
-    const optionalRefs = [
-      { username, joined_at: nowIso, last_seen: nowIso, meta: {} },
-      { username, last_seen: nowIso, meta: {} },
-      { username, last_seen: nowIso },
-      { username }
-    ];
-
-    const payloadVariants = [];
-    const seen = new Set();
-    for (const roomRef of roomRefs) {
-      for (const playerRef of playerRefs) {
-        for (const optionalRef of optionalRefs) {
-          const payload = { ...roomRef, ...playerRef, ...optionalRef };
-          const key = JSON.stringify(payload);
-          if (!seen.has(key)) {
-            seen.add(key);
-            payloadVariants.push(payload);
-          }
-        }
-      }
-    }
-
-    let lastError = null;
     let existingRow = await findExistingRoomPlayerRow(roomRecord, state.myPlayerId, roomCode);
+    let lastError = null;
 
-    const buildUpdatePayload = (payload) => {
-      const updatePayload = { ...payload };
-      delete updatePayload.room_code;
-      delete updatePayload.room_id;
-      delete updatePayload.player_id;
-      delete updatePayload.client_id;
-      delete updatePayload.joined_at;
-      return updatePayload;
+    const identityKeys = new Set(["room_code", "room_id", "room", "player_id", "client_id", "user_id", "id", "joined_at"]);
+
+    const buildPayload = (bannedColumns, forUpdate = false) => {
+      const payload = {};
+      Object.entries(basePayload).forEach(([key, value]) => {
+        if (bannedColumns.has(key)) return;
+        if (forUpdate && identityKeys.has(key)) return;
+        if (value === undefined) return;
+        payload[key] = value;
+      });
+      return payload;
+    };
+
+    const extractProblemColumn = (error) => {
+      const text = `${String(error?.message || "")} ${String(error?.details || "")}`;
+      const patterns = [
+        /column ['"]([a-zA-Z_][a-zA-Z0-9_]*)['"]/i,
+        /['"]([a-zA-Z_][a-zA-Z0-9_]*)['"] column/i,
+        /null value in column ['"]([a-zA-Z_][a-zA-Z0-9_]*)['"]/i,
+        /could not find the ['"]([a-zA-Z_][a-zA-Z0-9_]*)['"] column/i
+      ];
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match?.[1]) return match[1];
+      }
+      return null;
+    };
+
+    const tryWrite = async (mode, rowId = null) => {
+      const bannedColumns = new Set();
+      for (let guard = 0; guard < 16; guard += 1) {
+        const payload = buildPayload(bannedColumns, mode === "update");
+        if (!Object.keys(payload).length) break;
+
+        let result;
+        if (mode === "update") {
+          result = await state.supabase.from("room_players").update(payload).eq("id", rowId);
+        } else {
+          result = await state.supabase.from("room_players").insert(payload);
+        }
+
+        if (!result.error) return null;
+        lastError = result.error;
+
+        if (isDuplicateConflict(result.error) && mode === "insert") {
+          return "duplicate";
+        }
+
+        const problemColumn = extractProblemColumn(result.error);
+        if (problemColumn && Object.prototype.hasOwnProperty.call(basePayload, problemColumn) && !bannedColumns.has(problemColumn)) {
+          bannedColumns.add(problemColumn);
+          continue;
+        }
+
+        if (isRoomPlayersSchemaProblem(result.error)) {
+          continue;
+        }
+
+        throw result.error;
+      }
+      return "failed";
     };
 
     if (existingRow?.id) {
-      for (const payload of payloadVariants) {
-        const result = await state.supabase
-          .from("room_players")
-          .update(buildUpdatePayload(payload))
-          .eq("id", existingRow.id);
-
-        if (!result.error) return;
-        lastError = result.error;
-        if (isRoomPlayersSchemaProblem(result.error)) continue;
-        throw result.error;
-      }
+      const updateStatus = await tryWrite("update", existingRow.id);
+      if (updateStatus === null) return;
     }
 
-    for (const payload of payloadVariants) {
-      const result = await state.supabase
-        .from("room_players")
-        .insert(payload);
+    const insertStatus = await tryWrite("insert");
+    if (insertStatus === null) return;
 
-      if (!result.error) return;
-      lastError = result.error;
-
-      if (isDuplicateConflict(result.error)) {
-        existingRow = await findExistingRoomPlayerRow(roomRecord, state.myPlayerId, roomCode);
-        if (existingRow?.id) {
-          const updateResult = await state.supabase
-            .from("room_players")
-            .update(buildUpdatePayload(payload))
-            .eq("id", existingRow.id);
-          if (!updateResult.error) return;
-          lastError = updateResult.error;
-          if (isRoomPlayersSchemaProblem(updateResult.error)) continue;
-          throw updateResult.error;
-        }
+    if (insertStatus === "duplicate") {
+      existingRow = await findExistingRoomPlayerRow(roomRecord, state.myPlayerId, roomCode);
+      if (existingRow?.id) {
+        const updateStatus = await tryWrite("update", existingRow.id);
+        if (updateStatus === null) return;
       }
-
-      if (isRoomPlayersSchemaProblem(result.error)) continue;
-      throw result.error;
     }
 
     throw new Error(lastError?.message || "A játékosadat mentése nem sikerült. Futtasd újra a schema.sql fájlt.");
@@ -604,7 +632,7 @@
     refs.copyCodeBtn.disabled = !state.roomCode;
 
     const hostPlayer = state.playerRows.find((row) => getRowPlayerId(row) === getHostPlayerId());
-    refs.hostLabel.textContent = hostPlayer?.username || "—";
+    refs.hostLabel.textContent = hostPlayer ? getRowUsername(hostPlayer) : "—";
 
     renderLobbyPlayers();
 
@@ -636,8 +664,8 @@
       <div class="player-card ${getRowPlayerId(row) === state.myPlayerId ? "me" : ""}">
         <div class="player-top">
           <div class="player-name-line">
-            <span class="player-badge" style="background:${palette[index % palette.length]}">${initials(row.username)}</span>
-            <strong>${escapeHtml(row.username)}</strong>
+            <span class="player-badge" style="background:${palette[index % palette.length]}">${initials(getRowUsername(row))}</span>
+            <strong>${escapeHtml(getRowUsername(row))}</strong>
           </div>
           <div class="small muted">${getRowPlayerId(row) === getHostPlayerId() ? "Host" : "Játékos"}</div>
         </div>
@@ -658,7 +686,7 @@
       const rowPlayerId = getRowPlayerId(row);
       playersState[rowPlayerId] = {
         id: rowPlayerId,
-        username: row.username,
+        username: getRowUsername(row),
         money: state.gameData.settings.startingMoney,
         position: 0,
         itemsOwned: [],
@@ -674,7 +702,7 @@
       currentPlayerId: getRowPlayerId(roomPlayers[0]),
       turnIndex: 0,
       players: playersState,
-      log: [`A játék elindult. ${roomPlayers[0].username} következik.`],
+      log: [`A játék elindult. ${getRowUsername(roomPlayers[0])} következik.`],
       deckOrder,
       drawIndex: 0,
       availableItemIds: (state.gameData.items || []).map((item) => item.id),
