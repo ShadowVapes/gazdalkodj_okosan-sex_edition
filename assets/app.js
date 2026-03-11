@@ -598,17 +598,53 @@
 
   function buildBoard() {
     if (!state.gameData || !refs.board) return;
-    const tilesHtml = state.gameData.fields.map((field) => `
+    const fields = [...(state.gameData.fields || [])].sort((a, b) => a.id - b.id);
+    const pathSvg = buildBoardPathSvg(fields);
+    const tilesHtml = fields.map((field) => `
       <div class="board-tile ${field.type}" data-field-id="${field.id}"
+           title="${escapeHtml(field.title)} — ${escapeHtml(field.description || '')}"
            style="left:${field.position.left}%; top:${field.position.top}%;">
-        <div class="tile-icon">${getTileIcon(field.type)}</div>
-        <div>${field.title}</div>
+        <div class="tile-head">
+          <span class="tile-type">${escapeHtml(getTileTypeLabel(field.type))}</span>
+          <span class="tile-icon">${getTileIcon(field.type)}</span>
+        </div>
+        <div class="tile-title">${escapeHtml(field.title)}</div>
         <div class="tile-id">#${field.id}</div>
       </div>
     `).join("");
-    refs.board.innerHTML = `${tilesHtml}<div id="piecesLayer"></div>`;
+    refs.board.innerHTML = `${pathSvg}${tilesHtml}<div id="piecesLayer"></div>`;
     state.boardBuilt = true;
     renderPieces();
+  }
+
+  function buildBoardPathSvg(fields) {
+    if (!fields?.length) return "";
+    const sorted = [...fields].sort((a, b) => a.id - b.id);
+    const points = sorted.map((field) => `${field.position.left},${field.position.top}`).join(" ");
+    const nodes = sorted
+      .map((field) => `<circle class="path-node" cx="${field.position.left}" cy="${field.position.top}" r="0.62"></circle>`)
+      .join("");
+    return `
+      <svg class="board-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <polyline class="path-shadow" points="${points}"></polyline>
+        <polyline class="path-main" points="${points}"></polyline>
+        ${nodes}
+      </svg>
+    `;
+  }
+
+  function getTileTypeLabel(type) {
+    return {
+      start: "Start",
+      shop: "Bolt",
+      chance: "Kártya",
+      skip: "Kimarad",
+      move: "Mozgás",
+      salary: "Fizetés",
+      bonus: "Bónusz",
+      tax: "Adó",
+      penalty: "Büntetés"
+    }[type] || "Mező";
   }
 
   function getTileIcon(type) {
