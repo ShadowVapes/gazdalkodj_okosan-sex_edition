@@ -1,5 +1,7 @@
 (() => {
   const refs = {};
+  const DRAFT_KEY = "go_admin_draft_v12";
+
   const state = {
     data: null,
     tab: "settings",
@@ -8,6 +10,7 @@
     selectedCardId: null,
     selectedFieldId: null,
     dragFieldId: null,
+    draftTimer: null,
   };
 
   const fieldTypeOptions = [
@@ -50,21 +53,32 @@
     cacheRefs();
     bindUi();
     loadGitHubConfig();
-    await loadLocalData();
+    const draft = loadDraftFromStorage();
+    if (draft) {
+      state.data = normalizeData(draft);
+      state.githubSha = null;
+      ensureSelections();
+      showBanner("Korábbi böngészős vázlat betöltve.", "ok");
+      render();
+    } else {
+      await loadLocalData();
+    }
   }
 
   function cacheRefs() {
     [
       "adminBanner","ghOwner","ghRepo","ghBranch","ghPath","ghToken",
-      "loadLocalBtn","loadGithubBtn","saveGithubBtn","exportBtn","importBtn",
+      "loadLocalBtn","loadGithubBtn","saveGithubBtn","saveDraftBtn","resetDraftBtn","exportBtn","importBtn",
       "importInput","statsBox","tabRow","adminContent"
     ].forEach((id) => refs[id] = document.getElementById(id));
   }
 
   function bindUi() {
-    refs.loadLocalBtn.addEventListener("click", loadLocalData);
+    refs.loadLocalBtn.addEventListener("click", () => loadLocalData(false));
     refs.loadGithubBtn.addEventListener("click", loadFromGitHub);
     refs.saveGithubBtn.addEventListener("click", saveToGitHub);
+    refs.saveDraftBtn?.addEventListener("click", () => persistDraft(true));
+    refs.resetDraftBtn?.addEventListener("click", clearDraftAndReload);
     refs.exportBtn.addEventListener("click", exportJson);
     refs.importBtn.addEventListener("click", () => refs.importInput.click());
     refs.importInput.addEventListener("change", importJsonFile);
@@ -80,6 +94,9 @@
     ["ghOwner","ghRepo","ghBranch","ghPath","ghToken"].forEach((id) => {
       refs[id].addEventListener("change", persistGitHubConfig);
     });
+
+    refs.adminContent.addEventListener("input", () => persistDraftSoon());
+    refs.adminContent.addEventListener("change", () => persistDraftSoon());
   }
 
   async function loadLocalData() {
@@ -141,6 +158,7 @@
         content: payload
       });
       state.githubSha = result?.content?.sha || result?.commit?.sha || state.githubSha;
+      persistDraftSoon();
       showBanner("Mentés GitHubra kész.", "ok");
     } catch (error) {
       showBanner(`GitHub mentési hiba: ${error.message}`, "warning");
@@ -159,6 +177,7 @@
       const text = await file.text();
       state.data = normalizeData(JSON.parse(text));
       ensureSelections();
+      persistDraftSoon();
       render();
       showBanner("JSON import sikeres.", "ok");
     } catch (error) {
@@ -166,6 +185,33 @@
     } finally {
       event.target.value = "";
     }
+  }
+
+  function persistDraft(showMessage = false) {
+    if (!state.data) return;
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(state.data));
+    if (showMessage) showBanner("A vázlat elmentve a böngészőbe.", "ok");
+  }
+
+  function persistDraftSoon() {
+    clearTimeout(state.draftTimer);
+    state.draftTimer = setTimeout(() => persistDraft(false), 120);
+  }
+
+  function loadDraftFromStorage() {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      console.warn(error);
+      return null;
+    }
+  }
+
+  async function clearDraftAndReload() {
+    localStorage.removeItem(DRAFT_KEY);
+    await loadLocalData(false);
+    showBanner("A helyi vázlat törölve lett, az alap JSON töltődött be.", "ok");
   }
 
   function getGitHubConfig() {
@@ -224,6 +270,8 @@
         renderSettingsTab();
         break;
     }
+
+    persistDraftSoon();
   }
 
   function renderStats() {
@@ -374,6 +422,7 @@
                 <textarea id="itemDescInput">${escapeHtml(item.description || "")}</textarea>
               </label>
             </div>
+            <div id="itemExtraPropsBox"></div>
           ` : `<div class="muted">Nincs kiválasztott tárgy.</div>`}
         </section>
       </div>
@@ -409,6 +458,7 @@
         copy.key = uniqueKey(copy.key || slugify(copy.name || "targy"), state.data.items);
       });
       document.getElementById("deleteItemBtn").onclick = () => deleteSelectedEntry("items", "selectedItemId", item.id);
+      renderExtraPropsEditor(document.getElementById("itemExtraPropsBox"), item, ["id","key","name","price","description"], "item");
     }
   }
 
@@ -470,6 +520,7 @@
               </label>
             </div>
             <div id="cardEffectsBox"></div>
+            <div id="cardExtraPropsBox"></div>
           ` : `<div class="muted">Nincs kiválasztott kártya.</div>`}
         </section>
       </div>
@@ -493,6 +544,7 @@
       document.getElementById("duplicateCardBtn").onclick = () => duplicateEntry("cards", card);
       document.getElementById("deleteCardBtn").onclick = () => deleteSelectedEntry("cards", "selectedCardId", card.id);
       renderEffectEditor(document.getElementById("cardEffectsBox"), card.effects, "card");
+      renderExtraPropsEditor(document.getElementById("cardExtraPropsBox"), card, ["id","title","description","effects"], "card");
     }
   }
 
@@ -577,6 +629,7 @@
             </div>
 
             <div id="fieldEffectsBox"></div>
+            <div id="fieldExtraPropsBox"></div>
           ` : `<div class="muted">Nincs kiválasztott mező.</div>`}
         </section>
       </div>
@@ -617,6 +670,7 @@
       });
       document.getElementById("deleteFieldBtn").onclick = () => deleteSelectedEntry("fields", "selectedFieldId", field.id);
       renderEffectEditor(document.getElementById("fieldEffectsBox"), field.effects, "field");
+      renderExtraPropsEditor(document.getElementById("fieldExtraPropsBox"), field, ["id","type","title","description","effects","position"], "field");
     }
   }
 
@@ -774,6 +828,125 @@
     };
   }
 
+  function renderExtraPropsEditor(container, entity, reservedKeys, prefix) {
+    if (!container || !entity) return;
+    const extras = Object.entries(entity).filter(([key]) => !reservedKeys.includes(key));
+    container.innerHTML = `
+      <section class="editor-card sub-editor-card">
+        <div class="section-header-row compact-row">
+          <div>
+            <h3 class="section-title">Egyéni tulajdonságok</h3>
+            <p class="muted small">Itt bármilyen extra szöveg, szám, logikai érték vagy JSON mező hozzáadható kódírás nélkül.</p>
+          </div>
+          <button class="ghost-btn" type="button" id="addExtraPropBtn-${prefix}">Új tulajdonság</button>
+        </div>
+        <div class="extra-props">
+          ${extras.length ? extras.map(([key, value], index) => renderExtraPropRow(prefix, index, key, value)).join("") : `<div class="extra-prop-help">Még nincs egyéni tulajdonság.</div>`}
+        </div>
+      </section>
+    `;
+
+    const addBtn = container.querySelector(`#addExtraPropBtn-${prefix}`);
+    if (addBtn) {
+      addBtn.onclick = () => {
+        let seed = 1;
+        let nextKey = `extra_${seed}`;
+        while (Object.prototype.hasOwnProperty.call(entity, nextKey)) {
+          seed += 1;
+          nextKey = `extra_${seed}`;
+        }
+        entity[nextKey] = "";
+        render();
+      };
+    }
+
+    const sync = () => syncExtraPropsFromDom(container, entity, reservedKeys, prefix);
+    container.querySelectorAll(`[data-extra-prefix="${prefix}"]`).forEach((input) => {
+      input.addEventListener("input", sync);
+      input.addEventListener("change", sync);
+    });
+    container.querySelectorAll(`[data-extra-remove="${prefix}"]`).forEach((button) => {
+      button.onclick = () => {
+        const index = Number(button.dataset.extraIndex);
+        const currentEntries = Object.entries(entity).filter(([key]) => !reservedKeys.includes(key));
+        const target = currentEntries[index];
+        if (target) delete entity[target[0]];
+        render();
+      };
+    });
+  }
+
+  function renderExtraPropRow(prefix, index, key, value) {
+    return `
+      <div class="extra-prop-row">
+        <label class="input-group">
+          <span>Kulcs</span>
+          <input type="text" value="${escapeHtml(key)}" data-extra-prefix="${prefix}" data-extra-index="${index}" data-extra-role="key">
+        </label>
+        <label class="input-group">
+          <span>Érték</span>
+          <input type="text" value="${escapeHtml(formatExtraValue(value))}" data-extra-prefix="${prefix}" data-extra-index="${index}" data-extra-role="value">
+        </label>
+        <div class="inline-actions">
+          <label class="input-group">
+            <span>Típus</span>
+            <select data-extra-prefix="${prefix}" data-extra-index="${index}" data-extra-role="type">
+              ${["string","number","boolean","json"].map((type) => `<option value="${type}" ${extraValueType(value) === type ? "selected" : ""}>${type}</option>`).join("")}
+            </select>
+          </label>
+          <button class="danger-btn" type="button" data-extra-remove="${prefix}" data-extra-index="${index}">Törlés</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function syncExtraPropsFromDom(container, entity, reservedKeys, prefix) {
+    const nextExtras = {};
+    const rows = [...container.querySelectorAll(`.extra-prop-row`)];
+    rows.forEach((row) => {
+      const key = row.querySelector(`[data-extra-prefix="${prefix}"][data-extra-role="key"]`)?.value?.trim();
+      const rawValue = row.querySelector(`[data-extra-prefix="${prefix}"][data-extra-role="value"]`)?.value ?? "";
+      const type = row.querySelector(`[data-extra-prefix="${prefix}"][data-extra-role="type"]`)?.value || "string";
+      if (!key) return;
+      nextExtras[key] = parseExtraPropValue(rawValue, type);
+    });
+    Object.keys(entity).forEach((key) => {
+      if (!reservedKeys.includes(key)) delete entity[key];
+    });
+    Object.assign(entity, nextExtras);
+  }
+
+  function formatExtraValue(value) {
+    if (value == null) return "";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  }
+
+  function extraValueType(value) {
+    if (typeof value === "number") return "number";
+    if (typeof value === "boolean") return "boolean";
+    if (value && typeof value === "object") return "json";
+    return "string";
+  }
+
+  function parseExtraPropValue(rawValue, type) {
+    if (type === "number") {
+      const number = Number(rawValue);
+      return Number.isNaN(number) ? 0 : number;
+    }
+    if (type === "boolean") {
+      return String(rawValue).toLowerCase() === "true" || String(rawValue) === "1";
+    }
+    if (type === "json") {
+      try {
+        return rawValue ? JSON.parse(rawValue) : null;
+      } catch (error) {
+        return rawValue;
+      }
+    }
+    return rawValue;
+  }
+
   function renderEffectEditor(container, effects, scope) {
     container.innerHTML = `
       <section class="editor-card sub-editor-card">
@@ -893,8 +1066,8 @@
   }
 
   function allowedEffectKinds(scope) {
-    if (scope === "card") return ["money", "move", "skip", "card_shop"];
-    return ["start", "money", "draw_card", "shop", "skip", "move"];
+    if (scope === "card") return ["money", "move", "skip", "shop", "card_shop", "draw_card"];
+    return ["start", "money", "draw_card", "shop", "card_shop", "skip", "move"];
   }
 
   function defaultEffectForKind(kind) {
@@ -1054,6 +1227,7 @@
     normalized.fields = Array.isArray(normalized.fields) ? normalized.fields : [];
 
     normalized.items = normalized.items.map((item, index) => ({
+      ...item,
       id: Number(item.id ?? index + 1),
       key: item.key || slugify(item.name || `targy-${index + 1}`),
       name: item.name || `Tárgy ${index + 1}`,
@@ -1062,6 +1236,7 @@
     }));
 
     normalized.cards = normalized.cards.map((card, index) => ({
+      ...card,
       id: Number(card.id ?? index + 1),
       title: card.title || `Kártya ${index + 1}`,
       description: card.description || "",
@@ -1069,12 +1244,14 @@
     }));
 
     normalized.fields = normalized.fields.map((field, index) => ({
+      ...field,
       id: Number(field.id ?? index),
       type: field.type || "bonus",
       title: field.title || `Mező ${index}`,
       description: field.description || "",
       effects: Array.isArray(field.effects) ? field.effects : [],
       position: {
+        ...(field.position || {}),
         left: round2(clamp(Number(field.position?.left ?? 50), 0, 100)),
         top: round2(clamp(Number(field.position?.top ?? 50), 0, 100))
       }

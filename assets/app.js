@@ -69,7 +69,7 @@
       "statusBanner","lobbyScreen","gameScreen","usernameInput","roomCodeInput",
       "createRoomBtn","joinRoomBtn","roomCodeLabel","copyCodeBtn","roomStatusLabel",
       "hostLabel","startGameBtn","lobbyPlayers","leaveRoomBtn","board","playersPanel",
-      "logPanel","phaseBadge","turnInfo","diceButton","diceFace","deckButton","overlay"
+      "logPanel","phaseBadge","turnInfo","diceButton","diceFace","deckButton","overlay","playersHud"
     ].forEach((id) => refs[id] = document.getElementById(id));
   }
 
@@ -605,15 +605,12 @@
     const tilesHtml = fields.map((field) => `
       <div class="board-tile ${field.type}" data-field-id="${field.id}"
            title="${escapeHtml(field.title)} — ${escapeHtml(field.description || '')}"
-           style="left:${field.position.left}%; top:${field.position.top}%;">
+           style="left:${field.position.left}%; top:${field.position.top}%;;">
         <div class="tile-accent"></div>
-        <div class="tile-main">
-          <div class="tile-title">${escapeHtml(field.title)}</div>
-          <div class="tile-meta-row">
-            <span class="tile-type">${escapeHtml(getTileTypeLabel(field.type))}</span>
-            <span class="tile-id">#${field.id}</span>
-          </div>
-        </div>
+        <div class="tile-icon">${escapeHtml(getTileIcon(field.type))}</div>
+        <div class="tile-title">${escapeHtml(field.title)}</div>
+        <div class="tile-type">${escapeHtml(getTileTypeLabel(field.type))}</div>
+        <div class="tile-id">#${field.id}</div>
       </div>
     `).join("");
     refs.board.innerHTML = `${pathSvg}${tilesHtml}<div id="piecesLayer"></div>`;
@@ -632,28 +629,22 @@
     const boardRect = refs.board.getBoundingClientRect();
     if (!boardRect.width || !boardRect.height) return;
 
-    const fields = [...state.gameData.fields].sort((a, b) => a.id - b.id);
-    let minDxPct = Infinity;
-    let minDyPct = Infinity;
+    const lefts = [...new Set(state.gameData.fields.map((field) => Number(field.position.left)).filter((value) => Number.isFinite(value)).sort((a, b) => a - b))];
+    const tops = [...new Set(state.gameData.fields.map((field) => Number(field.position.top)).filter((value) => Number.isFinite(value)).sort((a, b) => a - b))];
 
-    for (let i = 0; i < fields.length; i += 1) {
-      for (let j = i + 1; j < fields.length; j += 1) {
-        const dx = Math.abs(Number(fields[i].position.left) - Number(fields[j].position.left));
-        const dy = Math.abs(Number(fields[i].position.top) - Number(fields[j].position.top));
-        if (dx > 0 && dx < minDxPct) minDxPct = dx;
-        if (dy > 0 && dy < minDyPct) minDyPct = dy;
-      }
-    }
+    const minLeftGapPct = lefts.slice(1).reduce((min, value, index) => Math.min(min, value - lefts[index]), Infinity);
+    const minTopGapPct = tops.slice(1).reduce((min, value, index) => Math.min(min, value - tops[index]), Infinity);
 
-    const minDxPx = isFinite(minDxPct) ? (boardRect.width * minDxPct / 100) : 110;
-    const minDyPx = isFinite(minDyPct) ? (boardRect.height * minDyPct / 100) : 68;
+    const minLeftGapPx = Number.isFinite(minLeftGapPct) ? (boardRect.width * minLeftGapPct / 100) : 96;
+    const minTopGapPx = Number.isFinite(minTopGapPct) ? (boardRect.height * minTopGapPct / 100) : 96;
+    const minGap = Math.max(52, Math.min(minLeftGapPx, minTopGapPx));
+    const fallback = window.innerWidth <= 700
+      ? Number(state.gameData.settings?.boardTileSizeMobile || 58)
+      : Number(state.gameData.settings?.boardTileSizeDesktop || 82);
+    const tileSize = Math.floor(Math.max(52, Math.min(fallback, minGap * 0.74)));
+    const pieceSize = Math.max(18, Math.min(30, Math.floor(tileSize * 0.32)));
 
-    const tileWidth = Math.max(84, Math.min(126, Math.floor(minDxPx * 0.78)));
-    const tileHeight = Math.max(40, Math.min(56, Math.floor(minDyPx * 0.7)));
-    const pieceSize = Math.max(20, Math.min(28, Math.floor(tileHeight * 0.52)));
-
-    refs.board.style.setProperty('--tile-width-dyn', `${tileWidth}px`);
-    refs.board.style.setProperty('--tile-height-dyn', `${tileHeight}px`);
+    refs.board.style.setProperty('--tile-size-dyn', `${tileSize}px`);
     refs.board.style.setProperty('--piece-size-dyn', `${pieceSize}px`);
   }
 
@@ -722,6 +713,7 @@
       refs.startGameBtn.classList.add("hidden");
       refs.phaseBadge.textContent = phaseLabels[state.room.state?.phase] || "—";
       renderPlayersPanel();
+      renderPlayersHud();
       renderLog();
       renderTurnInfo();
       renderOverlay();
@@ -839,6 +831,28 @@
           <div class="player-items">
             ${renderOwnedItems(player.itemsOwned)}
           </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderPlayersHud() {
+    if (!refs.playersHud) return;
+    const game = state.room?.state || {};
+    const playersState = game.players || {};
+    const orderedPlayers = getOrderedPlayerIds().map((playerId) => playersState[playerId]).filter(Boolean);
+    if (!orderedPlayers.length) {
+      refs.playersHud.innerHTML = "";
+      return;
+    }
+    refs.playersHud.innerHTML = orderedPlayers.map((player) => {
+      const isCurrent = player.id === game.currentPlayerId;
+      const isMe = player.id === state.myPlayerId;
+      return `
+        <div class="hud-player ${isCurrent ? "turn" : ""} ${isMe ? "me" : ""}">
+          <span class="hud-player-name">${escapeHtml(player.username)}</span>
+          <span class="hud-player-money">${formatMoney(player.money)}</span>
+          <span class="hud-player-meta">Poz:${player.position} · Tárgy:${player.itemsOwned.length}/${state.gameData.items.length} · Kim:${player.skipTurns}</span>
         </div>
       `;
     }).join("");
@@ -1031,7 +1045,7 @@
           <span class="meta-pill">${escapeHtml(player?.username || "Játékos")}</span>
         </div>
         <h2>${pending.source === "field" ? "Boltmező" : "Kártyából nyílt vásárlás"}</h2>
-        <p>Az alábbi tárgyak közül vehetsz, ha van rá elég pénzed.</p>
+        <p>Az alábbi tárgyak közül választhatsz. Ha sok tárgy van, a lista görgethető marad.</p>
         <div class="overlay-item-list">
           ${items.map((item) => `
             <div class="offer-card">
@@ -1168,9 +1182,10 @@
       const endPos = fieldById.get(endTileId)?.position;
       if (!startPos || !endPos) return fieldById.get(player.position)?.position || null;
 
+      const hop = Math.sin(ratio * Math.PI) * 1.15;
       return {
         left: lerp(startPos.left, endPos.left, ratio),
-        top: lerp(startPos.top, endPos.top, ratio)
+        top: lerp(startPos.top, endPos.top, ratio) - hop
       };
     }
 
@@ -1220,14 +1235,13 @@
     nextState.phase = "card_reveal";
     nextState.overlay = {
       cardId,
-      endsAt: Date.now() + state.gameData.settings.cardRevealMs
+      endsAt: Date.now() + Math.max(4000, Number(state.gameData.settings.cardRevealMs || 0)) + 120
     };
     nextState.pendingAction = {
       type: "card",
       playerId: state.myPlayerId,
       cardId
     };
-    appendLog(nextState, `${nextState.players[state.myPlayerId].username} kártyát húzott.`);
     await updateRoom({ state: nextState });
   }
 
@@ -1387,8 +1401,8 @@
       path,
       passes,
       startedAt: now,
-      stepMs: state.gameData.settings.stepMoveMs,
-      endsAt: now + (path.length * state.gameData.settings.stepMoveMs) + 60,
+      stepMs: Number(state.gameData.settings.stepMoveMs || 340),
+      endsAt: now + (path.length * Number(state.gameData.settings.stepMoveMs || 340)) + 100,
       chainDepth
     };
     await updateRoom({ state: nextState });
@@ -1419,7 +1433,7 @@
     nextState.phase = "field_reveal";
     nextState.overlay = {
       fieldId: landedField.id,
-      endsAt: Date.now() + state.gameData.settings.fieldRevealMs
+      endsAt: Date.now() + Math.max(4000, Number(state.gameData.settings.fieldRevealMs || 0)) + 120
     };
     nextState.chainDepth = movement.chainDepth || 0;
     await updateRoom({ state: nextState });
@@ -1449,6 +1463,7 @@
     const playerId = nextState.pendingAction.playerId;
     const card = getCardById(nextState.pendingAction.cardId);
     nextState.overlay = null;
+    appendLog(nextState, `${nextState.players[playerId]?.username || "Játékos"} kártyát húzott: ${card?.title || "Ismeretlen lap"}.`);
     await applyEffectsFromSource(nextState, playerId, card?.effects || [], "card", card);
   }
 

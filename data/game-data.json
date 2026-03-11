@@ -6,102 +6,102 @@
   },
   "settings": {
     "currency": "Ft",
-    "startingMoney": 1800,
-    "passStartMoney": 260,
-    "landStartMoney": 400,
+    "startingMoney": 2600,
+    "passStartMoney": 380,
+    "landStartMoney": 520,
     "fieldRevealMs": 4000,
     "cardRevealMs": 4000,
     "diceRollMs": 2000,
-    "stepMoveMs": 280,
+    "stepMoveMs": 340,
     "autoNextDelayMs": 1000,
     "minPlayersToStart": 1,
     "winCondition": "collect_all_items",
-    "boardTileSizeDesktop": 54,
-    "boardTileSizeMobile": 32
+    "boardTileSizeDesktop": 84,
+    "boardTileSizeMobile": 60
   },
   "items": [
     {
       "id": 1,
       "key": "huto",
       "name": "Hűtőszekrény",
-      "price": 900,
+      "price": 520,
       "description": "Energiatakarékos, nagy családi hűtő."
     },
     {
       "id": 2,
       "key": "mosogep",
       "name": "Mosógép",
-      "price": 1100,
+      "price": 650,
       "description": "Csendes, 8 kilós mosógép."
     },
     {
       "id": 3,
       "key": "tuzhely",
       "name": "Tűzhely",
-      "price": 1200,
+      "price": 760,
       "description": "Modern indukciós tűzhely."
     },
     {
       "id": 4,
       "key": "etkezo",
       "name": "Étkezőasztal",
-      "price": 700,
+      "price": 840,
       "description": "Négyszemélyes, masszív étkezőasztal."
     },
     {
       "id": 5,
       "key": "kanape",
       "name": "Kanapé",
-      "price": 950,
+      "price": 920,
       "description": "Kényelmes, kihúzható kanapé."
     },
     {
       "id": 6,
       "key": "agy",
       "name": "Ágy",
-      "price": 1300,
+      "price": 980,
       "description": "Dupla ágy matraccal."
     },
     {
       "id": 7,
       "key": "szekreny",
       "name": "Szekrény",
-      "price": 850,
+      "price": 1060,
       "description": "Nagy gardróbszekrény."
     },
     {
       "id": 8,
       "key": "teve",
       "name": "Televízió",
-      "price": 1400,
+      "price": 1150,
       "description": "55 colos okostévé."
     },
     {
       "id": 9,
       "key": "porszivo",
       "name": "Porszívó",
-      "price": 500,
+      "price": 1240,
       "description": "Erős, vezeték nélküli porszívó."
     },
     {
       "id": 10,
       "key": "laptop",
       "name": "Laptop",
-      "price": 1600,
+      "price": 1360,
       "description": "Munkára és tanulásra való laptop."
     },
     {
       "id": 11,
       "key": "kerekpar",
       "name": "Kerékpár",
-      "price": 750,
+      "price": 1480,
       "description": "Városi közlekedésre ideális bicikli."
     },
     {
       "id": 12,
       "key": "auto",
       "name": "Autó",
-      "price": 2500,
+      "price": 1650,
       "description": "A nagy cél: saját autó."
     }
   ],
@@ -109,22 +109,22 @@
     {
       "id": 1,
       "title": "Fizetésemelés",
-      "description": "+350 Ft érkezik a kasszádba.",
+      "description": "Pénzváltozás: +392 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 350
+          "amount": 392
         }
       ]
     },
     {
       "id": 2,
       "title": "Elromlott a csap",
-      "description": "A szerelő elvisz 180 Ft-ot.",
+      "description": "Pénzváltozás: -140 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -180
+          "amount": -140
         }
       ]
     },
@@ -153,44 +153,44 @@
     {
       "id": 5,
       "title": "Bónusz a munkában",
-      "description": "+280 Ft jár.",
+      "description": "Pénzváltozás: +314 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 280
+          "amount": 314
         }
       ]
     },
     {
       "id": 6,
       "title": "Autószerviz",
-      "description": "Fizess 260 Ft-ot.",
+      "description": "Pénzváltozás: -203 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -260
+          "amount": -203
         }
       ]
     },
     {
       "id": 7,
       "title": "Talált pénz",
-      "description": "A kabátzsebben volt 140 Ft.",
+      "description": "Pénzváltozás: +157 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 140
+          "amount": 157
         }
       ]
     },
     {
       "id": 8,
       "title": "Parkolási bírság",
-      "description": "Fizess 120 Ft-ot.",
+      "description": "Pénzváltozás: -94 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -120
+          "amount": -94
         }
       ]
     },
@@ -241,66 +241,66 @@
     {
       "id": 13,
       "title": "Családi segítség",
-      "description": "+220 Ft támogatás érkezik.",
+      "description": "Pénzváltozás: +246 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 220
+          "amount": 246
         }
       ]
     },
     {
       "id": 14,
       "title": "Előfizetés megújulás",
-      "description": "Vonjunk le 160 Ft-ot.",
+      "description": "Pénzváltozás: -125 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -160
+          "amount": -125
         }
       ]
     },
     {
       "id": 15,
       "title": "Piaci alku",
-      "description": "+190 Ft marad nálad az ügyes vásár miatt.",
+      "description": "Pénzváltozás: +213 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 190
+          "amount": 213
         }
       ]
     },
     {
       "id": 16,
       "title": "Karbantartás",
-      "description": "Fizess 210 Ft-ot.",
+      "description": "Pénzváltozás: -164 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -210
+          "amount": -164
         }
       ]
     },
     {
       "id": 17,
       "title": "Mellékes munka",
-      "description": "+300 Ft extra bevétel.",
+      "description": "Pénzváltozás: +336 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 300
+          "amount": 336
         }
       ]
     },
     {
       "id": 18,
       "title": "Költözési cipekedés",
-      "description": "+110 Ft hálapénz.",
+      "description": "Pénzváltozás: +123 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 110
+          "amount": 123
         }
       ]
     },
@@ -340,22 +340,22 @@
     {
       "id": 22,
       "title": "Váratlan javítás",
-      "description": "Fizess 300 Ft-ot.",
+      "description": "Pénzváltozás: -234 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -300
+          "amount": -234
         }
       ]
     },
     {
       "id": 23,
       "title": "Év végi jutalom",
-      "description": "+420 Ft jár.",
+      "description": "Pénzváltozás: +470 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 420
+          "amount": 470
         }
       ]
     },
@@ -383,72 +383,77 @@
         }
       ],
       "position": {
+        "id": 0,
         "left": 88.8,
-        "top": 80
+        "top": 80.0
       }
     },
     {
       "id": 1,
       "type": "penalty",
       "title": "Bírság",
-      "description": "Váratlan kiadás ért: -109 Ft.",
+      "description": "Fizetned kell: -78 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -109
+          "amount": -78
         }
       ],
       "position": {
+        "id": 1,
         "left": 79.6,
-        "top": 80
+        "top": 80.0
       }
     },
     {
       "id": 2,
       "type": "tax",
       "title": "Befizetés",
-      "description": "Fizetned kell: -128 Ft.",
+      "description": "Fizetned kell: -92 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -128
+          "amount": -92
         }
       ],
       "position": {
+        "id": 2,
         "left": 70.4,
-        "top": 80
+        "top": 80.0
       }
     },
     {
       "id": 3,
       "type": "bonus",
       "title": "Bónusz",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +171 Ft.",
+      "description": "Kapsz 219 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 171
+          "amount": 219
         }
       ],
       "position": {
+        "id": 3,
         "left": 61.2,
-        "top": 80
+        "top": 80.0
       }
     },
     {
       "id": 4,
       "type": "salary",
       "title": "Fizetésnap",
-      "description": "Pénz áll a házhoz: +188 Ft.",
+      "description": "Kapsz 241 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 188
+          "amount": 241
         }
       ],
       "position": {
-        "left": 52,
-        "top": 80
+        "id": 4,
+        "left": 52.0,
+        "top": 80.0
       }
     },
     {
@@ -463,40 +468,43 @@
         }
       ],
       "position": {
+        "id": 5,
         "left": 42.8,
-        "top": 80
+        "top": 80.0
       }
     },
     {
       "id": 6,
       "type": "tax",
       "title": "Rezsi",
-      "description": "Fizetned kell: -204 Ft.",
+      "description": "Fizetned kell: -147 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -204
+          "amount": -147
         }
       ],
       "position": {
+        "id": 6,
         "left": 33.6,
-        "top": 80
+        "top": 80.0
       }
     },
     {
       "id": 7,
       "type": "bonus",
       "title": "Jutalom",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +239 Ft.",
+      "description": "Kapsz 306 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 239
+          "amount": 306
         }
       ],
       "position": {
+        "id": 7,
         "left": 24.4,
-        "top": 80
+        "top": 80.0
       }
     },
     {
@@ -510,40 +518,43 @@
         }
       ],
       "position": {
+        "id": 8,
         "left": 15.2,
-        "top": 80
+        "top": 80.0
       }
     },
     {
       "id": 9,
       "type": "penalty",
       "title": "Váratlan kiadás",
-      "description": "Váratlan kiadás ért: -261 Ft.",
+      "description": "Fizetned kell: -188 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -261
+          "amount": -188
         }
       ],
       "position": {
-        "left": 6,
-        "top": 80
+        "id": 9,
+        "left": 6.0,
+        "top": 80.0
       }
     },
     {
       "id": 10,
       "type": "tax",
       "title": "Befizetés",
-      "description": "Fizetned kell: -280 Ft.",
+      "description": "Fizetned kell: -202 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -280
+          "amount": -202
         }
       ],
       "position": {
-        "left": 6,
-        "top": 72
+        "id": 10,
+        "left": 6.0,
+        "top": 72.0
       }
     },
     {
@@ -558,8 +569,9 @@
         }
       ],
       "position": {
-        "left": 6,
-        "top": 64
+        "id": 11,
+        "left": 6.0,
+        "top": 64.0
       }
     },
     {
@@ -574,24 +586,26 @@
         }
       ],
       "position": {
-        "left": 6,
-        "top": 56
+        "id": 12,
+        "left": 6.0,
+        "top": 56.0
       }
     },
     {
       "id": 13,
       "type": "penalty",
       "title": "Váratlan kiadás",
-      "description": "Váratlan kiadás ért: -337 Ft.",
+      "description": "Fizetned kell: -243 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -337
+          "amount": -243
         }
       ],
       "position": {
-        "left": 6,
-        "top": 48
+        "id": 13,
+        "left": 6.0,
+        "top": 48.0
       }
     },
     {
@@ -606,24 +620,26 @@
         }
       ],
       "position": {
-        "left": 6,
-        "top": 40
+        "id": 14,
+        "left": 6.0,
+        "top": 40.0
       }
     },
     {
       "id": 15,
       "type": "bonus",
       "title": "Bónusz",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +145 Ft.",
+      "description": "Kapsz 186 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 145
+          "amount": 186
         }
       ],
       "position": {
-        "left": 6,
-        "top": 32
+        "id": 15,
+        "left": 6.0,
+        "top": 32.0
       }
     },
     {
@@ -637,40 +653,43 @@
         }
       ],
       "position": {
-        "left": 6,
-        "top": 24
+        "id": 16,
+        "left": 6.0,
+        "top": 24.0
       }
     },
     {
       "id": 17,
       "type": "penalty",
       "title": "Javítás",
-      "description": "Váratlan kiadás ért: -153 Ft.",
+      "description": "Fizetned kell: -110 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -153
+          "amount": -110
         }
       ],
       "position": {
-        "left": 6,
-        "top": 16
+        "id": 17,
+        "left": 6.0,
+        "top": 16.0
       }
     },
     {
       "id": 18,
       "type": "tax",
       "title": "Rezsi",
-      "description": "Fizetned kell: -172 Ft.",
+      "description": "Fizetned kell: -124 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -172
+          "amount": -124
         }
       ],
       "position": {
-        "left": 6,
-        "top": 8
+        "id": 18,
+        "left": 6.0,
+        "top": 8.0
       }
     },
     {
@@ -685,72 +704,77 @@
         }
       ],
       "position": {
+        "id": 19,
         "left": 15.2,
-        "top": 8
+        "top": 8.0
       }
     },
     {
       "id": 20,
       "type": "salary",
       "title": "Sikeres hónap",
-      "description": "Pénz áll a házhoz: +230 Ft.",
+      "description": "Kapsz 294 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 230
+          "amount": 294
         }
       ],
       "position": {
+        "id": 20,
         "left": 24.4,
-        "top": 8
+        "top": 8.0
       }
     },
     {
       "id": 21,
       "type": "penalty",
       "title": "Váratlan kiadás",
-      "description": "Váratlan kiadás ért: -229 Ft.",
+      "description": "Fizetned kell: -165 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -229
+          "amount": -165
         }
       ],
       "position": {
+        "id": 21,
         "left": 33.6,
-        "top": 8
+        "top": 8.0
       }
     },
     {
       "id": 22,
       "type": "tax",
       "title": "Rezsi",
-      "description": "Fizetned kell: -248 Ft.",
+      "description": "Fizetned kell: -179 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -248
+          "amount": -179
         }
       ],
       "position": {
+        "id": 22,
         "left": 42.8,
-        "top": 8
+        "top": 8.0
       }
     },
     {
       "id": 23,
       "type": "bonus",
       "title": "Kedvezmény",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +281 Ft.",
+      "description": "Kapsz 360 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 281
+          "amount": 360
         }
       ],
       "position": {
-        "left": 52,
-        "top": 8
+        "id": 23,
+        "left": 52.0,
+        "top": 8.0
       }
     },
     {
@@ -764,24 +788,26 @@
         }
       ],
       "position": {
+        "id": 24,
         "left": 61.2,
-        "top": 8
+        "top": 8.0
       }
     },
     {
       "id": 25,
       "type": "penalty",
       "title": "Karbantartás",
-      "description": "Váratlan kiadás ért: -305 Ft.",
+      "description": "Fizetned kell: -220 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -305
+          "amount": -220
         }
       ],
       "position": {
+        "id": 25,
         "left": 70.4,
-        "top": 8
+        "top": 8.0
       }
     },
     {
@@ -796,40 +822,43 @@
         }
       ],
       "position": {
+        "id": 26,
         "left": 79.6,
-        "top": 8
+        "top": 8.0
       }
     },
     {
       "id": 27,
       "type": "bonus",
       "title": "Jutalom",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +349 Ft.",
+      "description": "Kapsz 447 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 349
+          "amount": 447
         }
       ],
       "position": {
+        "id": 27,
         "left": 88.8,
-        "top": 8
+        "top": 8.0
       }
     },
     {
       "id": 28,
       "type": "salary",
       "title": "Mellékes",
-      "description": "Pénz áll a házhoz: +136 Ft.",
+      "description": "Kapsz 174 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 136
+          "amount": 174
         }
       ],
       "position": {
+        "id": 28,
         "left": 88.8,
-        "top": 16
+        "top": 16.0
       }
     },
     {
@@ -844,24 +873,26 @@
         }
       ],
       "position": {
+        "id": 29,
         "left": 79.6,
-        "top": 16
+        "top": 16.0
       }
     },
     {
       "id": 30,
       "type": "tax",
       "title": "Befizetés",
-      "description": "Fizetned kell: -140 Ft.",
+      "description": "Fizetned kell: -101 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -140
+          "amount": -101
         }
       ],
       "position": {
+        "id": 30,
         "left": 70.4,
-        "top": 16
+        "top": 16.0
       }
     },
     {
@@ -875,24 +906,26 @@
         }
       ],
       "position": {
+        "id": 31,
         "left": 61.2,
-        "top": 16
+        "top": 16.0
       }
     },
     {
       "id": 32,
       "type": "salary",
       "title": "Sikeres hónap",
-      "description": "Pénz áll a házhoz: +204 Ft.",
+      "description": "Kapsz 261 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 204
+          "amount": 261
         }
       ],
       "position": {
-        "left": 52,
-        "top": 16
+        "id": 32,
+        "left": 52.0,
+        "top": 16.0
       }
     },
     {
@@ -907,40 +940,43 @@
         }
       ],
       "position": {
+        "id": 33,
         "left": 42.8,
-        "top": 16
+        "top": 16.0
       }
     },
     {
       "id": 34,
       "type": "tax",
       "title": "Befizetés",
-      "description": "Fizetned kell: -216 Ft.",
+      "description": "Fizetned kell: -156 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -216
+          "amount": -156
         }
       ],
       "position": {
+        "id": 34,
         "left": 33.6,
-        "top": 16
+        "top": 16.0
       }
     },
     {
       "id": 35,
       "type": "bonus",
       "title": "Jutalom",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +255 Ft.",
+      "description": "Kapsz 326 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 255
+          "amount": 326
         }
       ],
       "position": {
+        "id": 35,
         "left": 24.4,
-        "top": 16
+        "top": 16.0
       }
     },
     {
@@ -955,40 +991,43 @@
         }
       ],
       "position": {
+        "id": 36,
         "left": 15.2,
-        "top": 16
+        "top": 16.0
       }
     },
     {
       "id": 37,
       "type": "penalty",
       "title": "Bírság",
-      "description": "Váratlan kiadás ért: -273 Ft.",
+      "description": "Fizetned kell: -197 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -273
+          "amount": -197
         }
       ],
       "position": {
+        "id": 37,
         "left": 15.2,
-        "top": 24
+        "top": 24.0
       }
     },
     {
       "id": 38,
       "type": "tax",
       "title": "Befizetés",
-      "description": "Fizetned kell: -292 Ft.",
+      "description": "Fizetned kell: -210 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -292
+          "amount": -210
         }
       ],
       "position": {
+        "id": 38,
         "left": 24.4,
-        "top": 24
+        "top": 24.0
       }
     },
     {
@@ -1002,8 +1041,9 @@
         }
       ],
       "position": {
+        "id": 39,
         "left": 33.6,
-        "top": 24
+        "top": 24.0
       }
     },
     {
@@ -1018,88 +1058,94 @@
         }
       ],
       "position": {
+        "id": 40,
         "left": 42.8,
-        "top": 24
+        "top": 24.0
       }
     },
     {
       "id": 41,
       "type": "penalty",
       "title": "Javítás",
-      "description": "Váratlan kiadás ért: -349 Ft.",
+      "description": "Fizetned kell: -251 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -349
+          "amount": -251
         }
       ],
       "position": {
-        "left": 52,
-        "top": 24
+        "id": 41,
+        "left": 52.0,
+        "top": 24.0
       }
     },
     {
       "id": 42,
       "type": "tax",
       "title": "Számlák",
-      "description": "Fizetned kell: -108 Ft.",
+      "description": "Fizetned kell: -78 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -108
+          "amount": -78
         }
       ],
       "position": {
+        "id": 42,
         "left": 61.2,
-        "top": 24
+        "top": 24.0
       }
     },
     {
       "id": 43,
       "type": "bonus",
       "title": "Jutalom",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +161 Ft.",
+      "description": "Kapsz 206 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 161
+          "amount": 206
         }
       ],
       "position": {
+        "id": 43,
         "left": 70.4,
-        "top": 24
+        "top": 24.0
       }
     },
     {
       "id": 44,
       "type": "salary",
       "title": "Fizetésnap",
-      "description": "Pénz áll a házhoz: +178 Ft.",
+      "description": "Kapsz 228 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 178
+          "amount": 228
         }
       ],
       "position": {
+        "id": 44,
         "left": 79.6,
-        "top": 24
+        "top": 24.0
       }
     },
     {
       "id": 45,
       "type": "penalty",
       "title": "Váratlan kiadás",
-      "description": "Váratlan kiadás ért: -165 Ft.",
+      "description": "Fizetned kell: -119 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -165
+          "amount": -119
         }
       ],
       "position": {
+        "id": 45,
         "left": 88.8,
-        "top": 24
+        "top": 24.0
       }
     },
     {
@@ -1113,8 +1159,9 @@
         }
       ],
       "position": {
+        "id": 46,
         "left": 88.8,
-        "top": 32
+        "top": 32.0
       }
     },
     {
@@ -1129,72 +1176,77 @@
         }
       ],
       "position": {
+        "id": 47,
         "left": 79.6,
-        "top": 32
+        "top": 32.0
       }
     },
     {
       "id": 48,
       "type": "salary",
       "title": "Sikeres hónap",
-      "description": "Pénz áll a házhoz: +246 Ft.",
+      "description": "Kapsz 315 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 246
+          "amount": 315
         }
       ],
       "position": {
+        "id": 48,
         "left": 70.4,
-        "top": 32
+        "top": 32.0
       }
     },
     {
       "id": 49,
       "type": "penalty",
       "title": "Karbantartás",
-      "description": "Váratlan kiadás ért: -241 Ft.",
+      "description": "Fizetned kell: -174 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -241
+          "amount": -174
         }
       ],
       "position": {
+        "id": 49,
         "left": 61.2,
-        "top": 32
+        "top": 32.0
       }
     },
     {
       "id": 50,
       "type": "tax",
       "title": "Számlák",
-      "description": "Fizetned kell: -260 Ft.",
+      "description": "Fizetned kell: -187 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -260
+          "amount": -187
         }
       ],
       "position": {
-        "left": 52,
-        "top": 32
+        "id": 50,
+        "left": 52.0,
+        "top": 32.0
       }
     },
     {
       "id": 51,
       "type": "bonus",
       "title": "Bónusz",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +297 Ft.",
+      "description": "Kapsz 380 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 297
+          "amount": 380
         }
       ],
       "position": {
+        "id": 51,
         "left": 42.8,
-        "top": 32
+        "top": 32.0
       }
     },
     {
@@ -1209,8 +1261,9 @@
         }
       ],
       "position": {
+        "id": 52,
         "left": 33.6,
-        "top": 32
+        "top": 32.0
       }
     },
     {
@@ -1224,8 +1277,9 @@
         }
       ],
       "position": {
+        "id": 53,
         "left": 24.4,
-        "top": 32
+        "top": 32.0
       }
     },
     {
@@ -1240,56 +1294,60 @@
         }
       ],
       "position": {
+        "id": 54,
         "left": 15.2,
-        "top": 32
+        "top": 32.0
       }
     },
     {
       "id": 55,
       "type": "bonus",
       "title": "Nyugdíjprémium",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +135 Ft.",
+      "description": "Kapsz 173 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 135
+          "amount": 173
         }
       ],
       "position": {
+        "id": 55,
         "left": 15.2,
-        "top": 40
+        "top": 40.0
       }
     },
     {
       "id": 56,
       "type": "salary",
       "title": "Mellékes",
-      "description": "Pénz áll a házhoz: +152 Ft.",
+      "description": "Kapsz 195 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 152
+          "amount": 195
         }
       ],
       "position": {
+        "id": 56,
         "left": 24.4,
-        "top": 40
+        "top": 40.0
       }
     },
     {
       "id": 57,
       "type": "penalty",
       "title": "Javítás",
-      "description": "Váratlan kiadás ért: -133 Ft.",
+      "description": "Fizetned kell: -96 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -133
+          "amount": -96
         }
       ],
       "position": {
+        "id": 57,
         "left": 33.6,
-        "top": 40
+        "top": 40.0
       }
     },
     {
@@ -1304,24 +1362,26 @@
         }
       ],
       "position": {
+        "id": 58,
         "left": 42.8,
-        "top": 40
+        "top": 40.0
       }
     },
     {
       "id": 59,
       "type": "bonus",
       "title": "Kedvezmény",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +203 Ft.",
+      "description": "Kapsz 260 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 203
+          "amount": 260
         }
       ],
       "position": {
-        "left": 52,
-        "top": 40
+        "id": 59,
+        "left": 52.0,
+        "top": 40.0
       }
     },
     {
@@ -1335,8 +1395,9 @@
         }
       ],
       "position": {
+        "id": 60,
         "left": 61.2,
-        "top": 40
+        "top": 40.0
       }
     },
     {
@@ -1351,88 +1412,94 @@
         }
       ],
       "position": {
+        "id": 61,
         "left": 70.4,
-        "top": 40
+        "top": 40.0
       }
     },
     {
       "id": 62,
       "type": "tax",
       "title": "Számlák",
-      "description": "Fizetned kell: -228 Ft.",
+      "description": "Fizetned kell: -164 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -228
+          "amount": -164
         }
       ],
       "position": {
+        "id": 62,
         "left": 79.6,
-        "top": 40
+        "top": 40.0
       }
     },
     {
       "id": 63,
       "type": "bonus",
       "title": "Bónusz",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +271 Ft.",
+      "description": "Kapsz 347 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 271
+          "amount": 347
         }
       ],
       "position": {
+        "id": 63,
         "left": 88.8,
-        "top": 40
+        "top": 40.0
       }
     },
     {
       "id": 64,
       "type": "salary",
       "title": "Pluszbevétel",
-      "description": "Pénz áll a házhoz: +288 Ft.",
+      "description": "Kapsz 369 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 288
+          "amount": 369
         }
       ],
       "position": {
+        "id": 64,
         "left": 88.8,
-        "top": 48
+        "top": 48.0
       }
     },
     {
       "id": 65,
       "type": "penalty",
       "title": "Karbantartás",
-      "description": "Váratlan kiadás ért: -285 Ft.",
+      "description": "Fizetned kell: -205 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -285
+          "amount": -205
         }
       ],
       "position": {
+        "id": 65,
         "left": 79.6,
-        "top": 48
+        "top": 48.0
       }
     },
     {
       "id": 66,
       "type": "tax",
       "title": "Számlák",
-      "description": "Fizetned kell: -304 Ft.",
+      "description": "Fizetned kell: -219 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -304
+          "amount": -219
         }
       ],
       "position": {
+        "id": 66,
         "left": 70.4,
-        "top": 48
+        "top": 48.0
       }
     },
     {
@@ -1446,8 +1513,9 @@
         }
       ],
       "position": {
+        "id": 67,
         "left": 61.2,
-        "top": 48
+        "top": 48.0
       }
     },
     {
@@ -1462,88 +1530,94 @@
         }
       ],
       "position": {
-        "left": 52,
-        "top": 48
+        "id": 68,
+        "left": 52.0,
+        "top": 48.0
       }
     },
     {
       "id": 69,
       "type": "penalty",
       "title": "Váratlan kiadás",
-      "description": "Váratlan kiadás ért: -101 Ft.",
+      "description": "Fizetned kell: -73 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -101
+          "amount": -73
         }
       ],
       "position": {
+        "id": 69,
         "left": 42.8,
-        "top": 48
+        "top": 48.0
       }
     },
     {
       "id": 70,
       "type": "tax",
       "title": "Kiadás",
-      "description": "Fizetned kell: -120 Ft.",
+      "description": "Fizetned kell: -86 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -120
+          "amount": -86
         }
       ],
       "position": {
+        "id": 70,
         "left": 33.6,
-        "top": 48
+        "top": 48.0
       }
     },
     {
       "id": 71,
       "type": "bonus",
       "title": "Kedvezmény",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +177 Ft.",
+      "description": "Kapsz 227 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 177
+          "amount": 227
         }
       ],
       "position": {
+        "id": 71,
         "left": 24.4,
-        "top": 48
+        "top": 48.0
       }
     },
     {
       "id": 72,
       "type": "salary",
       "title": "Pluszbevétel",
-      "description": "Pénz áll a házhoz: +194 Ft.",
+      "description": "Kapsz 248 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 194
+          "amount": 248
         }
       ],
       "position": {
+        "id": 72,
         "left": 15.2,
-        "top": 48
+        "top": 48.0
       }
     },
     {
       "id": 73,
       "type": "penalty",
       "title": "Javítás",
-      "description": "Váratlan kiadás ért: -177 Ft.",
+      "description": "Fizetned kell: -127 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -177
+          "amount": -127
         }
       ],
       "position": {
+        "id": 73,
         "left": 15.2,
-        "top": 56
+        "top": 56.0
       }
     },
     {
@@ -1557,8 +1631,9 @@
         }
       ],
       "position": {
+        "id": 74,
         "left": 24.4,
-        "top": 56
+        "top": 56.0
       }
     },
     {
@@ -1573,24 +1648,26 @@
         }
       ],
       "position": {
+        "id": 75,
         "left": 33.6,
-        "top": 56
+        "top": 56.0
       }
     },
     {
       "id": 76,
       "type": "salary",
       "title": "Sikeres hónap",
-      "description": "Pénz áll a házhoz: +262 Ft.",
+      "description": "Kapsz 335 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 262
+          "amount": 335
         }
       ],
       "position": {
+        "id": 76,
         "left": 42.8,
-        "top": 56
+        "top": 56.0
       }
     },
     {
@@ -1605,56 +1682,60 @@
         }
       ],
       "position": {
-        "left": 52,
-        "top": 56
+        "id": 77,
+        "left": 52.0,
+        "top": 56.0
       }
     },
     {
       "id": 78,
       "type": "tax",
       "title": "Rezsi",
-      "description": "Fizetned kell: -272 Ft.",
+      "description": "Fizetned kell: -196 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -272
+          "amount": -196
         }
       ],
       "position": {
+        "id": 78,
         "left": 61.2,
-        "top": 56
+        "top": 56.0
       }
     },
     {
       "id": 79,
       "type": "bonus",
       "title": "Nyugdíjprémium",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +313 Ft.",
+      "description": "Kapsz 401 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 313
+          "amount": 401
         }
       ],
       "position": {
+        "id": 79,
         "left": 70.4,
-        "top": 56
+        "top": 56.0
       }
     },
     {
       "id": 80,
       "type": "salary",
       "title": "Pluszbevétel",
-      "description": "Pénz áll a házhoz: +330 Ft.",
+      "description": "Kapsz 422 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 330
+          "amount": 422
         }
       ],
       "position": {
+        "id": 80,
         "left": 79.6,
-        "top": 56
+        "top": 56.0
       }
     },
     {
@@ -1668,8 +1749,9 @@
         }
       ],
       "position": {
+        "id": 81,
         "left": 88.8,
-        "top": 56
+        "top": 56.0
       }
     },
     {
@@ -1684,24 +1766,26 @@
         }
       ],
       "position": {
+        "id": 82,
         "left": 88.8,
-        "top": 64
+        "top": 64.0
       }
     },
     {
       "id": 83,
       "type": "bonus",
       "title": "Bónusz",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +151 Ft.",
+      "description": "Kapsz 193 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 151
+          "amount": 193
         }
       ],
       "position": {
+        "id": 83,
         "left": 79.6,
-        "top": 64
+        "top": 64.0
       }
     },
     {
@@ -1716,56 +1800,60 @@
         }
       ],
       "position": {
+        "id": 84,
         "left": 70.4,
-        "top": 64
+        "top": 64.0
       }
     },
     {
       "id": 85,
       "type": "penalty",
       "title": "Karbantartás",
-      "description": "Váratlan kiadás ért: -145 Ft.",
+      "description": "Fizetned kell: -104 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -145
+          "amount": -104
         }
       ],
       "position": {
+        "id": 85,
         "left": 61.2,
-        "top": 64
+        "top": 64.0
       }
     },
     {
       "id": 86,
       "type": "tax",
       "title": "Rezsi",
-      "description": "Fizetned kell: -164 Ft.",
+      "description": "Fizetned kell: -118 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -164
+          "amount": -118
         }
       ],
       "position": {
-        "left": 52,
-        "top": 64
+        "id": 86,
+        "left": 52.0,
+        "top": 64.0
       }
     },
     {
       "id": 87,
       "type": "bonus",
       "title": "Jutalom",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +219 Ft.",
+      "description": "Kapsz 280 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 219
+          "amount": 280
         }
       ],
       "position": {
+        "id": 87,
         "left": 42.8,
-        "top": 64
+        "top": 64.0
       }
     },
     {
@@ -1779,56 +1867,60 @@
         }
       ],
       "position": {
+        "id": 88,
         "left": 33.6,
-        "top": 64
+        "top": 64.0
       }
     },
     {
       "id": 89,
       "type": "penalty",
       "title": "Karbantartás",
-      "description": "Váratlan kiadás ért: -221 Ft.",
+      "description": "Fizetned kell: -159 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -221
+          "amount": -159
         }
       ],
       "position": {
+        "id": 89,
         "left": 24.4,
-        "top": 64
+        "top": 64.0
       }
     },
     {
       "id": 90,
       "type": "tax",
       "title": "Rezsi",
-      "description": "Fizetned kell: -240 Ft.",
+      "description": "Fizetned kell: -173 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -240
+          "amount": -173
         }
       ],
       "position": {
+        "id": 90,
         "left": 15.2,
-        "top": 64
+        "top": 64.0
       }
     },
     {
       "id": 91,
       "type": "bonus",
       "title": "Jutalom",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +287 Ft.",
+      "description": "Kapsz 367 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 287
+          "amount": 367
         }
       ],
       "position": {
+        "id": 91,
         "left": 15.2,
-        "top": 72
+        "top": 72.0
       }
     },
     {
@@ -1843,40 +1935,43 @@
         }
       ],
       "position": {
+        "id": 92,
         "left": 24.4,
-        "top": 72
+        "top": 72.0
       }
     },
     {
       "id": 93,
       "type": "penalty",
       "title": "Karbantartás",
-      "description": "Váratlan kiadás ért: -297 Ft.",
+      "description": "Fizetned kell: -214 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -297
+          "amount": -214
         }
       ],
       "position": {
+        "id": 93,
         "left": 33.6,
-        "top": 72
+        "top": 72.0
       }
     },
     {
       "id": 94,
       "type": "tax",
       "title": "Számlák",
-      "description": "Fizetned kell: -316 Ft.",
+      "description": "Fizetned kell: -228 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -316
+          "amount": -228
         }
       ],
       "position": {
+        "id": 94,
         "left": 42.8,
-        "top": 72
+        "top": 72.0
       }
     },
     {
@@ -1890,72 +1985,77 @@
         }
       ],
       "position": {
-        "left": 52,
-        "top": 72
+        "id": 95,
+        "left": 52.0,
+        "top": 72.0
       }
     },
     {
       "id": 96,
       "type": "salary",
       "title": "Pluszbevétel",
-      "description": "Pénz áll a házhoz: +142 Ft.",
+      "description": "Kapsz 182 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 142
+          "amount": 182
         }
       ],
       "position": {
+        "id": 96,
         "left": 61.2,
-        "top": 72
+        "top": 72.0
       }
     },
     {
       "id": 97,
       "type": "penalty",
       "title": "Váratlan kiadás",
-      "description": "Váratlan kiadás ért: -113 Ft.",
+      "description": "Fizetned kell: -81 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -113
+          "amount": -81
         }
       ],
       "position": {
+        "id": 97,
         "left": 70.4,
-        "top": 72
+        "top": 72.0
       }
     },
     {
       "id": 98,
       "type": "tax",
       "title": "Kiadás",
-      "description": "Fizetned kell: -132 Ft.",
+      "description": "Fizetned kell: -95 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": -132
+          "amount": -95
         }
       ],
       "position": {
+        "id": 98,
         "left": 79.6,
-        "top": 72
+        "top": 72.0
       }
     },
     {
       "id": 99,
       "type": "bonus",
       "title": "Nyugdíjprémium",
-      "description": "Jól jött egy kedvezmény vagy jutalom: +193 Ft.",
+      "description": "Kapsz 247 Ft.",
       "effects": [
         {
           "kind": "money",
-          "amount": 193
+          "amount": 247
         }
       ],
       "position": {
+        "id": 99,
         "left": 88.8,
-        "top": 72
+        "top": 72.0
       }
     }
   ]
