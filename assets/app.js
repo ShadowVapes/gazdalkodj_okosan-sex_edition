@@ -329,6 +329,11 @@
     }
   }
 
+  function isDuplicateConflict(error) {
+    const fullMessage = errorText(error);
+    return fullMessage.includes("duplicate") || fullMessage.includes("unique") || fullMessage.includes("already exists");
+  }
+
   async function upsertRoomPlayer(roomCode, username, roomRecord = state.room) {
     const roomId = roomRecord?.id || null;
     const nowIso = new Date().toISOString();
@@ -366,53 +371,55 @@
       }
     }
 
-    const conflictVariants = [
-      "room_code,player_id",
-      "room_id,player_id",
-      "room_code,client_id",
-      "room_id,client_id"
-    ];
-
     let lastError = null;
+    let existingRow = await findExistingRoomPlayerRow(roomRecord, state.myPlayerId, roomCode);
 
-    for (const payload of payloadVariants) {
-      for (const onConflict of conflictVariants) {
-        const needed = onConflict.split(",");
-        if (!needed.every((key) => payload[key] != null)) continue;
+    const buildUpdatePayload = (payload) => {
+      const updatePayload = { ...payload };
+      delete updatePayload.room_code;
+      delete updatePayload.room_id;
+      delete updatePayload.player_id;
+      delete updatePayload.client_id;
+      delete updatePayload.joined_at;
+      return updatePayload;
+    };
 
-        const { error } = await state.supabase
+    if (existingRow?.id) {
+      for (const payload of payloadVariants) {
+        const result = await state.supabase
           .from("room_players")
-          .upsert(payload, { onConflict });
+          .update(buildUpdatePayload(payload))
+          .eq("id", existingRow.id);
 
-        if (!error) return;
-        lastError = error;
-        if (isRoomPlayersSchemaProblem(error)) continue;
-        throw error;
+        if (!result.error) return;
+        lastError = result.error;
+        if (isRoomPlayersSchemaProblem(result.error)) continue;
+        throw result.error;
       }
     }
 
-    const existingRow = await findExistingRoomPlayerRow(roomRecord, state.myPlayerId, roomCode);
-
     for (const payload of payloadVariants) {
-      let result;
-      if (existingRow?.id) {
-        const updatePayload = { ...payload };
-        delete updatePayload.room_code;
-        delete updatePayload.room_id;
-        delete updatePayload.player_id;
-        delete updatePayload.client_id;
-        result = await state.supabase
-          .from("room_players")
-          .update(updatePayload)
-          .eq("id", existingRow.id);
-      } else {
-        result = await state.supabase
-          .from("room_players")
-          .insert(payload);
-      }
+      const result = await state.supabase
+        .from("room_players")
+        .insert(payload);
 
       if (!result.error) return;
       lastError = result.error;
+
+      if (isDuplicateConflict(result.error)) {
+        existingRow = await findExistingRoomPlayerRow(roomRecord, state.myPlayerId, roomCode);
+        if (existingRow?.id) {
+          const updateResult = await state.supabase
+            .from("room_players")
+            .update(buildUpdatePayload(payload))
+            .eq("id", existingRow.id);
+          if (!updateResult.error) return;
+          lastError = updateResult.error;
+          if (isRoomPlayersSchemaProblem(updateResult.error)) continue;
+          throw updateResult.error;
+        }
+      }
+
       if (isRoomPlayersSchemaProblem(result.error)) continue;
       throw result.error;
     }
