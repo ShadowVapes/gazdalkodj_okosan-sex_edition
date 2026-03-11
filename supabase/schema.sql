@@ -15,6 +15,26 @@ create table if not exists public.rooms (
 alter table public.rooms
   add column if not exists host_player_id text;
 
+alter table public.rooms
+  add column if not exists host_client_id text;
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'rooms' and column_name = 'host_player_id' and is_nullable = 'NO'
+  ) then
+    alter table public.rooms alter column host_player_id drop not null;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'rooms' and column_name = 'host_client_id' and is_nullable = 'NO'
+  ) then
+    alter table public.rooms alter column host_client_id drop not null;
+  end if;
+end $$;
+
 create table if not exists public.room_players (
   id uuid primary key default gen_random_uuid(),
   room_code text not null references public.rooms(code) on delete cascade,

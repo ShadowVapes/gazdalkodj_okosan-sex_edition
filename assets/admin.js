@@ -7,7 +7,8 @@
     selectedItemId: null,
     selectedCardId: null,
     selectedFieldId: null,
-    dragFieldId: null
+    dragFieldId: null,
+    showAdvancedJson: false
   };
 
   const fieldTypeOptions = [
@@ -221,7 +222,12 @@
         renderBoardTab();
         break;
       case "json":
-        renderJsonTab();
+        if (state.showAdvancedJson) {
+          renderJsonTab();
+        } else {
+          state.tab = "settings";
+          renderSettingsTab();
+        }
         break;
       default:
         renderSettingsTab();
@@ -280,7 +286,10 @@
               <h2 class="section-title">Projekt adatok</h2>
               <p class="muted small">A játék alapadatai és megnevezései.</p>
             </div>
-            <button id="addMetaBtn" class="ghost-btn">Új meta mező</button>
+            <div class="inline-actions">
+              <button id="addMetaBtn" class="ghost-btn">Egyéni meta mező</button>
+              <button id="toggleAdvancedJsonBtn" class="ghost-btn">${state.showAdvancedJson ? "Haladó JSON elrejtése" : "Haladó JSON megnyitása"}</button>
+            </div>
           </div>
           <div class="settings-grid">
             ${Object.keys(meta).map((key) => renderConfigInput("meta", key, meta[key], metaLabels[key])).join("")}
@@ -312,6 +321,13 @@
 
     document.getElementById("addMetaBtn").onclick = () => addConfigKey("meta");
     document.getElementById("addSettingBtn").onclick = () => addConfigKey("settings");
+    document.getElementById("toggleAdvancedJsonBtn").onclick = () => {
+      state.showAdvancedJson = !state.showAdvancedJson;
+      if (state.showAdvancedJson) {
+        state.tab = "json";
+      }
+      render();
+    };
   }
 
   function renderItemsTab() {
@@ -423,7 +439,11 @@
               <h2 class="section-title">Szerencsekártyák</h2>
               <p class="muted small">Szöveg, leírás és hatások mind űrlapból szerkeszthetők.</p>
             </div>
-            <button id="addCardBtn" class="primary-btn">Új kártya</button>
+            <div class="inline-actions">
+              <button id="addMoneyCardBtn" class="ghost-btn">+ Pénzes kártya</button>
+              <button id="addMoveCardBtn" class="ghost-btn">+ Mozgás kártya</button>
+              <button id="addCardBtn" class="primary-btn">Új kártya</button>
+            </div>
           </div>
           <div class="entity-list">
             ${state.data.cards.map((entry) => `
@@ -479,17 +499,9 @@
       };
     });
 
-    document.getElementById("addCardBtn").onclick = () => {
-      const newCard = {
-        id: nextId(state.data.cards),
-        title: "Új kártya",
-        description: "Új kártya leírása.",
-        effects: [defaultEffectForKind("money")]
-      };
-      state.data.cards.push(newCard);
-      state.selectedCardId = newCard.id;
-      render();
-    };
+    document.getElementById("addCardBtn").onclick = () => createCardPreset("money");
+    document.getElementById("addMoneyCardBtn").onclick = () => createCardPreset("money");
+    document.getElementById("addMoveCardBtn").onclick = () => createCardPreset("move");
 
     if (card) {
       document.getElementById("cardIdInput").oninput = (event) => card.id = Number(event.target.value || 0);
@@ -511,7 +523,12 @@
               <h2 class="section-title">Mezők</h2>
               <p class="muted small">Itt a mező neve, típusa, leírása és minden hatása szerkeszthető.</p>
             </div>
-            <button id="addFieldBtn" class="primary-btn">Új mező</button>
+            <div class="inline-actions">
+              <button id="addBonusFieldBtn" class="ghost-btn">+ Pénzmező</button>
+              <button id="addShopFieldBtn" class="ghost-btn">+ Bolt</button>
+              <button id="addChanceFieldBtn" class="ghost-btn">+ Kártyamező</button>
+              <button id="addFieldBtn" class="primary-btn">Új mező</button>
+            </div>
           </div>
           <div class="entity-list field-list">
             ${[...state.data.fields].sort((a, b) => Number(a.id) - Number(b.id)).map((entry) => `
@@ -589,19 +606,10 @@
       };
     });
 
-    document.getElementById("addFieldBtn").onclick = () => {
-      const newField = {
-        id: nextId(state.data.fields),
-        type: "bonus",
-        title: "Új mező",
-        description: "Új mező leírása.",
-        effects: [defaultEffectForKind("money")],
-        position: findNewFieldPosition()
-      };
-      state.data.fields.push(newField);
-      state.selectedFieldId = newField.id;
-      render();
-    };
+    document.getElementById("addFieldBtn").onclick = () => createFieldPreset("bonus");
+    document.getElementById("addBonusFieldBtn").onclick = () => createFieldPreset("bonus");
+    document.getElementById("addShopFieldBtn").onclick = () => createFieldPreset("shop");
+    document.getElementById("addChanceFieldBtn").onclick = () => createFieldPreset("chance");
 
     if (field) {
       document.getElementById("fieldIdInput").oninput = (event) => field.id = Number(event.target.value || 0);
@@ -924,6 +932,66 @@
       default:
         return { kind: kind || "start" };
     }
+  }
+
+  function createCardPreset(kind) {
+    const presets = {
+      money: {
+        title: "Pénzes kártya",
+        description: "Adj vagy vonj le pénzt a játékostól.",
+        effects: [defaultEffectForKind("money")]
+      },
+      move: {
+        title: "Mozgás kártya",
+        description: "Mozgasd a játékost előre vagy hátra.",
+        effects: [defaultEffectForKind("move")]
+      }
+    };
+    const preset = presets[kind] || presets.money;
+    const newCard = {
+      id: nextId(state.data.cards),
+      title: preset.title,
+      description: preset.description,
+      effects: preset.effects.map((effect) => structuredClone(effect))
+    };
+    state.data.cards.push(newCard);
+    state.selectedCardId = newCard.id;
+    render();
+  }
+
+  function createFieldPreset(kind) {
+    const presets = {
+      bonus: {
+        type: "bonus",
+        title: "Pénzmező",
+        description: "A játékos pénzt kap vagy fizet.",
+        effects: [defaultEffectForKind("money")]
+      },
+      shop: {
+        type: "shop",
+        title: "Boltmező",
+        description: "A játékos itt megvehet egy tárgyat.",
+        effects: [defaultEffectForKind("shop")]
+      },
+      chance: {
+        type: "chance",
+        title: "Szerencsekártya mező",
+        description: "A játékos innen kártyát húzhat.",
+        effects: [defaultEffectForKind("draw_card")]
+      }
+    };
+    const preset = presets[kind] || presets.bonus;
+    const newField = {
+      id: nextId(state.data.fields),
+      type: preset.type,
+      title: preset.title,
+      description: preset.description,
+      effects: preset.effects.map((effect) => structuredClone(effect)),
+      position: findNewFieldPosition()
+    };
+    state.data.fields.push(newField);
+    state.selectedFieldId = newField.id;
+    render();
   }
 
   function addConfigKey(group) {

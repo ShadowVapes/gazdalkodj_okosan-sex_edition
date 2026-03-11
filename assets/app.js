@@ -108,10 +108,24 @@
   function getOrCreateLocalId() {
     const key = "go_local_player_id";
     const existing = localStorage.getItem(key);
-    if (existing) return existing;
-    const created = "p_" + Math.random().toString(36).slice(2, 11);
+    if (isUuidLike(existing)) return existing;
+
+    const created = createClientId();
     localStorage.setItem(key, created);
     return created;
+  }
+
+  function createClientId() {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+      const random = Math.floor(Math.random() * 16);
+      const value = char === "x" ? random : ((random & 0x3) | 0x8);
+      return value.toString(16);
+    });
+  }
+
+  function isUuidLike(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
   }
 
   function getUsername() {
@@ -154,37 +168,43 @@
       state: baseState
     };
 
-    const firstAttempt = await state.supabase
-      .from("rooms")
-      .insert({ ...basePayload, host_player_id: state.myPlayerId })
-      .select()
-      .single();
+    const attempts = [
+      { ...basePayload, host_player_id: state.myPlayerId, host_client_id: state.myPlayerId },
+      { ...basePayload, host_client_id: state.myPlayerId },
+      { ...basePayload, host_player_id: state.myPlayerId },
+      basePayload
+    ];
 
-    if (!firstAttempt.error) return firstAttempt;
+    let lastError = null;
 
-    const firstMessage = String(firstAttempt.error.message || "").toLowerCase();
-    const missingHostColumn = firstMessage.includes("host_player_id") && (firstMessage.includes("schema cache") || firstMessage.includes("could not find"));
+    for (const payload of attempts) {
+      const result = await state.supabase
+        .from("rooms")
+        .insert(payload)
+        .select()
+        .single();
 
-    if (!missingHostColumn) {
-      return firstAttempt;
+      if (!result.error) return result;
+
+      lastError = result.error;
+      const message = String(result.error.message || "").toLowerCase();
+      const details = String(result.error.details || "").toLowerCase();
+      const fullMessage = `${message} ${details}`;
+
+      const missingColumn =
+        (fullMessage.includes("host_player_id") || fullMessage.includes("host_client_id")) &&
+        (fullMessage.includes("schema cache") || fullMessage.includes("could not find") || fullMessage.includes("column"));
+
+      const requiredColumn =
+        (fullMessage.includes("host_player_id") || fullMessage.includes("host_client_id")) &&
+        (fullMessage.includes("null value") || fullMessage.includes("not-null") || fullMessage.includes("violates not-null constraint"));
+
+      if (missingColumn || requiredColumn) continue;
+
+      return result;
     }
 
-    const secondAttempt = await state.supabase
-      .from("rooms")
-      .insert(basePayload)
-      .select()
-      .single();
-
-    if (!secondAttempt.error) return secondAttempt;
-
-    const secondMessage = String(secondAttempt.error.message || "").toLowerCase();
-    const hostColumnRequired = secondMessage.includes("host_player_id") && (secondMessage.includes("null value") || secondMessage.includes("not-null") || secondMessage.includes("violates not-null constraint"));
-
-    if (hostColumnRequired) {
-      throw new Error("A Supabase rooms táblád régi állapotban van. Futtasd le újra a friss supabase/schema.sql fájlt, majd frissíts rá az oldalra.");
-    }
-
-    return secondAttempt;
+    throw new Error(lastError?.message || "Nem sikerült létrehozni a szobát. Ellenőrizd a Supabase schema.sql frissítését.");
   }
 
   async function createRoom() {
@@ -409,7 +429,7 @@
   }
 
   function getHostPlayerId() {
-    return state.room?.state?.hostPlayerId || state.room?.host_player_id || state.playerRows?.[0]?.player_id || null;
+    return state.room?.state?.hostPlayerId || state.room?.host_player_id || state.room?.host_client_id || state.playerRows?.[0]?.player_id || null;
   }
 
   function isHost() {
