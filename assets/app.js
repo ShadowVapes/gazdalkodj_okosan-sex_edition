@@ -47,6 +47,7 @@
     refs.roomCodeInput.value = new URLSearchParams(location.search).get("room") || "";
     try {
       state.gameData = await loadGameData();
+      applySpiralBoardLayout();
       buildBoard();
     } catch (error) {
       showBanner(`Nem sikerült betölteni a játékadatokat: ${error.message}`, "warning");
@@ -601,13 +602,52 @@
   }
 
 
+  function createSpiralGridPath(size, count) {
+    const path = [];
+    let top = 0;
+    let bottom = size - 1;
+    let left = 0;
+    let right = size - 1;
+
+    while (left <= right && top <= bottom && path.length < count) {
+      for (let col = right; col >= left && path.length < count; col -= 1) path.push({ row: bottom, col });
+      bottom -= 1;
+      for (let row = bottom; row >= top && path.length < count; row -= 1) path.push({ row, col: left });
+      left += 1;
+      for (let col = left; col <= right && path.length < count; col += 1) path.push({ row: top, col });
+      top += 1;
+      for (let row = top; row <= bottom && path.length < count; row += 1) path.push({ row, col: right });
+      right -= 1;
+    }
+
+    return path;
+  }
+
+  function applySpiralBoardLayout() {
+    if (!state.gameData?.fields?.length) return;
+    const fields = [...state.gameData.fields].sort((a, b) => a.id - b.id);
+    const size = Math.max(10, Math.ceil(Math.sqrt(fields.length)));
+    const coords = createSpiralGridPath(size, fields.length);
+    state.boardGridSize = size;
+    state.gameData.fields = fields.map((field, index) => {
+      const coord = coords[index] || { row: 0, col: 0 };
+      return {
+        ...field,
+        position: {
+          left: ((coord.col + 0.5) / size) * 100,
+          top: ((coord.row + 0.5) / size) * 100,
+          row: coord.row + 1,
+          col: coord.col + 1
+        }
+      };
+    });
+  }
+
   function buildBoardPathSvg(fields) {
     if (!Array.isArray(fields) || !fields.length) return "";
-    const points = fields
-      .map((field) => `${Number(field.position?.left || 0)},${Number(field.position?.top || 0)}`)
-      .join(" ");
+    const points = fields.map((field) => `${Number(field.position?.left || 0)},${Number(field.position?.top || 0)}`).join(" ");
     const circles = fields.map((field) => `
-      <circle class="path-node" cx="${Number(field.position?.left || 0)}" cy="${Number(field.position?.top || 0)}" r="0.56"></circle>
+      <circle class="path-node" cx="${Number(field.position?.left || 0)}" cy="${Number(field.position?.top || 0)}" r="0.36"></circle>
     `).join("");
     const last = fields[fields.length - 1]?.position || { left: 0, top: 0 };
     const first = fields[0]?.position || { left: 0, top: 0 };
@@ -625,24 +665,21 @@
     if (!state.gameData || !refs.board) return;
     const fields = [...(state.gameData.fields || [])].sort((a, b) => a.id - b.id);
     const pathSvg = buildBoardPathSvg(fields);
-    const tilesHtml = fields.map((field) => {
-      const shortDesc = String(field.description || "").trim();
-      return `
-        <div class="board-tile ${field.type}" data-field-id="${field.id}"
-             title="${escapeHtml(field.title)} — ${escapeHtml(field.description || '')}"
-             style="left:${field.position.left}%; top:${field.position.top}%;">
-          <div class="tile-accent"></div>
-          <div class="tile-head">
-            <span class="tile-badge">#${field.id}</span>
-            <span class="tile-icon">${escapeHtml(getTileIcon(field.type))}</span>
-          </div>
-          <div class="tile-title">${escapeHtml(field.title)}</div>
-          <div class="tile-desc">${escapeHtml(shortDesc)}</div>
-          <div class="tile-type">${escapeHtml(getTileTypeLabel(field.type))}</div>
+    const gridSize = state.boardGridSize || 10;
+    const tilesHtml = fields.map((field) => `
+      <div class="board-tile ${field.type}" data-field-id="${field.id}"
+           title="${escapeHtml(field.title)} — ${escapeHtml(field.description || '')}"
+           style="grid-row:${field.position.row}; grid-column:${field.position.col};">
+        <div class="tile-corner">
+          <span class="tile-badge">#${field.id}</span>
+          <span class="tile-icon">${escapeHtml(getTileIcon(field.type))}</span>
         </div>
-      `;
-    }).join("");
-    refs.board.innerHTML = `${pathSvg}${tilesHtml}<div id="piecesLayer"></div>`;
+        <div class="tile-title">${escapeHtml(field.title)}</div>
+        <div class="tile-brief">${escapeHtml(getTileQuickInfo(field))}</div>
+      </div>
+    `).join("");
+    refs.board.className = 'board board--spiral-grid';
+    refs.board.innerHTML = `${pathSvg}<div class="board-grid" style="--grid-size:${gridSize};">${tilesHtml}</div><div id="piecesLayer"></div>`;
     state.boardBuilt = true;
     fitBoardTiles();
     renderPieces();
@@ -653,45 +690,13 @@
     state.boardFitTimer = setTimeout(fitBoardTiles, 80);
   }
 
-  
   function fitBoardTiles() {
-    if (!refs.board || !state.gameData?.fields?.length) return;
+    if (!refs.board) return;
     const boardRect = refs.board.getBoundingClientRect();
-    if (!boardRect.width || !boardRect.height) return;
-
-    const coords = state.gameData.fields
-      .map((field) => ({ left: Number(field.position?.left), top: Number(field.position?.top) }))
-      .filter((pos) => Number.isFinite(pos.left) && Number.isFinite(pos.top));
-
-    const uniqueSorted = (values) => [...new Set(values.map((value) => Number(value.toFixed(2))))].sort((a, b) => a - b);
-    const xs = uniqueSorted(coords.map((pos) => pos.left));
-    const ys = uniqueSorted(coords.map((pos) => pos.top));
-
-    const minGap = (values, totalPx) => {
-      let min = Infinity;
-      for (let i = 1; i < values.length; i += 1) {
-        const diff = ((values[i] - values[i - 1]) / 100) * totalPx;
-        if (diff > 1) min = Math.min(min, diff);
-      }
-      return Number.isFinite(min) ? min : Infinity;
-    };
-
-    const spacingPx = Math.min(minGap(xs, boardRect.width), minGap(ys, boardRect.height));
-    const fallback = window.innerWidth <= 860
-      ? Number(state.gameData.settings?.boardTileSizeMobile || 64)
-      : Number(state.gameData.settings?.boardTileSizeDesktop || 90);
-
-    const tileSize = Math.max(
-      window.innerWidth <= 860 ? 68 : 96,
-      Math.min(
-        window.innerWidth <= 860 ? 84 : 112,
-        Math.floor((Number.isFinite(spacingPx) ? spacingPx : fallback) * 0.82),
-        fallback
-      )
-    );
-    const pieceSize = Math.max(24, Math.min(38, Math.floor(tileSize * 0.32)));
-
-    refs.board.style.setProperty('--tile-size-dyn', `${tileSize}px`);
+    if (!boardRect.width) return;
+    const gridSize = state.boardGridSize || 10;
+    const cellSize = Math.floor(boardRect.width / gridSize);
+    const pieceSize = Math.max(18, Math.min(32, Math.floor(cellSize * 0.28)));
     refs.board.style.setProperty('--piece-size-dyn', `${pieceSize}px`);
   }
 
@@ -721,6 +726,26 @@
       tax: "📄",
       penalty: "🔧"
     }[type] || "•";
+  }
+
+  function getTileQuickInfo(field) {
+    const effect = Array.isArray(field?.effects) ? field.effects[0] : null;
+    if (field?.type === "start") return "Ide érsz vissza";
+    if (field?.type === "shop") {
+      const item = getItemById(effect?.itemId);
+      return item ? formatMoney(item.price) : "Vásárlás";
+    }
+    if (field?.type === "chance") return "Húzz lapot";
+    if (field?.type === "skip") return "Kimaradsz";
+    if (field?.type === "move") {
+      const amount = Number(effect?.steps || effect?.amount || 0);
+      return amount >= 0 ? `+${amount} mező` : `${amount} mező`;
+    }
+    if (effect?.kind === "money") {
+      const amount = Number(effect.amount || 0);
+      return amount >= 0 ? `+${amount} Ft` : `${amount} Ft`;
+    }
+    return getTileTypeLabel(field?.type);
   }
 
   function render() {

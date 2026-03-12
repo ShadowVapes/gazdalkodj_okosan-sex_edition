@@ -11,7 +11,8 @@ window.GitHubRepoApi = (() => {
 
   async function getFile({ owner, repo, path, branch = "main", token }) {
     const res = await fetch(`${apiBase}/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`, {
-      headers: authHeaders(token)
+      headers: authHeaders(token),
+      cache: "no-store"
     });
     const data = await res.json();
     if (!res.ok) {
@@ -48,7 +49,7 @@ window.GitHubRepoApi = (() => {
     let currentSha = sha || null;
     let lastData = null;
 
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
       const { res, data } = await doPut(currentSha);
       lastData = data;
       if (res.ok) return data;
@@ -60,6 +61,7 @@ window.GitHubRepoApi = (() => {
       try {
         const fresh = await getFile({ owner, repo, path, branch, token });
         currentSha = fresh?.sha || null;
+        await new Promise((resolve) => setTimeout(resolve, 180));
       } catch (error) {
         currentSha = null;
       }
