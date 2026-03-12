@@ -600,21 +600,48 @@
     return Boolean(state.room && getHostPlayerId() === state.myPlayerId);
   }
 
+
+  function buildBoardPathSvg(fields) {
+    if (!Array.isArray(fields) || !fields.length) return "";
+    const points = fields
+      .map((field) => `${Number(field.position?.left || 0)},${Number(field.position?.top || 0)}`)
+      .join(" ");
+    const circles = fields.map((field) => `
+      <circle class="path-node" cx="${Number(field.position?.left || 0)}" cy="${Number(field.position?.top || 0)}" r="0.56"></circle>
+    `).join("");
+    const last = fields[fields.length - 1]?.position || { left: 0, top: 0 };
+    const first = fields[0]?.position || { left: 0, top: 0 };
+    return `
+      <svg class="board-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <polyline class="path-shadow" points="${points}"></polyline>
+        <polyline class="path-main" points="${points}"></polyline>
+        <line class="path-loop" x1="${last.left}" y1="${last.top}" x2="${first.left}" y2="${first.top}"></line>
+        ${circles}
+      </svg>
+    `;
+  }
+
   function buildBoard() {
     if (!state.gameData || !refs.board) return;
     const fields = [...(state.gameData.fields || [])].sort((a, b) => a.id - b.id);
     const pathSvg = buildBoardPathSvg(fields);
-    const tilesHtml = fields.map((field) => `
-      <div class="board-tile ${field.type}" data-field-id="${field.id}"
-           title="${escapeHtml(field.title)} — ${escapeHtml(field.description || '')}"
-           style="left:${field.position.left}%; top:${field.position.top}%;">
-        <div class="tile-accent"></div>
-        <div class="tile-icon">${escapeHtml(getTileIcon(field.type))}</div>
-        <div class="tile-title">${escapeHtml(field.title)}</div>
-        <div class="tile-type">${escapeHtml(getTileTypeLabel(field.type))}</div>
-        <div class="tile-id">#${field.id}</div>
-      </div>
-    `).join("");
+    const tilesHtml = fields.map((field) => {
+      const shortDesc = String(field.description || "").trim();
+      return `
+        <div class="board-tile ${field.type}" data-field-id="${field.id}"
+             title="${escapeHtml(field.title)} — ${escapeHtml(field.description || '')}"
+             style="left:${field.position.left}%; top:${field.position.top}%;">
+          <div class="tile-accent"></div>
+          <div class="tile-head">
+            <span class="tile-badge">#${field.id}</span>
+            <span class="tile-icon">${escapeHtml(getTileIcon(field.type))}</span>
+          </div>
+          <div class="tile-title">${escapeHtml(field.title)}</div>
+          <div class="tile-desc">${escapeHtml(shortDesc)}</div>
+          <div class="tile-type">${escapeHtml(getTileTypeLabel(field.type))}</div>
+        </div>
+      `;
+    }).join("");
     refs.board.innerHTML = `${pathSvg}${tilesHtml}<div id="piecesLayer"></div>`;
     state.boardBuilt = true;
     fitBoardTiles();
@@ -655,14 +682,14 @@
       : Number(state.gameData.settings?.boardTileSizeDesktop || 90);
 
     const tileSize = Math.max(
-      window.innerWidth <= 860 ? 56 : 74,
+      window.innerWidth <= 860 ? 68 : 96,
       Math.min(
-        window.innerWidth <= 860 ? 84 : 108,
-        Math.floor((Number.isFinite(spacingPx) ? spacingPx : fallback) * 0.86),
+        window.innerWidth <= 860 ? 84 : 112,
+        Math.floor((Number.isFinite(spacingPx) ? spacingPx : fallback) * 0.82),
         fallback
       )
     );
-    const pieceSize = Math.max(22, Math.min(36, Math.floor(tileSize * 0.30)));
+    const pieceSize = Math.max(24, Math.min(38, Math.floor(tileSize * 0.32)));
 
     refs.board.style.setProperty('--tile-size-dyn', `${tileSize}px`);
     refs.board.style.setProperty('--piece-size-dyn', `${pieceSize}px`);
@@ -952,7 +979,8 @@
           : null;
 
       if (revealSignature) {
-        const minHoldUntil = now + 4000;
+        const startedAt = Number(overlayData?.startedAt || now);
+        const minHoldUntil = startedAt + 4000;
         if (!state.localOverlay || state.localOverlay.signature !== revealSignature) {
           state.localOverlay = {
             signature: revealSignature,
@@ -1270,9 +1298,11 @@
     const cardId = nextState.deckOrder[nextState.drawIndex];
     nextState.drawIndex += 1;
     nextState.phase = "card_reveal";
+    const revealStartedAt = Date.now();
     nextState.overlay = {
       cardId,
-      endsAt: Date.now() + Math.max(4000, Number(state.gameData.settings.cardRevealMs || 0)) + 120
+      startedAt: revealStartedAt,
+      endsAt: revealStartedAt + Math.max(4000, Number(state.gameData.settings.cardRevealMs || 0)) + 120
     };
     nextState.pendingAction = {
       type: "card",
@@ -1468,9 +1498,11 @@
     const landedField = getFieldById(movement.to);
     nextState.movement = null;
     nextState.phase = "field_reveal";
+    const revealStartedAt = Date.now();
     nextState.overlay = {
       fieldId: landedField.id,
-      endsAt: Date.now() + Math.max(4000, Number(state.gameData.settings.fieldRevealMs || 0)) + 120
+      startedAt: revealStartedAt,
+      endsAt: revealStartedAt + Math.max(4000, Number(state.gameData.settings.fieldRevealMs || 0)) + 120
     };
     nextState.chainDepth = movement.chainDepth || 0;
     await updateRoom({ state: nextState });

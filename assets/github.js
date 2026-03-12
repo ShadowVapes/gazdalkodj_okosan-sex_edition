@@ -45,25 +45,27 @@ window.GitHubRepoApi = (() => {
       return { res, data };
     };
 
-    let { res, data } = await doPut(sha);
+    let currentSha = sha || null;
+    let lastData = null;
 
-    if (!res.ok) {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const { res, data } = await doPut(currentSha);
+      lastData = data;
+      if (res.ok) return data;
+
       const msg = String(data?.message || "");
-      const isShaConflict = msg.includes("does not match") || msg.includes("sha") || res.status === 409;
-      if (isShaConflict) {
-        try {
-          const fresh = await getFile({ owner, repo, path, branch, token });
-          ({ res, data } = await doPut(fresh?.sha));
-        } catch (e) {
-          // keep original error below if retry also fails
-        }
+      const conflict = msg.includes("does not match") || msg.includes("sha") || res.status === 409 || res.status === 422;
+      if (!conflict) break;
+
+      try {
+        const fresh = await getFile({ owner, repo, path, branch, token });
+        currentSha = fresh?.sha || null;
+      } catch (error) {
+        currentSha = null;
       }
     }
 
-    if (!res.ok) {
-      throw new Error(data?.message || "Nem sikerült menteni a GitHub repóba.");
-    }
-    return data;
+    throw new Error(lastData?.message || "Nem sikerült menteni a GitHub repóba.");
   }
 
   return { getFile, upsertFile };
