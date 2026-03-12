@@ -602,59 +602,103 @@
   }
 
 
-  function createSpiralGridPath(size, count) {
-    const path = [];
-    let top = 0;
-    let bottom = size - 1;
-    let left = 0;
-    let right = size - 1;
+  function createBoardTrackControlPoints() {
+    return [
+      { left: 88, top: 88 },
+      { left: 12, top: 88 },
+      { left: 12, top: 12 },
+      { left: 84, top: 12 },
+      { left: 84, top: 80 },
+      { left: 20, top: 80 },
+      { left: 20, top: 20 },
+      { left: 76, top: 20 },
+      { left: 76, top: 72 },
+      { left: 28, top: 72 },
+      { left: 28, top: 28 },
+      { left: 68, top: 28 },
+      { left: 68, top: 64 },
+      { left: 36, top: 64 },
+      { left: 36, top: 36 },
+      { left: 60, top: 36 },
+      { left: 60, top: 60 },
+      { left: 70, top: 60 },
+      { left: 70, top: 70 },
+      { left: 80, top: 70 },
+      { left: 80, top: 80 },
+      { left: 88, top: 80 }
+    ];
+  }
 
-    while (left <= right && top <= bottom && path.length < count) {
-      for (let col = right; col >= left && path.length < count; col -= 1) path.push({ row: bottom, col });
-      bottom -= 1;
-      for (let row = bottom; row >= top && path.length < count; row -= 1) path.push({ row, col: left });
-      left += 1;
-      for (let col = left; col <= right && path.length < count; col += 1) path.push({ row: top, col });
-      top += 1;
-      for (let row = top; row <= bottom && path.length < count; row += 1) path.push({ row, col: right });
-      right -= 1;
+  function buildTrackSegments(points) {
+    const segments = [];
+    let total = 0;
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const from = points[index];
+      const to = points[index + 1];
+      const length = Math.hypot(to.left - from.left, to.top - from.top);
+      segments.push({ from, to, length, start: total, end: total + length });
+      total += length;
+    }
+    return { segments, total };
+  }
+
+  function samplePointOnTrack(track, distance) {
+    if (!track.segments.length) return { left: 50, top: 50 };
+    const clamped = Math.max(0, Math.min(distance, track.total));
+    const segment = track.segments.find((item) => clamped <= item.end) || track.segments[track.segments.length - 1];
+    const localDistance = clamped - segment.start;
+    const progress = segment.length ? (localDistance / segment.length) : 0;
+    return {
+      left: segment.from.left + ((segment.to.left - segment.from.left) * progress),
+      top: segment.from.top + ((segment.to.top - segment.from.top) * progress)
+    };
+  }
+
+  function generateBoardTrackPositions(count) {
+    const controlPoints = createBoardTrackControlPoints();
+    const track = buildTrackSegments(controlPoints);
+    const positions = [];
+
+    for (let index = 0; index < count; index += 1) {
+      const distance = (track.total * index) / Math.max(1, count - 1);
+      positions.push(samplePointOnTrack(track, distance));
     }
 
-    return path;
+    positions[count - 1] = { ...controlPoints[controlPoints.length - 1] };
+    return { controlPoints, positions };
   }
 
   function applySpiralBoardLayout() {
     if (!state.gameData?.fields?.length) return;
     const fields = [...state.gameData.fields].sort((a, b) => a.id - b.id);
-    const size = Math.max(10, Math.ceil(Math.sqrt(fields.length)));
-    const coords = createSpiralGridPath(size, fields.length);
-    state.boardGridSize = size;
-    state.gameData.fields = fields.map((field, index) => {
-      const coord = coords[index] || { row: 0, col: 0 };
-      return {
-        ...field,
-        position: {
-          left: ((coord.col + 0.5) / size) * 100,
-          top: ((coord.row + 0.5) / size) * 100,
-          row: coord.row + 1,
-          col: coord.col + 1
-        }
-      };
-    });
+    const { controlPoints, positions } = generateBoardTrackPositions(fields.length);
+    state.boardControlPoints = controlPoints;
+    state.boardGridSize = 10;
+    state.gameData.fields = fields.map((field, index) => ({
+      ...field,
+      position: {
+        left: Number((positions[index]?.left || 50).toFixed(3)),
+        top: Number((positions[index]?.top || 50).toFixed(3))
+      }
+    }));
   }
 
   function buildBoardPathSvg(fields) {
     if (!Array.isArray(fields) || !fields.length) return "";
-    const points = fields.map((field) => `${Number(field.position?.left || 0)},${Number(field.position?.top || 0)}`).join(" ");
+    const polylinePoints = fields.map((field) => `${Number(field.position?.left || 0)},${Number(field.position?.top || 0)}`).join(" ");
     const circles = fields.map((field) => `
-      <circle class="path-node" cx="${Number(field.position?.left || 0)}" cy="${Number(field.position?.top || 0)}" r="0.36"></circle>
+      <circle class="path-node" cx="${Number(field.position?.left || 0)}" cy="${Number(field.position?.top || 0)}" r="0.44"></circle>
     `).join("");
+    const controlPolyline = (state.boardControlPoints || [])
+      .map((point) => `${Number(point.left || 0)},${Number(point.top || 0)}`)
+      .join(" ");
     const last = fields[fields.length - 1]?.position || { left: 0, top: 0 };
     const first = fields[0]?.position || { left: 0, top: 0 };
     return `
       <svg class="board-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <polyline class="path-shadow" points="${points}"></polyline>
-        <polyline class="path-main" points="${points}"></polyline>
+        <polyline class="path-shadow" points="${polylinePoints}"></polyline>
+        <polyline class="path-main" points="${polylinePoints}"></polyline>
+        <polyline class="path-guide" points="${controlPolyline}"></polyline>
         <line class="path-loop" x1="${last.left}" y1="${last.top}" x2="${first.left}" y2="${first.top}"></line>
         ${circles}
       </svg>
@@ -665,21 +709,28 @@
     if (!state.gameData || !refs.board) return;
     const fields = [...(state.gameData.fields || [])].sort((a, b) => a.id - b.id);
     const pathSvg = buildBoardPathSvg(fields);
-    const gridSize = state.boardGridSize || 10;
-    const tilesHtml = fields.map((field) => `
-      <div class="board-tile ${field.type}" data-field-id="${field.id}"
-           title="${escapeHtml(field.title)} — ${escapeHtml(field.description || '')}"
-           style="grid-row:${field.position.row}; grid-column:${field.position.col};">
-        <div class="tile-corner">
-          <span class="tile-badge">#${field.id}</span>
-          <span class="tile-icon">${escapeHtml(getTileIcon(field.type))}</span>
+    const lastFieldId = fields.length ? fields[fields.length - 1].id : null;
+    const tilesHtml = fields.map((field) => {
+      const classes = ["board-tile", field.type];
+      if (field.id === 0) classes.push("is-start");
+      if (field.id === lastFieldId) classes.push("is-last-before-start");
+      return `
+        <div class="${classes.join(" ")}" data-field-id="${field.id}"
+             title="${escapeHtml(field.title)} — ${escapeHtml(field.description || '')}"
+             style="left:${field.position.left}%; top:${field.position.top}%">
+          <div class="tile-accent"></div>
+          <div class="tile-head">
+            <span class="tile-badge">#${field.id}</span>
+            <span class="tile-icon">${escapeHtml(getTileIcon(field.type))}</span>
+          </div>
+          <div class="tile-title">${escapeHtml(field.title)}</div>
+          <div class="tile-brief">${escapeHtml(getTileQuickInfo(field))}</div>
+          <div class="tile-type">${escapeHtml(getTileTypeLabel(field.type))}</div>
         </div>
-        <div class="tile-title">${escapeHtml(field.title)}</div>
-        <div class="tile-brief">${escapeHtml(getTileQuickInfo(field))}</div>
-      </div>
-    `).join("");
-    refs.board.className = 'board board--spiral-grid';
-    refs.board.innerHTML = `${pathSvg}<div class="board-grid" style="--grid-size:${gridSize};">${tilesHtml}</div><div id="piecesLayer"></div>`;
+      `;
+    }).join("");
+    refs.board.className = 'board board--spiral-track';
+    refs.board.innerHTML = `${pathSvg}${tilesHtml}<div id="piecesLayer"></div>`;
     state.boardBuilt = true;
     fitBoardTiles();
     renderPieces();
@@ -693,10 +744,30 @@
   function fitBoardTiles() {
     if (!refs.board) return;
     const boardRect = refs.board.getBoundingClientRect();
-    if (!boardRect.width) return;
-    const gridSize = state.boardGridSize || 10;
-    const cellSize = Math.floor(boardRect.width / gridSize);
-    const pieceSize = Math.max(18, Math.min(32, Math.floor(cellSize * 0.28)));
+    if (!boardRect.width || !state.gameData?.fields?.length) return;
+
+    const points = state.gameData.fields
+      .sort((a, b) => a.id - b.id)
+      .map((field) => ({
+        x: (Number(field.position?.left || 0) / 100) * boardRect.width,
+        y: (Number(field.position?.top || 0) / 100) * boardRect.height
+      }));
+
+    let minDistance = Infinity;
+    for (let index = 1; index < points.length; index += 1) {
+      const dx = points[index].x - points[index - 1].x;
+      const dy = points[index].y - points[index - 1].y;
+      const distance = Math.hypot(dx, dy);
+      if (distance > 0) minDistance = Math.min(minDistance, distance);
+    }
+
+    if (!Number.isFinite(minDistance)) {
+      minDistance = Math.min(boardRect.width, boardRect.height) / 12;
+    }
+
+    const tileSize = Math.max(42, Math.min(72, Math.floor(minDistance * 0.76)));
+    const pieceSize = Math.max(18, Math.min(28, Math.floor(tileSize * 0.38)));
+    refs.board.style.setProperty('--tile-size-dyn', `${tileSize}px`);
     refs.board.style.setProperty('--piece-size-dyn', `${pieceSize}px`);
   }
 
@@ -730,13 +801,15 @@
 
   function getTileQuickInfo(field) {
     const effect = Array.isArray(field?.effects) ? field.effects[0] : null;
-    if (field?.type === "start") return "Ide érsz vissza";
+    const lastFieldId = Math.max(0, ((state.gameData?.fields?.length || 1) - 1));
+    if (field?.id === lastFieldId) return "1 mező a Startig";
+    if (field?.type === "start") return "Innen indulsz";
     if (field?.type === "shop") {
       const item = getItemById(effect?.itemId);
       return item ? formatMoney(item.price) : "Vásárlás";
     }
     if (field?.type === "chance") return "Húzz lapot";
-    if (field?.type === "skip") return "Kimaradsz";
+    if (field?.type === "skip") return "Kimaradás";
     if (field?.type === "move") {
       const amount = Number(effect?.steps || effect?.amount || 0);
       return amount >= 0 ? `+${amount} mező` : `${amount} mező`;
@@ -1411,10 +1484,10 @@
         state.hostTimeout = setTimeout(finalizeMovement, Math.max(0, (game.movement?.endsAt || now) - now + 40));
         break;
       case "field_reveal":
-        state.hostTimeout = setTimeout(resolveFieldAfterReveal, Math.max(0, (game.overlay?.endsAt || now) - now + 40));
+        state.hostTimeout = setTimeout(resolveFieldAfterReveal, Math.max(0, Math.max(game.overlay?.endsAt || 0, (game.overlay?.startedAt || 0) + 4000) - now + 40));
         break;
       case "card_reveal":
-        state.hostTimeout = setTimeout(resolveCardAfterReveal, Math.max(0, (game.overlay?.endsAt || now) - now + 40));
+        state.hostTimeout = setTimeout(resolveCardAfterReveal, Math.max(0, Math.max(game.overlay?.endsAt || 0, (game.overlay?.startedAt || 0) + 4000) - now + 40));
         break;
       case "skip_notice":
         state.hostTimeout = setTimeout(async () => {
